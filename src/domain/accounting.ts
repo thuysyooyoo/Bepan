@@ -15,10 +15,12 @@ import type {
   Worker,
 } from '../types/models';
 import {
+  daysBetweenISO,
   formatVietnameseDate,
   formatVietnameseMonth,
   formatVND,
   getPreviousYearMonth,
+  getTodayISO,
   getYearMonth,
   shiftDateISO,
 } from './format';
@@ -910,11 +912,290 @@ export function computeWalletBalances(
   });
 }
 
+export interface WalletReconciliationDiff {
+  so_du_so_sach: number;
+  tien_dem_thuc_te: number;
+  chenh_lech: number; // dương = thừa tiền so với sổ; âm = hụt tiền so với sổ
+  trang_thai: 'khop' | 'thua' | 'hut';
+}
+
+/**
+ * 4b. Tính chênh lệch khi ông bà đếm tiền thực tế trong két / tài khoản đối chiếu với sổ:
+ */
+export function computeWalletReconciliationDiff(
+  bookBalance: number,
+  actualCounted: number
+): WalletReconciliationDiff {
+  const soDu = Math.round(bookBalance);
+  const thucTe = Math.round(actualCounted);
+  const diff = thucTe - soDu;
+  return {
+    so_du_so_sach: soDu,
+    tien_dem_thuc_te: thucTe,
+    chenh_lech: diff,
+    trang_thai: diff === 0 ? 'khop' : diff > 0 ? 'thua' : 'hut',
+  };
+}
+
+export interface WalletTimelineEntry {
+  tx: Transaction;
+  huong: 'vao' | 'ra' | 'chuyen_quy';
+  bien_dong: number; // +VND, -VND, hoặc 0 khi xem gộp cả 3 ví mà chuyển quỹ nội bộ
+  so_du_sau_gd: number;
+  icon: string;
+  tieu_de: string;
+  ten_vi_hien_thi: string;
+}
+
+/**
+ * 4c. Dòng thời gian tiền vào / tiền ra thực tế kèm số dư lũy kế sau từng giao dịch.
+ * Tuyệt đối KHÔNG bao gồm mua chịu ('chi_no').
+ */
+export function computeWalletTimeline(
+  snapshot: BookSnapshot,
+  options?: { walletId?: string | null; kyThang?: string | null }
+): WalletTimelineEntry[] {
+  const bookId = snapshot.book.id;
+  const filterWalletId = options?.walletId || null;
+  const filterMonth = options?.kyThang || null;
+
+  const walletMap = new Map(
+    snapshot.wallets.filter((w) => w.book_id === bookId).map((w) => [w.id, w])
+  );
+  const catMap = new Map(snapshot.categories.map((c) => [c.id, c]));
+  const supMap = new Map(snapshot.suppliers.map((s) => [s.id, s]));
+  const workerMap = new Map(snapshot.workers.map((w) => [w.id, w]));
+
+  const openingBalance = filterWalletId
+    ? walletMap.get(filterWalletId)?.so_du_dau_ky ?? 0
+    : Array.from(walletMap.values()).reduce((s, w) => s + w.so_du_dau_ky, 0);
+
+  // Chỉ lấy giao dịch thực thu thực chi (loại trừ chi_no và da_xoa)
+  const cashTxs = snapshot.transactions
+    .filter((t) => {
+      if (t.book_id !== bookId || t.da_xoa || t.loai === 'chi_no') return false;
+      if (!filterWalletId) return true;
+      return (
+        t.wallet_id === filterWalletId ||
+        (t.loai === 'chuyen_quy' && t.to_wallet_id === filterWalletId)
+      );
+    })
+    .sort((a, b) => {
+      const d = a.ngay.localeCompare(b.ngay);
+      if (d !== 0) return d;
+      return a.timestamp.localeCompare(b.timestamp);
+    });
+
+  let running = openingBalance;
+  const chronological: WalletTimelineEntry[] = [];
+
+  for (const tx of cashTxs) {
+    let huong: WalletTimelineEntry['huong'] = 'ra';
+    let bienDong = 0;
+
+    if (tx.loai === 'thu_cuoi_ngay' || tx.loai === 'thu' || tx.loai === 'truong_chuyen') {
+      huong = 'vao';
+      bienDong = tx.so_tien;
+    } else if (tx.loai === 'chi' || tx.loai === 'tra_no' || tx.loai === 'tra_luong') {
+      huong = 'ra';
+      bienDong = -tx.so_tien;
+    } else if (tx.loai === 'chuyen_quy') {
+      if (filterWalletId) {
+        if (tx.wallet_id === filterWalletId && tx.to_wallet_id !== filterWalletId) {
+          huong = 'ra';
+          bienDong = -tx.so_tien;
+        } else if (tx.to_wallet_id === filterWalletId && tx.wallet_id !== filterWalletId) {
+          huong = 'vao';
+          bienDong = tx.so_tien;
+        } else {
+          huong = 'chuyen_quy';
+          bienDong = 0;
+        }
+      } else {
+        huong = 'chuyen_quy';
+        bienDong = 0;
+      }
+    } else if (tx.loai === 'dieu_chinh_vi') {
+      huong = tx.so_tien >= 0 ? 'vao' : 'ra';
+      bienDong = tx.so_tien;
+    }
+
+    running += bienDong;
+
+    const cat = catMap.get(tx.category_id);
+    const fromWallet = tx.wallet_id ? walletMap.get(tx.wallet_id) : undefined;
+    const toWallet = tx.to_wallet_id ? walletMap.get(tx.to_wallet_id) : undefined;
+    const sup = tx.supplier_id ? supMap.get(tx.supplier_id) : undefined;
+    const worker = tx.worker_id ? workerMap.get(tx.worker_id) : undefined;
+
+    let icon = cat?.icon ?? '💵';
+    let tieuDe = tx.ghi_chu || cat?.ten_danh_muc || 'Giao dịch ví';
+    if (tx.loai === 'tra_no' && sup) {
+      icon = '🤝';
+      tieuDe = `Trả nợ ${sup.ten_ncc}${tx.ghi_chu ? ` — ${tx.ghi_chu}` : ''}`;
+    } else if (tx.loai === 'tra_luong' && worker) {
+      icon = '👷';
+      tieuDe = `Trả/ứng lương ${worker.ho_ten}`;
+    } else if (tx.loai === 'chuyen_quy') {
+      icon = '🔄';
+      tieuDe = tx.ghi_chu || `Chuyển quỹ nội bộ`;
+    } else if (tx.loai === 'dieu_chinh_vi') {
+      icon = '⚖️';
+      tieuDe =
+        tx.ghi_chu ||
+        (tx.so_tien >= 0 ? 'Điều chỉnh thừa tiền khi kiểm két' : 'Điều chỉnh hụt tiền khi kiểm két');
+    }
+
+    const tenViHienThi =
+      tx.loai === 'chuyen_quy'
+        ? `${fromWallet?.ten_vi ?? 'Ví chuyển'} → ${toWallet?.ten_vi ?? 'Ví nhận'}`
+        : fromWallet?.ten_vi ?? 'Ví';
+
+    chronological.push({
+      tx,
+      huong,
+      bien_dong: bienDong,
+      so_du_sau_gd: running,
+      icon,
+      tieu_de: tieuDe,
+      ten_vi_hien_thi: tenViHienThi,
+    });
+  }
+
+  const filtered = filterMonth
+    ? chronological.filter((e) => getYearMonth(e.tx.ngay) === filterMonth)
+    : chronological;
+
+  return filtered.reverse();
+}
+
+export interface SupplierLedgerHistoryEntry {
+  tx: Transaction;
+  loai_phat_sinh: 'mua_chiu' | 'tra_no';
+  so_tien: number; // dương
+  du_no_sau_gd: number;
+  ten_danh_muc_hoac_vi: string;
+}
+
+export interface SupplierLedgerDetail {
+  supplier: Supplier;
+  no_dau_ky: number;
+  tong_mua_chiu: number;
+  tong_da_tra: number;
+  con_no: number;
+  ngay_no_cu_nhat: string | null; // Tính theo FIFO: ngày của khoản mua chịu cũ nhất chưa trả hết
+  so_ngay_no_lau_nhat: number;
+  lich_su: SupplierLedgerHistoryEntry[]; // Mới nhất xếp trên đầu
+}
+
+/**
+ * 5b. Sổ chi tiết công nợ của 1 Nhà cung cấp (từng lần lấy hàng mua chịu & từng lần trả nợ,
+ * tính tuổi nợ theo FIFO chính xác để biết khoản nợ lâu nhất chưa tất toán đã bao nhiêu ngày).
+ */
+export function computeSupplierLedgerDetail(
+  snapshot: BookSnapshot,
+  supplierId: string,
+  referenceDate: string = getTodayISO()
+): SupplierLedgerDetail | null {
+  const bookId = snapshot.book.id;
+  const supplier = snapshot.suppliers.find(
+    (s) => s.id === supplierId && s.book_id === bookId
+  );
+  if (!supplier) return null;
+
+  const catMap = new Map(snapshot.categories.map((c) => [c.id, c]));
+  const walletMap = new Map(snapshot.wallets.map((w) => [w.id, w]));
+
+  const supTxs = snapshot.transactions
+    .filter(
+      (t) =>
+        t.book_id === bookId &&
+        !t.da_xoa &&
+        t.supplier_id === supplierId &&
+        (t.loai === 'chi_no' || t.loai === 'tra_no')
+    )
+    .sort((a, b) => {
+      const d = a.ngay.localeCompare(b.ngay);
+      if (d !== 0) return d;
+      return a.timestamp.localeCompare(b.timestamp);
+    });
+
+  let tongMuaChiu = 0;
+  let tongDaTra = 0;
+  let runningDebt = supplier.no_dau_ky;
+
+  const buckets: Array<{ ngay: string; remaining: number }> = [];
+  if (supplier.no_dau_ky > 0) {
+    buckets.push({
+      ngay: snapshot.book.created_at.slice(0, 10) || '2026-01-01',
+      remaining: supplier.no_dau_ky,
+    });
+  }
+
+  const chronologicalHistory: SupplierLedgerHistoryEntry[] = [];
+
+  for (const tx of supTxs) {
+    if (tx.loai === 'chi_no') {
+      tongMuaChiu += tx.so_tien;
+      runningDebt += tx.so_tien;
+      buckets.push({ ngay: tx.ngay, remaining: tx.so_tien });
+      const cat = catMap.get(tx.category_id);
+      chronologicalHistory.push({
+        tx,
+        loai_phat_sinh: 'mua_chiu',
+        so_tien: tx.so_tien,
+        du_no_sau_gd: runningDebt,
+        ten_danh_muc_hoac_vi: cat ? `${cat.icon} ${cat.ten_danh_muc}` : 'Mua chịu hàng',
+      });
+    } else {
+      tongDaTra += tx.so_tien;
+      runningDebt -= tx.so_tien;
+      const w = tx.wallet_id ? walletMap.get(tx.wallet_id) : undefined;
+      chronologicalHistory.push({
+        tx,
+        loai_phat_sinh: 'tra_no',
+        so_tien: tx.so_tien,
+        du_no_sau_gd: runningDebt,
+        ten_danh_muc_hoac_vi: w ? `Trả từ ${w.ten_vi}` : 'Đã trả tiền',
+      });
+    }
+  }
+
+  // Khấu trừ FIFO các khoản đã trả vào các khoản mua chịu cũ nhất trước
+  let paidPool = tongDaTra;
+  for (const b of buckets) {
+    if (paidPool <= 0) break;
+    const deduct = Math.min(paidPool, b.remaining);
+    b.remaining -= deduct;
+    paidPool -= deduct;
+  }
+
+  const conNo = supplier.no_dau_ky + tongMuaChiu - tongDaTra;
+  const oldestUnpaidBucket = conNo > 0 ? buckets.find((b) => b.remaining > 0) : undefined;
+  const ngayNoCuNhat = oldestUnpaidBucket ? oldestUnpaidBucket.ngay : null;
+  const soNgayNoLauNhat = ngayNoCuNhat
+    ? Math.max(0, daysBetweenISO(ngayNoCuNhat, referenceDate))
+    : 0;
+
+  return {
+    supplier,
+    no_dau_ky: supplier.no_dau_ky,
+    tong_mua_chiu: tongMuaChiu,
+    tong_da_tra: tongDaTra,
+    con_no: conNo,
+    ngay_no_cu_nhat: ngayNoCuNhat,
+    so_ngay_no_lau_nhat: soNgayNoLauNhat,
+    lich_su: chronologicalHistory.reverse(),
+  };
+}
+
 export interface SupplierDebtItem {
   supplier: Supplier;
   tong_mua_chiu: number;
   tong_da_tra: number;
   con_no: number;
+  ngay_no_cu_nhat: string | null;
+  so_ngay_no_lau_nhat: number;
 }
 
 export interface DebtAndPayablesSummary {
@@ -952,26 +1233,24 @@ export interface DebtAndPayablesSummary {
  */
 export function computeDebtAndPayables(
   snapshot: BookSnapshot,
-  kyThang: string
+  kyThang: string,
+  referenceDate: string = getTodayISO()
 ): DebtAndPayablesSummary {
   const bookId = snapshot.book.id;
   const activeTxs = snapshot.transactions.filter((t) => t.book_id === bookId && !t.da_xoa);
 
-  // 1. Nợ nhà cung cấp
+  // 1. Nợ nhà cung cấp (tính kèm tuổi nợ FIFO)
   const supplierItems: SupplierDebtItem[] = snapshot.suppliers
     .filter((s) => s.book_id === bookId)
     .map((supplier) => {
-      const muaChiu = activeTxs
-        .filter((t) => t.loai === 'chi_no' && t.supplier_id === supplier.id)
-        .reduce((s, t) => s + t.so_tien, 0);
-      const daTra = activeTxs
-        .filter((t) => t.loai === 'tra_no' && t.supplier_id === supplier.id)
-        .reduce((s, t) => s + t.so_tien, 0);
+      const detail = computeSupplierLedgerDetail(snapshot, supplier.id, referenceDate);
       return {
         supplier,
-        tong_mua_chiu: muaChiu,
-        tong_da_tra: daTra,
-        con_no: supplier.no_dau_ky + muaChiu - daTra,
+        tong_mua_chiu: detail?.tong_mua_chiu ?? 0,
+        tong_da_tra: detail?.tong_da_tra ?? 0,
+        con_no: detail?.con_no ?? supplier.no_dau_ky,
+        ngay_no_cu_nhat: detail?.ngay_no_cu_nhat ?? null,
+        so_ngay_no_lau_nhat: detail?.so_ngay_no_lau_nhat ?? 0,
       };
     });
 

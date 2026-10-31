@@ -53,7 +53,15 @@ export class LocalDexieAdapter implements DataRepository {
 
   private async seedIfEmpty(): Promise<void> {
     const count = await this.db.books.count();
-    if (count > 0) return;
+    if (count > 0) {
+      // Bổ sung danh mục hệ thống mới (nếu nâng cấp phiên bản trên máy đã có dữ liệu)
+      const existingIds = new Set((await this.db.categories.toArray()).map((c) => c.id));
+      const missingCats = SEED_CATEGORIES.filter((c) => !existingIds.has(c.id));
+      if (missingCats.length > 0) {
+        await this.db.categories.bulkPut(missingCats);
+      }
+      return;
+    }
 
     const profiles = await buildSeedProfiles();
 

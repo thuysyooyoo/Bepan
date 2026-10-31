@@ -430,6 +430,16 @@ export const SEED_CATEGORIES: Category[] = [
     tu_khoa_ai: ['rút tiền', 'chuyển quỹ', 'chị nhàn đưa tiền mặt', 'mợ diệp chuyển'],
     thu_tu: 44,
   },
+  {
+    id: 'cat_dieu_chinh_vi',
+    ten_danh_muc: 'Điều chỉnh kiểm đếm thực tế',
+    nhom: 'dong_tien',
+    kieu_tinh: 'khong_tinh_lai',
+    mang_mac_dinh: 'chung',
+    icon: '⚖️',
+    tu_khoa_ai: ['kiểm tiền', 'đếm tiền lệch', 'điều chỉnh ví'],
+    thu_tu: 45,
+  },
 ];
 
 export const SEED_WORKERS: Worker[] = [

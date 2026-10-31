@@ -46,6 +46,21 @@ export function shiftDateISO(isoDate: string, deltaDays: number): string {
   return `${ny}-${nm}-${nd}`;
 }
 
+export function daysBetweenISO(fromIso: string, toIso: string): number {
+  const [fy, fm, fd] = fromIso.split('-').map(Number);
+  const [ty, tm, td] = toIso.split('-').map(Number);
+  const fromUtc = Date.UTC(fy, fm - 1, fd);
+  const toUtc = Date.UTC(ty, tm - 1, td);
+  return Math.floor((toUtc - fromUtc) / (24 * 60 * 60 * 1000));
+}
+
+export function getNowTimeHHmm(): string {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
 /**
  * Gợi ý mệnh giá thông minh cho ông bà khỏi phải đếm số 0:
  * Ví dụ gõ "450" -> gợi ý [450_000, 4_500_000]; gõ "25" -> [25_000, 250_000, 2_500_000]

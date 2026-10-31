@@ -1,15 +1,17 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   MessageSquareText,
   BarChart3,
   Wallet,
   BookMarked,
+  BellRing,
   LogOut,
   Settings,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { dbRepo } from '../db';
 import { getTodayISO } from '../domain/format';
+import { evaluateActiveReminders } from '../domain/reminders';
 import type { BookId, BookSnapshot, Transaction } from '../types/models';
 import type { UndoState } from './ConfirmationCard';
 import type { ManualFormKind } from './ManualEntryForms';
@@ -29,6 +31,7 @@ export const AppShell: React.FC = () => {
     kind: ManualFormKind;
     editTx?: Transaction | null;
   } | null>(null);
+  const [focusedSupplierId, setFocusedSupplierId] = useState<string | null>(null);
   const [undoState, setUndoState] = useState<UndoState | null>(null);
 
   const reloadSnapshot = useCallback(async () => {
@@ -45,8 +48,23 @@ export const AppShell: React.FC = () => {
   useEffect(() => {
     reloadSnapshot();
     setActiveForm(null);
+    setFocusedSupplierId(null);
     setUndoState(null);
   }, [reloadSnapshot]);
+
+  const activeReminders = useMemo(
+    () => (snapshot ? evaluateActiveReminders(snapshot) : []),
+    [snapshot]
+  );
+
+  const overdueDebtCount = useMemo(
+    () => activeReminders.filter((r) => r.loai_nhac === 'no_qua_han').length,
+    [activeReminders]
+  );
+
+  const clearFocusedSupplier = useCallback(() => {
+    setFocusedSupplierId(null);
+  }, []);
 
   if (!session) return null;
 
@@ -55,11 +73,26 @@ export const AppShell: React.FC = () => {
     ? 'bg-teal-800 text-white border-teal-900'
     : 'bg-amber-800 text-white border-amber-900';
 
-  const tabs: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
-    { key: 'ghi_so', label: 'Ghi sổ', icon: <MessageSquareText className="w-7 h-7" /> },
+  const tabs: Array<{
+    key: TabKey;
+    label: string;
+    icon: React.ReactNode;
+    badge?: number;
+  }> = [
+    {
+      key: 'ghi_so',
+      label: 'Ghi sổ',
+      icon: <MessageSquareText className="w-7 h-7" />,
+      badge: activeReminders.length,
+    },
     { key: 'hom_nay', label: 'Hôm nay', icon: <BarChart3 className="w-7 h-7" /> },
     { key: 'tien', label: 'Tiền', icon: <Wallet className="w-7 h-7" /> },
-    { key: 'no', label: 'Sổ nợ', icon: <BookMarked className="w-7 h-7" /> },
+    {
+      key: 'no',
+      label: 'Sổ nợ',
+      icon: <BookMarked className="w-7 h-7" />,
+      badge: overdueDebtCount,
+    },
   ];
 
   const handleJumpToForm = (kind: ManualFormKind, editTx?: Transaction) => {
@@ -67,9 +100,15 @@ export const AppShell: React.FC = () => {
     setActiveForm({ kind, editTx: editTx ?? null });
   };
 
+  const handleJumpToSupplierDebt = (supplierId?: string) => {
+    setActiveForm(null);
+    setFocusedSupplierId(supplierId ?? null);
+    setActiveTab('no');
+  };
+
   return (
     <div className="min-h-screen bg-stone-100 flex flex-col max-w-md mx-auto shadow-md">
-      {/* Thanh tiêu đề cơ sở rõ ràng, có nút Cài đặt & Thoát */}
+      {/* Thanh tiêu đề cơ sở rõ ràng, có chuông nhắc việc, nút Cài đặt & Thoát */}
       <header className={`px-4 py-3 border-b sticky top-0 z-20 ${headerTheme}`}>
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
@@ -83,6 +122,22 @@ export const AppShell: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {activeReminders.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveForm(null);
+                  setActiveTab('ghi_so');
+                }}
+                aria-label={`Có ${activeReminders.length} nhắc việc`}
+                title="Xem nhắc việc"
+                className="px-2.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-sm inline-flex items-center gap-1 shadow-xs"
+              >
+                <BellRing className="w-4 h-4" />
+                <span>{activeReminders.length}</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => setShowSettings(true)}
@@ -144,11 +199,13 @@ export const AppShell: React.FC = () => {
                 snapshot={snapshot}
                 selectedDate={selectedDate}
                 onSelectDate={setSelectedDate}
+                activeReminders={activeReminders}
                 activeForm={activeForm}
                 onOpenForm={(kind, editTx) =>
                   setActiveForm({ kind, editTx: editTx ?? null })
                 }
                 onCloseForm={() => setActiveForm(null)}
+                onJumpToSupplierDebt={handleJumpToSupplierDebt}
                 undoState={undoState}
                 onClearUndo={() => setUndoState(null)}
                 onDataChanged={async (undo) => {
@@ -165,12 +222,20 @@ export const AppShell: React.FC = () => {
                 onJumpToForm={handleJumpToForm}
               />
             )}
-            {activeTab === 'tien' && <DongTienTab snapshot={snapshot} />}
+            {activeTab === 'tien' && (
+              <DongTienTab
+                snapshot={snapshot}
+                selectedDate={selectedDate}
+                onDataChanged={reloadSnapshot}
+              />
+            )}
             {activeTab === 'no' && (
               <SoNoTab
                 snapshot={snapshot}
                 selectedDate={selectedDate}
-                onJumpToForm={handleJumpToForm}
+                focusedSupplierId={focusedSupplierId}
+                onClearFocusSupplier={clearFocusedSupplier}
+                onDataChanged={reloadSnapshot}
               />
             )}
           </>
@@ -192,13 +257,20 @@ export const AppShell: React.FC = () => {
                 setActiveTab(tab.key);
                 setActiveForm(null);
               }}
-              className={`py-2.5 px-1 flex flex-col items-center justify-center gap-1 font-bold transition ${
+              className={`relative py-2.5 px-1 flex flex-col items-center justify-center gap-1 font-bold transition ${
                 isActive
                   ? 'text-teal-800 bg-teal-50/80 border-t-4 border-teal-700 -mt-[2px]'
                   : 'text-stone-600 hover:bg-stone-50'
               }`}
             >
-              {tab.icon}
+              <div className="relative">
+                {tab.icon}
+                {typeof tab.badge === 'number' && tab.badge > 0 && (
+                  <span className="absolute -top-1.5 -right-2.5 min-w-[20px] h-5 px-1 rounded-full bg-rose-600 text-white text-xs font-extrabold flex items-center justify-center">
+                    {tab.badge}
+                  </span>
+                )}
+              </div>
               <span className="text-base leading-none">{tab.label}</span>
             </button>
           );
