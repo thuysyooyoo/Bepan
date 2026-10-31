@@ -1,6 +1,9 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import { buildActionCardFromIntent } from '../ai/chatEngine';
+import {
+  buildActionCardFromIntent,
+  shouldDelegateToCloudGemini,
+} from '../ai/chatEngine';
 import { parseVietnameseCommandLocal } from '../ai/localVnNlu';
 import {
   parseVietnameseDate,
@@ -599,5 +602,34 @@ describe('Phiên 3 — AI Chat hiểu tiếng Việt (Khẩu ngữ Bắc Bộ, 1
 
     const logs = await repo.listChatLogs(bo, 'hiep_hoa');
     expect(logs[0].ket_qua).toBe('da_luu');
+  });
+
+  it('5. Bộ lọc Hybrid Tiết Kiệm Token: câu quen thuộc rõ nghĩa tốn 0 token, chỉ gọi Gemini 3.8 Flash khi câu lạ/mơ hồ', async () => {
+    const repo = new LocalDexieAdapter(`TestDB_TokenGate_${Date.now()}`);
+    const bo = await repo.loginWithPin('bo', '1111');
+    const snap = await repo.getBookSnapshot(bo, 'hiep_hoa');
+    const ngay = '2026-10-31';
+
+    // Các câu hằng ngày rõ nghĩa -> KHÔNG gọi Gemini (tốn 0 token)
+    for (const routine of [
+      'Sáng 80 trưa 320 suất',
+      'Mua thịt 2 triệu 3',
+      'Căn tin thu tiền mặt 2 triệu mốt chuyển khoản 700 nghìn',
+      'Cô Lan đủ công',
+      'Hôm nay lãi bao nhiêu?',
+    ]) {
+      const local = parseVietnameseCommandLocal(routine, snap, ngay);
+      expect(shouldDelegateToCloudGemini(routine, local), routine).toBe(false);
+    }
+
+    // Câu lạ hoặc mơ hồ -> chuyển lên Gemini 3.8 Flash xử lý
+    for (const tricky of [
+      'Mua su hào súp lơ măng cụt 380 nghìn',
+      'Mua đá viên 150 nghìn',
+      'Hôm nay trời mưa to quá',
+    ]) {
+      const local = parseVietnameseCommandLocal(tricky, snap, ngay);
+      expect(shouldDelegateToCloudGemini(tricky, local), tricky).toBe(true);
+    }
   });
 });

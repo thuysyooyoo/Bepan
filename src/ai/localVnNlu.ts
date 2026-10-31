@@ -479,7 +479,9 @@ function tryParseAttendance(
     };
   }
 
-  const hasAttVerb = /\b(cham cong|di lam|nghi|vang|nua buoi|nua cong)\b/.test(noAcc);
+  const hasAttVerb = /\b(cham cong|di lam|du cong|1 cong|mot cong|nghi|vang|nua buoi|nua cong)\b/.test(
+    noAcc
+  );
   if (!hasAttVerb) return null;
 
   // Không được là câu mua hàng có số tiền (VD: "lấy thịt chị Hoa 2 triệu")

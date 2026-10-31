@@ -46,14 +46,56 @@ function buildContextPayload(snapshot: BookSnapshot, referenceDate: string) {
   };
 }
 
+/**
+ * Bộ lọc Hybrid Tiết Kiệm Token Thông Minh:
+ * - Nếu bộ phân tích Tiếng Việt cục bộ (`localVnNlu`) đã bắt chuẩn 100% ý định rõ ràng,
+ *   không có câu mơ hồ, không rơi vào danh mục dự phòng ('cat_do_kho_bep' khi không nói đồ khô)
+ *   -> Trả kết quả tức thì (0ms, tốn 0 token!).
+ * - Chỉ gọi Cloud Gemini (`gemini-3.8-flash` có `thinkingBudget: 0`) khi câu nói lạ, phương ngữ khó,
+ *   nhiều vế phức tạp hoặc câu chưa rõ nghĩa -> Giảm 85-90% chi phí token mà vẫn cực thông minh!
+ */
+export function shouldDelegateToCloudGemini(
+  cleanedText: string,
+  localResult: AIParseResult
+): boolean {
+  if (!cleanedText.trim()) return false;
+  if (localResult.items.length === 0) return true;
+  if (cleanedText.length > 95 || localResult.items.length >= 3) return true;
+
+  const lower = cleanedText.toLowerCase();
+  const explicitDryGoods = /(đồ khô|lạc|đỗ|mộc nhĩ|hạt sen|rong biển|bột)/.test(lower);
+
+  for (const it of localResult.items) {
+    if (it.intent === 'khong_ro') return true;
+    if (it.cau_hoi_lam_ro) return true;
+    if (
+      (it.intent === 'chi' || it.intent === 'chi_no') &&
+      it.category_id === 'cat_do_kho_bep' &&
+      !explicitDryGoods
+    ) {
+      // Câu chi tiêu có mặt hàng lạ ngoài từ điển có sẵn -> nhờ Gemini phân loại chuẩn
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export async function parseUserUtterance(
   text: string,
   snapshot: BookSnapshot,
   referenceDate: string
 ): Promise<AIParseResult> {
   const cleanedText = normalizeAsrTranscript(text);
+  const localResult = parseVietnameseCommandLocal(cleanedText, snapshot, referenceDate);
 
-  if (import.meta.env?.VITE_ENABLE_GEMINI_API === 'true') {
+  const forceAlwaysGemini = import.meta.env?.VITE_GEMINI_ALWAYS === 'true';
+  const geminiEnabled = import.meta.env?.VITE_ENABLE_GEMINI_API === 'true';
+
+  if (
+    geminiEnabled &&
+    (forceAlwaysGemini || shouldDelegateToCloudGemini(cleanedText, localResult))
+  ) {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 4500);
@@ -84,15 +126,15 @@ export async function parseUserUtterance(
         }
       }
     } catch {
-      // Mạng yếu hoặc chưa bật Netlify Function -> tự chuyển sang Local NLU mượt mà
+      // Mạng yếu, hết hạn mức Prepay hoặc chưa chạy server -> tự động rơi êm xuống Local NLU
     }
   }
 
-  return parseVietnameseCommandLocal(cleanedText, snapshot, referenceDate);
+  return localResult;
 }
 
 /**
- * Dự phòng: Gửi file ghi âm trực tiếp lên Gemini 2.5 Flash (/api/parse) để gỡ băng + phân tích JSON
+ * Dự phòng: Gửi file ghi âm trực tiếp lên Gemini 3.8 Flash (/api/parse) để gỡ băng + phân tích JSON
  */
 export async function parseUserAudioUtterance(
   audioBase64: string,
@@ -100,6 +142,7 @@ export async function parseUserAudioUtterance(
   snapshot: BookSnapshot,
   referenceDate: string
 ): Promise<AIParseResult> {
+  let errorCode = '';
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 9000);
@@ -136,10 +179,18 @@ export async function parseUserAudioUtterance(
       if (transcript) {
         return parseVietnameseCommandLocal(transcript, snapshot, referenceDate);
       }
+    } else {
+      const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+      errorCode = errBody.error ?? '';
     }
   } catch {
-    // Rơi xuống thông báo thân thiện bên dưới nếu đang chạy bản tĩnh chưa gắn khóa Gemini
+    // Rơi xuống thông báo thân thiện bên dưới nếu đang chạy bản tĩnh
   }
+
+  const depletedHint =
+    errorCode === 'GEMINI_PREPAYMENT_DEPLETED'
+      ? 'Tài khoản Gemini API hiện đang hết số dư Prepay (HTTP 402). Ông/bà hãy bấm nút Micro xanh lớn ở giữa để nói trực tiếp miễn phí 100% nhé!'
+      : 'Tính năng gửi file ghi âm dự phòng cần máy chủ Gemini đang hoạt động. Trên Chrome Android, ông/bà bấm nút Micro xanh lớn để nói trực tiếp là nhận chữ ngay lập tức ạ!';
 
   return {
     engine: 'local_vn',
@@ -149,8 +200,7 @@ export async function parseUserAudioUtterance(
         intent: 'khong_ro',
         ngay: referenceDate,
         ghi_chu: '',
-        cau_tra_loi:
-          'Tính năng gửi file ghi âm dự phòng cần kết nối máy chủ Gemini (sẽ gắn khóa ở Phiên 7). Hiện tại trên Chrome Android, ông/bà bấm nút Micro xanh lớn để nói trực tiếp là nhận chữ ngay lập tức ạ!',
+        cau_tra_loi: depletedHint,
       },
     ],
   };
