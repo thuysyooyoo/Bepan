@@ -21,7 +21,7 @@ import { DongTienTab, GhiSoTab, HomNayTab, SoNoTab } from './TabViews';
 type TabKey = 'ghi_so' | 'hom_nay' | 'tien' | 'no';
 
 export const AppShell: React.FC = () => {
-  const { session, activeBookId, setAdminActiveBook, logout } = useAuth();
+  const { session, activeBookId, cloudStatus, setAdminActiveBook, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>('ghi_so');
   const [selectedDate, setSelectedDate] = useState<string>(() => getTodayISO());
   const [snapshot, setSnapshot] = useState<BookSnapshot | null>(null);
@@ -51,6 +51,15 @@ export const AppShell: React.FC = () => {
     setFocusedSupplierId(null);
     setUndoState(null);
   }, [reloadSnapshot]);
+
+  // Đồng bộ Realtime 2 chiều (Supabase postgres_changes + visibilitychange)
+  useEffect(() => {
+    if (!session || !dbRepo.subscribeToBookChanges) return;
+    const unsubscribe = dbRepo.subscribeToBookChanges(activeBookId, () => {
+      void reloadSnapshot();
+    });
+    return unsubscribe;
+  }, [session, activeBookId, cloudStatus?.mode, reloadSnapshot]);
 
   const activeReminders = useMemo(
     () => (snapshot ? evaluateActiveReminders(snapshot) : []),
@@ -117,7 +126,7 @@ export const AppShell: React.FC = () => {
             </div>
             <div className="text-sm opacity-90 truncate">
               {session.avatar_emoji} {session.xung_ho} ·{' '}
-              {snapshot ? snapshot.book.dia_diem : ''}
+              {cloudStatus?.connected ? '☁️ Đám mây' : '📱 Lưu máy'}
             </div>
           </div>
 

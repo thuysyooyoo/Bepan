@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Check, Plus, X } from 'lucide-react';
+import { Check, CloudUpload, Plus, RefreshCw, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { dbRepo } from '../db';
-import { isSupabaseConfigured } from '../db/supabaseClient';
 import { getEffectiveMealPrice } from '../domain/accounting';
 import { formatVND, generateId, getTodayISO } from '../domain/format';
 import type {
@@ -33,10 +32,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   onChanged,
 }) => {
-  const { session, profiles } = useAuth();
+  const { session, profiles, cloudStatus, refreshCloudStatus } = useAuth();
   const [tab, setTab] = useState<SettingsTab>('gia_suat');
   const [toast, setToast] = useState('');
   const [errMsg, setErrMsg] = useState('');
+  const [syncingCloud, setSyncingCloud] = useState(false);
   const today = getTodayISO();
   const bookId = snapshot.book.id;
 
@@ -657,17 +657,99 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
               </form>
 
-              <div className="rounded-2xl bg-white border border-stone-300 p-4 text-base text-stone-700">
-                <div className="font-extrabold text-stone-900 mb-1">☁️ Trạng thái lưu trữ</div>
-                {isSupabaseConfigured ? (
-                  <p>
-                    Đang chạy chế độ <strong>IndexedDB trên thiết bị</strong> (nhanh, offline) và đã
-                    gắn sẵn kết nối Supabase (<code>grqlnqycxxadedqlppyl.supabase.co</code>) chờ bật
-                    đồng bộ thời gian thực ở Phiên 7.
-                  </p>
-                ) : (
-                  <p>Đang lưu cục bộ trên trình duyệt thiết bị (IndexedDB).</p>
-                )}
+              <div className="rounded-2xl bg-white border-2 border-sky-400 p-4 space-y-3 text-base text-stone-700">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-extrabold text-lg text-stone-950">
+                    ☁️ Đám mây Supabase & Realtime
+                  </div>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
+                      cloudStatus?.connected
+                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-400'
+                        : 'bg-amber-100 text-amber-900 border border-amber-400'
+                    }`}
+                  >
+                    {cloudStatus?.connected ? 'ĐÃ BẬT REALTIME' : 'ĐANG LƯU TRÊN MÁY'}
+                  </span>
+                </div>
+
+                <p className="text-sm text-stone-700 leading-relaxed">
+                  {cloudStatus?.message ||
+                    'Đang lưu cục bộ trên trình duyệt thiết bị (IndexedDB).'}
+                </p>
+
+                <div className="flex flex-col gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={syncingCloud}
+                    onClick={async () => {
+                      setSyncingCloud(true);
+                      try {
+                        const status = await refreshCloudStatus();
+                        if (status?.connected) {
+                          notify('Đã kết nối thành công với Đám mây Supabase!');
+                          await onChanged();
+                        } else {
+                          setErrMsg(
+                            status?.message ||
+                              'Chưa tìm thấy bảng trên Supabase. Hãy chạy file SQL trước nhé!'
+                          );
+                        }
+                      } finally {
+                        setSyncingCloud(false);
+                      }
+                    }}
+                    className="w-full min-h-[46px] px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-900 font-bold text-base inline-flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${syncingCloud ? 'animate-spin' : ''}`} />
+                    <span>Kiểm tra lại kết nối Supabase</span>
+                  </button>
+
+                  {cloudStatus?.connected && dbRepo.syncLocalBookToCloud && (
+                    <button
+                      type="button"
+                      disabled={syncingCloud}
+                      onClick={async () => {
+                        if (!session || !dbRepo.syncLocalBookToCloud) return;
+                        setSyncingCloud(true);
+                        try {
+                          if (session.vai_tro === 'admin') {
+                            const r1 = await dbRepo.syncLocalBookToCloud(session, 'hiep_hoa');
+                            const r2 = await dbRepo.syncLocalBookToCloud(session, 'tien_du');
+                            await onChanged();
+                            notify(
+                              `Đã đẩy dữ liệu cả 2 sổ lên Đám mây (${
+                                r1.totalRows + r2.totalRows
+                              } bản ghi)!`
+                            );
+                          } else {
+                            const res = await dbRepo.syncLocalBookToCloud(session, bookId);
+                            await onChanged();
+                            notify(
+                              `Đã đẩy dữ liệu ${snapshot.book.ten} lên Đám mây (${res.totalRows} bản ghi)!`
+                            );
+                          }
+                        } catch (err) {
+                          setErrMsg(
+                            err instanceof Error
+                              ? err.message
+                              : 'Không thể đẩy dữ liệu lên đám mây.'
+                          );
+                        } finally {
+                          setSyncingCloud(false);
+                        }
+                      }}
+                      className="w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-base inline-flex items-center justify-center gap-2"
+                    >
+                      <CloudUpload className="w-5 h-5" />
+                      <span>
+                        {session.vai_tro === 'admin'
+                          ? 'Đẩy dữ liệu thử trên máy (cả 2 sổ) lên Đám mây'
+                          : `Đẩy dữ liệu thử trên máy (${snapshot.book.ten}) lên Đám mây`}
+                      </span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}

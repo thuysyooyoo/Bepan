@@ -1,5 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { dbRepo, type PublicProfileSummary } from '../db';
+import {
+  dbRepo,
+  type CloudSyncStatus,
+  type PublicProfileSummary,
+} from '../db';
 import type { AuthSession, BookId } from '../types/models';
 
 const SESSION_STORAGE_KEY = 'sobep_auth_session_v1';
@@ -12,6 +16,8 @@ interface AuthContextValue {
   session: AuthSession | null;
   activeBookId: BookId;
   lastProfileId: string | null;
+  cloudStatus: CloudSyncStatus | null;
+  refreshCloudStatus: () => Promise<CloudSyncStatus | null>;
   setAdminActiveBook: (bookId: BookId) => void;
   login: (profileId: string, pin: string) => Promise<void>;
   logout: () => void;
@@ -38,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isReady, setIsReady] = useState(false);
   const [profiles, setProfiles] = useState<PublicProfileSummary[]>([]);
   const [session, setSession] = useState<AuthSession | null>(() => loadStoredSession());
+  const [cloudStatus, setCloudStatus] = useState<CloudSyncStatus | null>(null);
   const [lastProfileId, setLastProfileId] = useState<string | null>(() =>
     localStorage.getItem(LAST_PROFILE_KEY)
   );
@@ -50,9 +57,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let mounted = true;
     (async () => {
       await dbRepo.ensureInitialized();
-      const list = await dbRepo.listLoginProfiles();
+      const [list, status] = await Promise.all([
+        dbRepo.listLoginProfiles(),
+        dbRepo.getCloudSyncStatus ? dbRepo.getCloudSyncStatus() : Promise.resolve(null),
+      ]);
+
+      // Nếu chuyển sang chế độ Đám mây Supabase mà phiên cũ trên máy chưa có JWT hợp lệ -> yêu cầu bấm lại PIN 1 lần
+      const stored = loadStoredSession();
+      if (stored && dbRepo.hasValidAuthSession) {
+        const valid = await dbRepo.hasValidAuthSession(stored);
+        if (!valid) {
+          localStorage.removeItem(SESSION_STORAGE_KEY);
+          if (mounted) setSession(null);
+        }
+      }
+
       if (mounted) {
         setProfiles(list);
+        setCloudStatus(status);
         setIsReady(true);
       }
     })();
@@ -60,6 +82,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
     };
   }, []);
+
+  const refreshCloudStatus = useCallback(async (): Promise<CloudSyncStatus | null> => {
+    if (!dbRepo.getCloudSyncStatus) return null;
+    const status = await dbRepo.getCloudSyncStatus(true);
+    setCloudStatus(status);
+    const list = await dbRepo.listLoginProfiles();
+    setProfiles(list);
+
+    if (session && dbRepo.hasValidAuthSession) {
+      const valid = await dbRepo.hasValidAuthSession(session);
+      if (!valid) {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+        setSession(null);
+      }
+    }
+    return status;
+  }, [session]);
 
   const login = useCallback(async (profileId: string, pin: string) => {
     const newSession = await dbRepo.loginWithPin(profileId, pin);
@@ -71,6 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(() => {
     localStorage.removeItem(SESSION_STORAGE_KEY);
+    void dbRepo.signOutCloud?.();
     setSession(null);
   }, []);
 
@@ -91,6 +131,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         session,
         activeBookId,
         lastProfileId,
+        cloudStatus,
+        refreshCloudStatus,
         setAdminActiveBook,
         login,
         logout,

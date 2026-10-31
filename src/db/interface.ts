@@ -51,6 +51,20 @@ export type PublicProfileSummary = Pick<
   'id' | 'ten_hien_thi' | 'xung_ho' | 'mo_ta' | 'vai_tro' | 'book_id' | 'avatar_emoji'
 >;
 
+export interface CloudSyncStatus {
+  configured: boolean;
+  connected: boolean;
+  mode: 'local' | 'supabase';
+  supabaseUrl: string;
+  message: string;
+}
+
+export interface LocalToCloudSyncResult {
+  bookId: BookId;
+  pushedCounts: Record<string, number>;
+  totalRows: number;
+}
+
 export interface DataRepository {
   readonly mode: 'local' | 'supabase';
 
@@ -161,4 +175,22 @@ export interface DataRepository {
 
   /** Lấy danh sách nhật ký câu nói AI chat của một cơ sở (mới nhất lên đầu) */
   listChatLogs(actor: AuthSession, bookId: BookId, limit?: number): Promise<ChatLog[]>;
+
+  /** Đăng ký lắng nghe thay đổi Realtime 2 chiều của một sổ cơ sở -> trả về hàm hủy đăng ký */
+  subscribeToBookChanges?(bookId: BookId, onChanged: () => void): () => void;
+
+  /** Kiểm tra trạng thái kết nối Đám mây Supabase hiện tại */
+  getCloudSyncStatus?(forceRefresh?: boolean): Promise<CloudSyncStatus>;
+
+  /** Đẩy toàn bộ dữ liệu thử đang có trên máy (IndexedDB) của 1 sổ lên Supabase (chống trùng 100%) */
+  syncLocalBookToCloud?(
+    actor: AuthSession,
+    bookId: BookId
+  ): Promise<LocalToCloudSyncResult>;
+
+  /** Kiểm tra phiên đăng nhập hiện tại có kèm JWT Supabase hợp lệ không (khi ở chế độ đám mây) */
+  hasValidAuthSession?(actor: AuthSession): Promise<boolean>;
+
+  /** Đăng xuất khỏi Supabase Auth (nếu đang dùng đám mây) */
+  signOutCloud?(): Promise<void>;
 }

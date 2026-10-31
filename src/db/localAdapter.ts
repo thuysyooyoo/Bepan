@@ -19,6 +19,7 @@ import { SoBepDexieDB } from './dexieDb';
 import {
   assertAdmin,
   assertCanAccessBook,
+  type CloudSyncStatus,
   type DataRepository,
   PermissionDeniedError,
   type PublicProfileSummary,
@@ -544,6 +545,45 @@ export class LocalDexieAdapter implements DataRepository {
     return items
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
       .slice(0, limit);
+  }
+
+  /** Trả về thực thể Dexie để đồng bộ dữ liệu trên máy lên Supabase khi kích hoạt Đám mây */
+  getDexieInstance(): SoBepDexieDB {
+    return this.db;
+  }
+
+  async getCloudSyncStatus(): Promise<CloudSyncStatus> {
+    return {
+      configured: false,
+      connected: false,
+      mode: 'local',
+      supabaseUrl: '',
+      message: 'Đang lưu trực tiếp trên bộ nhớ thiết bị (IndexedDB).',
+    };
+  }
+
+  async hasValidAuthSession(actor: AuthSession): Promise<boolean> {
+    return Boolean(actor && actor.expires_at > Date.now());
+  }
+
+  async signOutCloud(): Promise<void> {
+    // Chế độ local không cần đăng xuất server
+  }
+
+  subscribeToBookChanges(_bookId: BookId, onChanged: () => void): () => void {
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        onChanged();
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibility);
+    }
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibility);
+      }
+    };
   }
 
   /** Chỉ dùng cho Admin hoặc bài test cần kiểm tra raw DB */
