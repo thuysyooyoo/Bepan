@@ -705,7 +705,14 @@ export function parseVietnameseCommandLocal(
   snapshot: BookSnapshot,
   referenceDate: string
 ): AIParseResult {
-  const trimmed = String(rawInput || '').trim();
+  // Đổi dấu phẩy phân cách hàng nghìn (VD: "1,250,000" từ bàn phím/ASR) thành dấu chấm trước khi tách mệnh đề bằng dấu phẩy
+  const trimmed = String(rawInput || '')
+    .replace(/(\d),(\d{3}),(\d{3})(?![\d])/g, '$1.$2.$3')
+    .replace(
+      /(\d),(\d{3})(?![\d]|\s*(?:triệu|tr|củ|nghìn|ngàn|nghin|ngan|k)(?![\p{L}\p{N}]))/giu,
+      '$1.$2'
+    )
+    .trim();
   if (!trimmed) {
     return {
       engine: 'local_vn',

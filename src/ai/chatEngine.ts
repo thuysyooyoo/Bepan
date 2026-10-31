@@ -25,12 +25,34 @@ import type {
 } from '../types/models';
 import type { AIParseResult, ParsedIntentItem } from './intentSchema';
 import { answerReportQuestion, parseVietnameseCommandLocal } from './localVnNlu';
+import { normalizeAsrTranscript } from './voiceEngine';
+
+function buildContextPayload(snapshot: BookSnapshot, referenceDate: string) {
+  return {
+    referenceDate,
+    bookName: snapshot.book.ten,
+    categories: snapshot.categories
+      .filter((c) => c.nhom === 'chi')
+      .map((c) => ({
+        id: c.id,
+        ten: c.ten_danh_muc,
+        kieu_tinh: c.kieu_tinh,
+        mang: c.mang_mac_dinh,
+      })),
+    workers: snapshot.workers
+      .filter((w) => w.dang_lam)
+      .map((w) => ({ id: w.id, ho_ten: w.ho_ten })),
+    suppliers: snapshot.suppliers.map((s) => ({ id: s.id, ten_ncc: s.ten_ncc })),
+  };
+}
 
 export async function parseUserUtterance(
   text: string,
   snapshot: BookSnapshot,
   referenceDate: string
 ): Promise<AIParseResult> {
+  const cleanedText = normalizeAsrTranscript(text);
+
   if (import.meta.env?.VITE_ENABLE_GEMINI_API === 'true') {
     try {
       const controller = new AbortController();
@@ -40,21 +62,8 @@ export async function parseUserUtterance(
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
-          text,
-          referenceDate,
-          bookName: snapshot.book.ten,
-          categories: snapshot.categories
-            .filter((c) => c.nhom === 'chi')
-            .map((c) => ({
-              id: c.id,
-              ten: c.ten_danh_muc,
-              kieu_tinh: c.kieu_tinh,
-              mang: c.mang_mac_dinh,
-            })),
-          workers: snapshot.workers
-            .filter((w) => w.dang_lam)
-            .map((w) => ({ id: w.id, ho_ten: w.ho_ten })),
-          suppliers: snapshot.suppliers.map((s) => ({ id: s.id, ten_ncc: s.ten_ncc })),
+          text: cleanedText,
+          ...buildContextPayload(snapshot, referenceDate),
         }),
       });
       clearTimeout(timer);
@@ -62,13 +71,14 @@ export async function parseUserUtterance(
       if (res.ok) {
         const json = (await res.json()) as { items?: ParsedIntentItem[] };
         if (Array.isArray(json.items) && json.items.length > 0) {
-          // Với câu hỏi báo cáo ('hoi'), luôn lấy số liệu thật từ Sổ để tuyệt đối không bịa số
           const enriched = json.items.map((it) =>
-            it.intent === 'hoi' ? answerReportQuestion(text, snapshot, referenceDate) : it
+            it.intent === 'hoi'
+              ? answerReportQuestion(cleanedText, snapshot, referenceDate)
+              : it
           );
           return {
             engine: 'gemini',
-            raw_text: text,
+            raw_text: cleanedText,
             items: enriched,
           };
         }
@@ -78,7 +88,108 @@ export async function parseUserUtterance(
     }
   }
 
-  return parseVietnameseCommandLocal(text, snapshot, referenceDate);
+  return parseVietnameseCommandLocal(cleanedText, snapshot, referenceDate);
+}
+
+/**
+ * Dự phòng: Gửi file ghi âm trực tiếp lên Gemini 2.5 Flash (/api/parse) để gỡ băng + phân tích JSON
+ */
+export async function parseUserAudioUtterance(
+  audioBase64: string,
+  audioMimeType: string,
+  snapshot: BookSnapshot,
+  referenceDate: string
+): Promise<AIParseResult> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 9000);
+    const res = await fetch('/api/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        audioBase64,
+        audioMimeType,
+        ...buildContextPayload(snapshot, referenceDate),
+      }),
+    });
+    clearTimeout(timer);
+
+    if (res.ok) {
+      const json = (await res.json()) as {
+        transcript?: string;
+        items?: ParsedIntentItem[];
+      };
+      const transcript = normalizeAsrTranscript(json.transcript ?? '');
+      if (Array.isArray(json.items) && json.items.length > 0) {
+        const enriched = json.items.map((it) =>
+          it.intent === 'hoi' && transcript
+            ? answerReportQuestion(transcript, snapshot, referenceDate)
+            : it
+        );
+        return {
+          engine: 'gemini',
+          raw_text: transcript || '(Ghi âm giọng nói)',
+          items: enriched,
+        };
+      }
+      if (transcript) {
+        return parseVietnameseCommandLocal(transcript, snapshot, referenceDate);
+      }
+    }
+  } catch {
+    // Rơi xuống thông báo thân thiện bên dưới nếu đang chạy bản tĩnh chưa gắn khóa Gemini
+  }
+
+  return {
+    engine: 'local_vn',
+    raw_text: '(Ghi âm dự phòng)',
+    items: [
+      {
+        intent: 'khong_ro',
+        ngay: referenceDate,
+        ghi_chu: '',
+        cau_tra_loi:
+          'Tính năng gửi file ghi âm dự phòng cần kết nối máy chủ Gemini (sẽ gắn khóa ở Phiên 7). Hiện tại trên Chrome Android, ông/bà bấm nút Micro xanh lớn để nói trực tiếp là nhận chữ ngay lập tức ạ!',
+      },
+    ],
+  };
+}
+
+/**
+ * Tạo câu đọc to tiếng Việt tự nhiên cho kết quả phản hồi của 1 lượt nói / chat
+ */
+export function buildTurnSpokenSummary(
+  items: ParsedIntentItem[],
+  snapshot: BookSnapshot,
+  rawSentence: string
+): string {
+  if (items.length === 0) return '';
+
+  // 1. Nếu chỉ có 1 thẻ
+  if (items.length === 1) {
+    const first = items[0];
+    if (first.intent === 'hoi' || first.intent === 'khong_ro') {
+      return first.cau_tra_loi ?? '';
+    }
+    const built = buildActionCardFromIntent(first, snapshot, rawSentence);
+    if (!built) return '';
+    if (first.cau_hoi_lam_ro) {
+      return `${built.preview.spokenText.replace(/\s*Đúng không ạ\?$/, '')}. ${first.cau_hoi_lam_ro}`;
+    }
+    return built.preview.spokenText;
+  }
+
+  // 2. Nếu câu ghép sinh ra nhiều thẻ xác nhận cùng lúc
+  const parts: string[] = [];
+  for (const it of items) {
+    const built = buildActionCardFromIntent(it, snapshot, rawSentence);
+    if (built) {
+      parts.push(built.preview.spokenText.replace(/\s*Đúng không ạ\?$/, ''));
+    }
+  }
+  if (parts.length === 0) return '';
+  return `Đã nghe rõ ${parts.length} mục: ${parts.join('; ')}. Ông bà kiểm tra rồi bấm Lưu tất cả nhé!`;
 }
 
 export interface BuiltActionCard {

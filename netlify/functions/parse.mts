@@ -1,11 +1,14 @@
 /**
  * Netlify Serverless Function: POST /api/parse
  * Giấu kín GEMINI_API_KEY phía server (tuyệt đối không lộ xuống trình duyệt).
- * Ép Gemini 2.5 Flash trả về đúng cấu trúc JSON Schema của Sổ Bếp Nhà Mình.
+ * Hỗ trợ cả văn bản (text) VÀ file ghi âm dự phòng (audioBase64 + audioMimeType)
+ * để Gemini 2.5 Flash vừa gỡ băng tiếng Việt vừa trả về đúng JSON Schema của Sổ Bếp Nhà Mình.
  */
 
 interface ParseRequestBody {
-  text: string;
+  text?: string;
+  audioBase64?: string;
+  audioMimeType?: string;
   referenceDate: string;
   bookName: string;
   categories: Array<{ id: string; ten: string; kieu_tinh: string; mang: string }>;
@@ -41,10 +44,26 @@ Công nhân phụ bếp hiện có: ${JSON.stringify(body.workers)}.
 Nhà cung cấp hiện có: ${JSON.stringify(body.suppliers)}.
 
 Quy tắc bắt buộc:
-1. Mặc định mua hàng là trả ngay ('chi', vi='tien_mat'). Chỉ dùng 'chi_no' khi câu nói có từ nợ, mua chịu, ghi sổ, chưa trả, trả sau.
-2. Tuyệt đối không nhầm đơn vị đo lường (5 cân, 5 lít, 320 suất, 2 bình) thành tiền.
-3. Số khẩu ngữ tiếng Việt: "2 triệu 3" = 2300000, "4 trăm rưỡi" = 450000, "1 củ 2" = 1200000, "tám chục" = 80000, "mua rau 300" = 300000.
-4. Một câu có nhiều việc phải tách thành nhiều phần tử trong mảng items.`;
+1. Nếu đầu vào là âm thanh giọng nói tiếng Việt, hãy chép lại chính xác nguyên văn câu nói vào trường "transcript", sau đó phân tích vào mảng "items".
+2. Mặc định mua hàng là trả ngay ('chi', vi='tien_mat'). Chỉ dùng 'chi_no' khi câu nói có từ nợ, mua chịu, ghi sổ, chưa trả, trả sau.
+3. Tuyệt đối không nhầm đơn vị đo lường (5 cân, 5 lít, 320 suất, 2 bình) thành tiền.
+4. Số khẩu ngữ tiếng Việt: "2 triệu 3" = 2300000, "4 trăm rưỡi" = 450000, "1 củ 2" = 1200000, "tám chục" = 80000, "mua rau 300" = 300000.
+5. Một câu có nhiều việc phải tách thành nhiều phần tử trong mảng "items".`;
+
+    const userParts: Array<Record<string, unknown>> = [];
+    if (body.audioBase64) {
+      userParts.push({
+        inlineData: {
+          mimeType: body.audioMimeType || 'audio/webm',
+          data: body.audioBase64,
+        },
+      });
+      userParts.push({
+        text: 'Hãy nghe câu nói tiếng Việt này, trả về JSON gồm {"transcript": "<câu nghe được>", "items": [...]}.',
+      });
+    } else {
+      userParts.push({ text: body.text ?? '' });
+    }
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
       apiKey
@@ -55,7 +74,7 @@ Quy tắc bắt buộc:
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: 'user', parts: [{ text: body.text }] }],
+        contents: [{ role: 'user', parts: userParts }],
         generationConfig: {
           temperature: 0.1,
           responseMimeType: 'application/json',

@@ -115,15 +115,18 @@ export function parseVietnameseMoney(
   rawClause: string,
   options: { allowBareThousands?: boolean } = {}
 ): number | null {
-  const masked = maskPhysicalQuantities(rawClause)
+  const masked = maskPhysicalQuantities(rawClause.replace(/₫/g, ' đồng'))
     .toLowerCase()
-    // Gộp dấu chấm phân cách hàng nghìn: 1.200.000 -> 1200000, 450.000 -> 450000
-    .replace(/(\d)\.(\d{3})\.(\d{3})(?![\d])/g, '$1$2$3')
-    .replace(/(\d)\.(\d{3})(?![\d])/g, '$1$2')
-    // Đổi số thập phân triệu/củ: "1,5 triệu", "1.5tr", "2,35 củ" -> "1 triệu 5", "1 tr 5", "2 củ 35"
+    // Đổi số thập phân triệu/củ trước: "1,5 triệu", "1.5tr", "2,35 củ" -> "1 triệu 5", "1 tr 5", "2 củ 35"
     .replace(
-      /(\d+)[.,](\d{1,3})\s*(triệu|tr|củ)(?![\p{L}\p{N}])/gu,
+      /(\d+)[.,](\d{1,2})\s*(triệu|tr|củ)(?![\p{L}\p{N}])/gu,
       (_, a, b, u) => `${a} ${u} ${b}`
+    )
+    // Gộp dấu chấm hoặc dấu phẩy phân cách hàng nghìn (kể cả từ Google Speech Android: 450,000 / 1.200.000)
+    .replace(/(\d)[.,](\d{3})[.,](\d{3})(?![\d])/g, '$1$2$3')
+    .replace(
+      /(\d)[.,](\d{3})(?![\d]|\s*(?:triệu|tr|củ|nghìn|ngàn|nghin|ngan|k)(?![\p{L}\p{N}]))/gu,
+      '$1$2'
     );
 
   // 1. "nửa triệu" / "nửa củ"

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Check, Pencil, RotateCcw, Volume2 } from 'lucide-react';
+import { prepareTextForVietnameseSpeech } from '../ai/voiceEngine';
 import { formatCompactVND, formatVND } from '../domain/format';
 
 export type ConfirmationTone = 'income' | 'expense' | 'debt' | 'info';
@@ -27,13 +28,34 @@ interface ConfirmationCardProps {
   onEdit: () => void;
 }
 
-export function speakVietnameseText(text: string): void {
+export function stopVietnameseSpeech(): void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   try {
     window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
+  } catch {
+    // ignore
+  }
+}
+
+export function speakVietnameseText(text: string): void {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  const cleanSpeech = prepareTextForVietnameseSpeech(text);
+  if (!cleanSpeech) return;
+
+  try {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(cleanSpeech);
     utter.lang = 'vi-VN';
-    utter.rate = 0.95;
+    utter.rate = 0.94; // Chậm rãi, rõ ràng cho ông bà dễ nghe
+
+    const voices = window.speechSynthesis.getVoices?.() ?? [];
+    const viVoice =
+      voices.find((v) => v.lang.toLowerCase().startsWith('vi') && v.localService) ??
+      voices.find((v) => v.lang.toLowerCase().startsWith('vi'));
+    if (viVoice) {
+      utter.voice = viVoice;
+    }
+
     window.speechSynthesis.speak(utter);
   } catch {
     // Bỏ qua nếu trình duyệt không hỗ trợ đọc giọng nói
