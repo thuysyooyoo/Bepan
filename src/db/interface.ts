@@ -65,6 +65,14 @@ export interface LocalToCloudSyncResult {
   totalRows: number;
 }
 
+export interface OfflineQueueStatus {
+  isOnline: boolean;
+  pendingCount: number;
+  isSyncing: boolean;
+  lastSyncedAt: string | null;
+  lastError: string | null;
+}
+
 export interface DataRepository {
   readonly mode: 'local' | 'supabase';
 
@@ -163,7 +171,10 @@ export interface DataRepository {
   ): Promise<Reminder>;
 
   /** Lưu nhật ký AI chat */
-  addChatLog(actor: AuthSession, log: Omit<ChatLog, 'id' | 'timestamp'>): Promise<ChatLog>;
+  addChatLog(
+    actor: AuthSession,
+    log: Omit<ChatLog, 'id' | 'timestamp'> & { id?: string; timestamp?: string }
+  ): Promise<ChatLog>;
 
   /** Cập nhật kết quả xác nhận nhật ký AI chat (đã lưu / đã sửa / hủy) */
   updateChatLogStatus(
@@ -193,4 +204,15 @@ export interface DataRepository {
 
   /** Đăng xuất khỏi Supabase Auth (nếu đang dùng đám mây) */
   signOutCloud?(): Promise<void>;
+
+  /** Kiểm tra hàng đợi Offline (số mục lưu tạm trên IndexedDB đang chờ mạng để tự đẩy lên) */
+  getOfflineQueueStatus?(): Promise<OfflineQueueStatus>;
+
+  /** Đẩy ngay các mục đang chờ trong hàng đợi Offline lên Supabase theo thứ tự FIFO */
+  flushOfflineOutbox?(
+    actor: AuthSession
+  ): Promise<{ syncedCount: number; remainingCount: number }>;
+
+  /** Lắng nghe sự thay đổi trạng thái mạng / hàng đợi Offline */
+  subscribeToOfflineStatus?(listener: (status: OfflineQueueStatus) => void): () => void;
 }

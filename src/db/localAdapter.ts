@@ -506,15 +506,15 @@ export class LocalDexieAdapter implements DataRepository {
 
   async addChatLog(
     actor: AuthSession,
-    log: Omit<ChatLog, 'id' | 'timestamp'>
+    log: Omit<ChatLog, 'id' | 'timestamp'> & { id?: string; timestamp?: string }
   ): Promise<ChatLog> {
     await this.ensureInitialized();
     assertCanAccessBook(actor, log.book_id);
 
     const record: ChatLog = {
       ...log,
-      id: generateId(),
-      timestamp: new Date().toISOString(),
+      id: log.id ?? generateId(),
+      timestamp: log.timestamp ?? new Date().toISOString(),
     };
     await this.db.chat_logs.put(record);
     return record;
@@ -550,6 +550,62 @@ export class LocalDexieAdapter implements DataRepository {
   /** Trả về thực thể Dexie để đồng bộ dữ liệu trên máy lên Supabase khi kích hoạt Đám mây */
   getDexieInstance(): SoBepDexieDB {
     return this.db;
+  }
+
+  /**
+   * Sao lưu gương (Mirror) toàn bộ snapshot của 1 cơ sở từ Đám mây xuống IndexedDB
+   * để khi mất mạng đột ngột ở bếp/chợ, Bố Mẹ vẫn mở xem & ghi tiếp không gián đoạn.
+   */
+  async mirrorBookSnapshotFromCloud(snapshot: BookSnapshot): Promise<void> {
+    await this.ensureInitialized();
+    const bookId = snapshot.book.id;
+    await this.db.transaction(
+      'rw',
+      [
+        this.db.books,
+        this.db.categories,
+        this.db.wallets,
+        this.db.meal_prices,
+        this.db.workers,
+        this.db.suppliers,
+        this.db.meal_counts,
+        this.db.attendance,
+        this.db.transactions,
+        this.db.reminders,
+      ],
+      async () => {
+        await this.db.books.put(snapshot.book);
+        if (snapshot.categories.length > 0) {
+          await this.db.categories.bulkPut(snapshot.categories);
+        }
+
+        await this.db.wallets.where('book_id').equals(bookId).delete();
+        if (snapshot.wallets.length > 0) await this.db.wallets.bulkPut(snapshot.wallets);
+
+        await this.db.meal_prices.where('book_id').equals(bookId).delete();
+        if (snapshot.mealPrices.length > 0) await this.db.meal_prices.bulkPut(snapshot.mealPrices);
+
+        await this.db.workers.where('book_id').equals(bookId).delete();
+        if (snapshot.workers.length > 0) await this.db.workers.bulkPut(snapshot.workers);
+
+        await this.db.suppliers.where('book_id').equals(bookId).delete();
+        if (snapshot.suppliers.length > 0) await this.db.suppliers.bulkPut(snapshot.suppliers);
+
+        await this.db.meal_counts.where('book_id').equals(bookId).delete();
+        if (snapshot.mealCounts.length > 0) await this.db.meal_counts.bulkPut(snapshot.mealCounts);
+
+        await this.db.attendance.where('book_id').equals(bookId).delete();
+        if (snapshot.attendance.length > 0) await this.db.attendance.bulkPut(snapshot.attendance);
+
+        await this.db.transactions.where('book_id').equals(bookId).delete();
+        if (snapshot.transactions.length > 0) {
+          await this.db.transactions.bulkPut(snapshot.transactions);
+        }
+
+        await this.db.reminders.where('book_id').equals(bookId).delete();
+        if (snapshot.reminders.length > 0) await this.db.reminders.bulkPut(snapshot.reminders);
+      }
+    );
   }
 
   async getCloudSyncStatus(): Promise<CloudSyncStatus> {

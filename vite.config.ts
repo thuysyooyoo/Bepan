@@ -59,6 +59,30 @@ export default defineConfig(({ mode }) => {
   return {
     base: './',
     plugins: [react(), tailwindcss(), localGeminiApiDevPlugin(env)],
+    build: {
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/exceljs')) {
+              return 'exceljs';
+            }
+            if (
+              id.includes('node_modules/@supabase') ||
+              id.includes('node_modules/dexie')
+            ) {
+              return 'data-engine';
+            }
+            if (
+              id.includes('node_modules/react') ||
+              id.includes('node_modules/lucide-react')
+            ) {
+              return 'ui-vendor';
+            }
+          },
+        },
+      },
+    },
     server: {
       port: 5173,
       host: true,

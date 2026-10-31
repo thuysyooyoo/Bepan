@@ -786,7 +786,7 @@ export class SupabaseAdapter implements DataRepository {
 
     const { data, error } = await client
       .from('transactions')
-      .insert(payload)
+      .upsert(payload, { onConflict: 'id' })
       .select('*')
       .single();
     this.raiseIfError(error, 'Lưu giao dịch');
@@ -995,7 +995,7 @@ export class SupabaseAdapter implements DataRepository {
 
   async addChatLog(
     actor: AuthSession,
-    log: Omit<ChatLog, 'id' | 'timestamp'>
+    log: Omit<ChatLog, 'id' | 'timestamp'> & { id?: string; timestamp?: string }
   ): Promise<ChatLog> {
     assertCanAccessBook(actor, log.book_id);
     const client = this.getClient();
@@ -1008,9 +1008,9 @@ export class SupabaseAdapter implements DataRepository {
       }
     }
     const payload = {
-      id: generateId(),
+      id: log.id ?? generateId(),
       book_id: log.book_id,
-      timestamp: new Date().toISOString(),
+      timestamp: log.timestamp ?? new Date().toISOString(),
       nguoi_dung: log.nguoi_dung,
       nguon: log.nguon,
       cau_noi: log.cau_noi,
@@ -1019,11 +1019,82 @@ export class SupabaseAdapter implements DataRepository {
     };
     const { data, error } = await client
       .from('chat_logs')
-      .insert(payload)
+      .upsert(payload, { onConflict: 'id' })
       .select('*')
       .single();
     this.raiseIfError(error, 'Lưu nhật ký hội thoại');
     return normalizeChatLogRow(data as Record<string, unknown>);
+  }
+
+  /**
+   * Phát lại trọn gói giao dịch Thu cuối ngày từ hàng đợi Offline lên Supabase
+   * đảm bảo giữ nguyên ID giao dịch trên máy và xóa mềm bản cũ chống nhân đôi 100%.
+   */
+  async replayOfflineDailyCollection(
+    actor: AuthSession,
+    params: {
+      book_id: BookId;
+      ngay: string;
+      replacedIds: string[];
+      createdTransactions: Transaction[];
+    }
+  ): Promise<void> {
+    assertCanAccessBook(actor, params.book_id);
+    const client = this.getClient();
+
+    const createdIdSet = new Set(params.createdTransactions.map((t) => t.id));
+    const { data: oldRows, error: oldErr } = await client
+      .from('transactions')
+      .select('id')
+      .eq('book_id', params.book_id)
+      .eq('ngay', params.ngay)
+      .eq('loai', 'thu_cuoi_ngay')
+      .eq('da_xoa', false);
+    this.raiseIfError(oldErr, 'Đối chiếu thu cuối ngày offline');
+
+    const idsToSoftDelete = new Set<string>(params.replacedIds);
+    for (const r of (oldRows ?? []) as Array<Record<string, unknown>>) {
+      const rid = String(r.id);
+      if (!createdIdSet.has(rid)) {
+        idsToSoftDelete.add(rid);
+      }
+    }
+
+    if (idsToSoftDelete.size > 0) {
+      const { error: delErr } = await client
+        .from('transactions')
+        .update({ da_xoa: true, deleted_at: new Date().toISOString() })
+        .in('id', Array.from(idsToSoftDelete));
+      this.raiseIfError(delErr, 'Xóa mềm thu cuối ngày cũ khi đồng bộ offline');
+    }
+
+    if (params.createdTransactions.length > 0) {
+      const rows = params.createdTransactions.map((t) => ({
+        id: t.id,
+        book_id: t.book_id,
+        ngay: t.ngay,
+        timestamp: t.timestamp,
+        mang: t.mang,
+        loai: t.loai,
+        category_id: t.category_id,
+        so_tien: Math.round(t.so_tien),
+        wallet_id: t.wallet_id ?? null,
+        to_wallet_id: t.to_wallet_id ?? null,
+        supplier_id: t.supplier_id ?? null,
+        worker_id: t.worker_id ?? null,
+        ky_thang: t.ky_thang ?? null,
+        ghi_chu: t.ghi_chu ?? '',
+        cau_noi_goc: t.cau_noi_goc ?? '',
+        nguon: t.nguon,
+        nguoi_tao: t.nguoi_tao,
+        da_xoa: Boolean(t.da_xoa),
+        deleted_at: t.deleted_at ?? null,
+      }));
+      const { error: upErr } = await client
+        .from('transactions')
+        .upsert(rows, { onConflict: 'id' });
+      this.raiseIfError(upErr, 'Đồng bộ thu cuối ngày offline');
+    }
   }
 
   async updateChatLogStatus(

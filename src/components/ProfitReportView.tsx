@@ -3,9 +3,12 @@ import {
   AlertTriangle,
   BookOpen,
   Calendar,
+  Check,
   ChevronLeft,
   ChevronRight,
+  FileSpreadsheet,
   PieChart,
+  Share2,
   TrendingUp,
   Volume2,
 } from 'lucide-react';
@@ -17,6 +20,8 @@ import {
   computeSevenDaySeries,
   getEffectiveMealPrice,
 } from '../domain/accounting';
+import { buildZaloDailySummaryText } from '../domain/adminSummary';
+import { downloadSingleBookMonthlyExcel } from '../domain/excelExport';
 import {
   formatCompactVND,
   formatShortWeekdayDate,
@@ -80,6 +85,15 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<string>(() =>
     getYearMonth(selectedDate || todayISO)
   );
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [reportNotice, setReportNotice] = useState<string | null>(null);
+
+  const showNotice = (msg: string) => {
+    setReportNotice(msg);
+    setTimeout(() => {
+      setReportNotice((prev) => (prev === msg ? null : prev));
+    }, 3500);
+  };
 
   // Đồng bộ khi ngày được đổi từ tab khác
   useEffect(() => {
@@ -111,6 +125,52 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
       speakVietnameseText(buildSpokenDailyReport(snapshot, daily));
     } else {
       speakVietnameseText(buildSpokenMonthlyReport(snapshot, monthly));
+    }
+  };
+
+  const handleExportMonthlyExcel = async () => {
+    if (exportingExcel) return;
+    try {
+      setExportingExcel(true);
+      const filename = await downloadSingleBookMonthlyExcel(snapshot, selectedMonth);
+      showNotice(`📥 Đã xuất báo cáo Excel: ${filename}`);
+    } catch (err) {
+      showNotice(
+        err instanceof Error ? `Lỗi xuất Excel: ${err.message}` : 'Không xuất được Excel.'
+      );
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleShareZalo = async () => {
+    const text =
+      mode === 'ngay'
+        ? buildZaloDailySummaryText(snapshot, localDate)
+        : [
+            `📊 BÁO CÁO ${snapshot.book.ten.toUpperCase()} — ${formatVietnameseMonth(selectedMonth).toUpperCase()}`,
+            `🏆 Lãi ròng tháng: ${formatVND(monthly.lai_rong_toan_co_so, true)}`,
+            `• 🍲 Bếp ăn (${monthly.bep_an.tong_suat} suất): ${formatVND(monthly.bep_an.lai_bep_an, true)}`,
+            `• 🏪 Căn tin: ${formatVND(monthly.can_tin.lai_can_tin, true)}`,
+            `• ⚡ Chi phí cuối tháng: -${formatVND(monthly.tong_chi_cuoi_thang_ap_dung)}`,
+          ].join('\n');
+
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        await navigator.share({
+          title: `Báo cáo ${snapshot.book.ten}`,
+          text,
+        });
+        return;
+      }
+    } catch {
+      // Fallback sang clipboard bên dưới
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showNotice('✅ Đã chép tóm tắt — mở Zalo dán gửi cho con/gia đình ngay!');
+    } catch {
+      showNotice('Không chép tự động được, vui lòng thử lại.');
     }
   };
 
@@ -205,16 +265,48 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSpeakReport}
-          className="w-full py-2.5 px-4 rounded-2xl bg-sky-50 hover:bg-sky-100 border-2 border-sky-400 text-sky-950 font-bold text-base flex items-center justify-center gap-2 active:scale-[0.99]"
-        >
-          <Volume2 className="w-5 h-5 text-sky-700 shrink-0" />
-          <span>
-            🔊 Nghe đọc tóm tắt {mode === 'ngay' ? 'báo cáo ngày' : 'báo cáo tháng'}
-          </span>
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={handleSpeakReport}
+            className="py-2.5 px-3 rounded-2xl bg-sky-50 hover:bg-sky-100 border-2 border-sky-400 text-sky-950 font-bold text-sm flex items-center justify-center gap-1.5 active:scale-[0.99]"
+          >
+            <Volume2 className="w-5 h-5 text-sky-700 shrink-0" />
+            <span>🔊 Nghe đọc báo cáo</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleShareZalo}
+            className="py-2.5 px-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-400 text-emerald-950 font-bold text-sm flex items-center justify-center gap-1.5 active:scale-[0.99]"
+          >
+            <Share2 className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>Gửi tóm tắt Zalo</span>
+          </button>
+        </div>
+
+        {mode === 'thang' && (
+          <button
+            type="button"
+            disabled={exportingExcel}
+            onClick={handleExportMonthlyExcel}
+            className="w-full py-2.5 px-4 rounded-2xl bg-teal-800 hover:bg-teal-900 disabled:opacity-60 text-white font-extrabold text-base flex items-center justify-center gap-2 shadow-xs"
+          >
+            <FileSpreadsheet className="w-5 h-5 shrink-0" />
+            <span>
+              {exportingExcel
+                ? 'Đang tạo file Excel...'
+                : `📥 Xuất Excel báo cáo ${formatVietnameseMonth(selectedMonth)}`}
+            </span>
+          </button>
+        )}
+
+        {reportNotice && (
+          <div className="p-2.5 rounded-2xl bg-emerald-900 text-white text-sm font-bold flex items-center gap-2">
+            <Check className="w-4 h-4 text-emerald-300 shrink-0" />
+            <span>{reportNotice}</span>
+          </div>
+        )}
       </div>
 
       {/* ================================================================= */}
