@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Mic,
-  Send,
   Wallet as WalletIcon,
   BookOpen,
   Users,
@@ -16,6 +14,7 @@ import {
 } from '../domain/accounting';
 import { formatVND, getTodayISO, getYearMonth } from '../domain/format';
 import type { BookSnapshot, Transaction } from '../types/models';
+import { ChatAssistantBox } from './ChatAssistantBox';
 import { UndoBanner, type UndoState } from './ConfirmationCard';
 import { DailyLedgerList } from './DailyLedgerList';
 import { ManualEntryForms, type ManualFormKind } from './ManualEntryForms';
@@ -73,10 +72,20 @@ export const GhiSoTab: React.FC<GhiSoTabProps> = ({
         }}
       />
 
-      {/* 4 việc hằng ngày bấm 1 chạm chữ to */}
+      {/* Trợ lý Chat AI tiếng Việt ở vị trí trung tâm (kiểu Rolly) */}
+      <ChatAssistantBox
+        snapshot={snapshot}
+        selectedDate={selectedDate}
+        onOpenManualForm={(kind, draftTx) => onOpenForm(kind, draftTx)}
+        onCommitted={async (undo) => {
+          await onDataChanged(undo);
+        }}
+      />
+
+      {/* 4 việc hằng ngày bấm 1 chạm chữ to (Tự nhập dự phòng song song Chat AI) */}
       <div className="rounded-3xl bg-white border-2 border-stone-200 p-4 shadow-xs space-y-3">
         <div className="text-lg font-extrabold text-stone-800">
-          ✍️ Bấm chọn việc cần ghi hôm nay:
+          ✍️ Hoặc bấm chọn tự nhập nhanh:
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
@@ -182,39 +191,6 @@ export const GhiSoTab: React.FC<GhiSoTabProps> = ({
             </button>
           </div>
         )}
-      </div>
-
-      {/* Cụm Chat AI + Nút Micro >= 96px (kích hoạt ở Phiên 3 & 4) */}
-      <div className="rounded-3xl bg-white border-2 border-stone-200 p-4 shadow-xs">
-        <div className="flex items-center gap-2 bg-stone-50 border-2 border-stone-300 rounded-2xl px-3 py-1.5">
-          <input
-            type="text"
-            readOnly
-            placeholder="Chat AI tiếng Việt sẽ bật ở Phiên 3..."
-            className="flex-1 text-lg py-2 px-1 bg-transparent outline-none text-stone-700 placeholder:text-stone-400"
-          />
-          <button
-            type="button"
-            disabled
-            aria-label="Gửi tin nhắn"
-            className="h-11 px-3.5 rounded-xl bg-teal-700 text-white font-bold text-base inline-flex items-center gap-1 opacity-55"
-          >
-            <Send className="w-4 h-4" />
-            Gửi
-          </button>
-        </div>
-
-        <div className="flex items-center justify-center gap-3 mt-3">
-          <button
-            type="button"
-            disabled
-            aria-label="Bấm để nói bằng giọng"
-            className="w-24 h-24 rounded-full bg-teal-700 text-white shadow-md border-4 border-teal-200 flex flex-col items-center justify-center gap-1 opacity-80"
-          >
-            <Mic className="w-9 h-9" />
-            <span className="text-xs font-extrabold">NÓI (P.4)</span>
-          </button>
-        </div>
       </div>
 
       {/* Sổ ghi chép theo ngày (xem, sửa, xóa mềm, khôi phục) */}

@@ -511,6 +511,33 @@ export class LocalDexieAdapter implements DataRepository {
     return record;
   }
 
+  async updateChatLogStatus(
+    actor: AuthSession,
+    bookId: BookId,
+    logId: string,
+    ketQua: ChatLog['ket_qua']
+  ): Promise<void> {
+    await this.ensureInitialized();
+    assertCanAccessBook(actor, bookId);
+    const existing = await this.db.chat_logs.get(logId);
+    if (existing && existing.book_id === bookId) {
+      await this.db.chat_logs.update(logId, { ket_qua: ketQua });
+    }
+  }
+
+  async listChatLogs(
+    actor: AuthSession,
+    bookId: BookId,
+    limit = 100
+  ): Promise<ChatLog[]> {
+    await this.ensureInitialized();
+    assertCanAccessBook(actor, bookId);
+    const items = await this.db.chat_logs.where('book_id').equals(bookId).toArray();
+    return items
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+      .slice(0, limit);
+  }
+
   /** Chỉ dùng cho Admin hoặc bài test cần kiểm tra raw DB */
   async debugGetRawProfiles(actor: AuthSession) {
     assertAdmin(actor);

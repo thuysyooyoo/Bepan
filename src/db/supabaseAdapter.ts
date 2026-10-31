@@ -77,4 +77,10 @@ export class SupabaseAdapterStub implements DataRepository {
   async addChatLog() {
     return this.notConfigured();
   }
+  async updateChatLogStatus() {
+    this.notConfigured();
+  }
+  async listChatLogs() {
+    return this.notConfigured();
+  }
 }

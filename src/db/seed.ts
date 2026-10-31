@@ -305,7 +305,7 @@ export const SEED_CATEGORIES: Category[] = [
     kieu_tinh: 'theo_thang',
     mang_mac_dinh: 'bep_an',
     icon: '🔥',
-    tu_khoa_ai: ['gas', 'ga', 'bình ga', 'bình gas', 'than'],
+    tu_khoa_ai: ['gas', 'bình ga', 'bình gas', 'tiền ga', 'tiền gas', 'đổi ga', 'đổi gas', 'than'],
     thu_tu: 22,
   },
   {

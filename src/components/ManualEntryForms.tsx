@@ -448,7 +448,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
       payload: Omit<Transaction, 'id' | 'timestamp' | 'da_xoa'>,
       labelMsg: string
     ): Promise<UndoState> => {
-      if (editingTx) {
+      if (editingTx && editingTx.id) {
         const prevCopy = { ...editingTx };
         await dbRepo.updateTransaction(session, {
           ...editingTx,

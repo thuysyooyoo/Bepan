@@ -150,4 +150,15 @@ export interface DataRepository {
 
   /** Lưu nhật ký AI chat */
   addChatLog(actor: AuthSession, log: Omit<ChatLog, 'id' | 'timestamp'>): Promise<ChatLog>;
+
+  /** Cập nhật kết quả xác nhận nhật ký AI chat (đã lưu / đã sửa / hủy) */
+  updateChatLogStatus(
+    actor: AuthSession,
+    bookId: BookId,
+    logId: string,
+    ketQua: ChatLog['ket_qua']
+  ): Promise<void>;
+
+  /** Lấy danh sách nhật ký câu nói AI chat của một cơ sở (mới nhất lên đầu) */
+  listChatLogs(actor: AuthSession, bookId: BookId, limit?: number): Promise<ChatLog[]>;
 }
