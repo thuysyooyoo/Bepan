@@ -2,7 +2,9 @@ import type {
   Attendance,
   BookId,
   BookSnapshot,
+  BusinessSegment,
   Category,
+  CategoryCalcMode,
   GuestType,
   MealCount,
   MealPeriod,
@@ -12,7 +14,14 @@ import type {
   Wallet,
   Worker,
 } from '../types/models';
-import { getPreviousYearMonth, getYearMonth } from './format';
+import {
+  formatVietnameseDate,
+  formatVietnameseMonth,
+  formatVND,
+  getPreviousYearMonth,
+  getYearMonth,
+  shiftDateISO,
+} from './format';
 
 /**
  * 1. Tra cứu đơn giá suất ăn có hiệu lực tại một ngày cụ thể.
@@ -154,19 +163,32 @@ export interface DailyReport {
   bep_an: {
     suat_truong: number;
     suat_vang_lai: number;
+    tong_suat: number;
+    chi_tiet_bua: DailyMealBreakdown['chi_tiet_bua'];
     doanh_thu_truong: number;
     doanh_thu_vang_lai: number;
     thu_khac: number;
     tong_doanh_thu: number;
-    chi_nguyen_lieu_ngay: number; // gồm cả trả ngay ('chi') và mua chịu ('chi_no') thuộc theo_ngay
+    chi_cho_tra_ngay: number;     // đi chợ trả tiền luôn ('chi')
+    chi_cho_mua_chiu: number;     // đi chợ mua chịu ghi nợ ('chi_no')
+    chi_nguyen_lieu_ngay: number; // chi_cho_tra_ngay + chi_cho_mua_chiu
+    tong_so_cong_ngay: number;
     chi_cong_tho_ngay: number;
     tong_chi_ngay: number;
-    lai_uoc_tinh_ngay: number; // Chưa gồm điện, nước, gas, gia vị cuối tháng
+    lai_uoc_tinh_ngay: number;    // Chưa gồm điện, nước, gas, gia vị cuối tháng
+    doanh_thu_binh_quan_suat: number;
+    gia_von_ngay_moi_suat: number; // Nguyên liệu + công thợ / 1 suất (chưa gồm chi phí tháng)
+    lai_ngay_moi_suat: number;
   };
   can_tin: {
+    thu_tien_mat_cuoi_ngay: number;
+    thu_chuyen_khoan_cuoi_ngay: number;
     tong_thu_quay_cuoi_ngay: number; // Tổng TM + CK chị Nhàn ông bà báo cuối ngày
     tru_tien_vang_lai: number;       // Phần tiền vãng lai tách sang Bếp ăn (Cách A)
+    thu_khac_can_tin: number;
     doanh_thu_can_tin: number;       // Thu thuần của Căn tin sau khi trừ vãng lai + thu khác CT
+    chi_nhap_tra_ngay: number;
+    chi_nhap_mua_chiu: number;
     chi_nhap_hang_ngay: number;      // Tiền nhập hàng căn tin phát sinh hôm nay (không tính lãi ngày CT)
     canh_bao_lech_vang_lai: boolean; // True nếu đã nhập thu cuối ngày nhưng nhỏ hơn tiền vãng lai
   };
@@ -180,7 +202,7 @@ function isDailyCalcCategory(categories: Category[], categoryId: string): boolea
 
 /**
  * 2. Tính báo cáo HÔM NAY:
- * - Bếp ăn: có Lãi ước tính ngày (Suất trường + Vãng lai − Tiền chợ ngày − Công thợ ngày).
+ * - Bếp ăn: có Lãi ước tính ngày (Suất trường + Vãng lai + Thu khác − Tiền chợ ngày − Công thợ ngày).
  * - Căn tin: theo đúng yêu cầu, chỉ hiện Thu & Chi nhập hàng trong ngày (không tính lãi ngày).
  * - Cách A: Tổng thu quầy cuối ngày tự động trừ đi tiền vãng lai của ngày đó để ra doanh thu Căn tin.
  */
@@ -202,29 +224,64 @@ export function computeDailyReport(snapshot: BookSnapshot, ngay: string): DailyR
     .filter((t) => t.loai === 'thu' && t.mang === 'bep_an')
     .reduce((sum, t) => sum + t.so_tien, 0);
 
-  // Chi nguyên liệu theo ngày của Bếp ăn (cả trả tiền ngay 'chi' lẫn mua chịu 'chi_no')
-  const chiNguyenLieuBep = activeTxs
+  // Chi nguyên liệu theo ngày của Bếp ăn (tách rõ trả ngay 'chi' và mua chịu 'chi_no')
+  const chiChoTraNgayBep = activeTxs
     .filter(
       (t) =>
-        (t.loai === 'chi' || t.loai === 'chi_no') &&
+        t.loai === 'chi' &&
         t.mang === 'bep_an' &&
         isDailyCalcCategory(snapshot.categories, t.category_id)
     )
     .reduce((sum, t) => sum + t.so_tien, 0);
 
-  // Chi công thợ theo chấm công ngày
-  const chiCongThoNgay = snapshot.attendance
-    .filter((a) => a.book_id === bookId && a.ngay === ngay)
-    .reduce((sum, a) => sum + a.so_cong * a.don_gia_cong, 0);
+  const chiChoMuaChiuBep = activeTxs
+    .filter(
+      (t) =>
+        t.loai === 'chi_no' &&
+        t.mang === 'bep_an' &&
+        isDailyCalcCategory(snapshot.categories, t.category_id)
+    )
+    .reduce((sum, t) => sum + t.so_tien, 0);
 
+  const chiNguyenLieuBep = chiChoTraNgayBep + chiChoMuaChiuBep;
+
+  // Chi công thợ theo chấm công ngày
+  const dayAttendances = snapshot.attendance.filter(
+    (a) => a.book_id === bookId && a.ngay === ngay
+  );
+  const tongSoCongNgay = dayAttendances.reduce((sum, a) => sum + a.so_cong, 0);
+  const chiCongThoNgay = dayAttendances.reduce(
+    (sum, a) => sum + a.so_cong * a.don_gia_cong,
+    0
+  );
+
+  const tongSuatNgay = mealRev.suat_truong + mealRev.suat_vang_lai;
   const tongDoanhThuBep = mealRev.tong_doanh_thu_suat_an + thuKhacBep;
   const tongChiNgayBep = chiNguyenLieuBep + chiCongThoNgay;
   const laiUocTinhNgayBep = tongDoanhThuBep - tongChiNgayBep;
 
+  const doanhThuBinhQuanSuat =
+    tongSuatNgay > 0 ? Math.round(tongDoanhThuBep / tongSuatNgay) : 0;
+  const giaVonNgayMoiSuat =
+    tongSuatNgay > 0 ? Math.round(tongChiNgayBep / tongSuatNgay) : 0;
+  const laiNgayMoiSuat =
+    tongSuatNgay > 0 ? Math.round(laiUocTinhNgayBep / tongSuatNgay) : 0;
+
   // Cách A cho Căn tin: Tổng tiền thu cuối ngày (TM + CK) trừ phần suất vãng lai
-  const tongThuQuayCuoiNgay = activeTxs
-    .filter((t) => t.loai === 'thu_cuoi_ngay')
+  const cashWalletIds = new Set(
+    snapshot.wallets
+      .filter((w) => w.book_id === bookId && w.loai_vi === 'tien_mat')
+      .map((w) => w.id)
+  );
+  const eodTxs = activeTxs.filter((t) => t.loai === 'thu_cuoi_ngay');
+  const thuTienMatCuoiNgay = eodTxs
+    .filter((t) => t.wallet_id && cashWalletIds.has(t.wallet_id))
     .reduce((sum, t) => sum + t.so_tien, 0);
+  const thuChuyenKhoanCuoiNgay = eodTxs
+    .filter((t) => !t.wallet_id || !cashWalletIds.has(t.wallet_id))
+    .reduce((sum, t) => sum + t.so_tien, 0);
+
+  const tongThuQuayCuoiNgay = thuTienMatCuoiNgay + thuChuyenKhoanCuoiNgay;
 
   const thuKhacCanTin = activeTxs
     .filter((t) => t.loai === 'thu' && t.mang === 'can_tin')
@@ -240,64 +297,206 @@ export function computeDailyReport(snapshot: BookSnapshot, ngay: string): DailyR
 
   const doanhThuCanTin = thuCanTinTuQuay + thuKhacCanTin;
 
-  const chiNhapHangCanTin = activeTxs
+  const chiNhapTraNgayCt = activeTxs
     .filter(
       (t) =>
-        (t.loai === 'chi' || t.loai === 'chi_no') &&
+        t.loai === 'chi' &&
         t.mang === 'can_tin' &&
         isDailyCalcCategory(snapshot.categories, t.category_id)
     )
     .reduce((sum, t) => sum + t.so_tien, 0);
+
+  const chiNhapMuaChiuCt = activeTxs
+    .filter(
+      (t) =>
+        t.loai === 'chi_no' &&
+        t.mang === 'can_tin' &&
+        isDailyCalcCategory(snapshot.categories, t.category_id)
+    )
+    .reduce((sum, t) => sum + t.so_tien, 0);
+
+  const chiNhapHangCanTin = chiNhapTraNgayCt + chiNhapMuaChiuCt;
 
   return {
     ngay,
     bep_an: {
       suat_truong: mealRev.suat_truong,
       suat_vang_lai: mealRev.suat_vang_lai,
+      tong_suat: tongSuatNgay,
+      chi_tiet_bua: mealRev.chi_tiet_bua,
       doanh_thu_truong: mealRev.doanh_thu_truong,
       doanh_thu_vang_lai: mealRev.doanh_thu_vang_lai,
       thu_khac: thuKhacBep,
       tong_doanh_thu: tongDoanhThuBep,
+      chi_cho_tra_ngay: chiChoTraNgayBep,
+      chi_cho_mua_chiu: chiChoMuaChiuBep,
       chi_nguyen_lieu_ngay: chiNguyenLieuBep,
+      tong_so_cong_ngay: tongSoCongNgay,
       chi_cong_tho_ngay: chiCongThoNgay,
       tong_chi_ngay: tongChiNgayBep,
       lai_uoc_tinh_ngay: laiUocTinhNgayBep,
+      doanh_thu_binh_quan_suat: doanhThuBinhQuanSuat,
+      gia_von_ngay_moi_suat: giaVonNgayMoiSuat,
+      lai_ngay_moi_suat: laiNgayMoiSuat,
     },
     can_tin: {
+      thu_tien_mat_cuoi_ngay: thuTienMatCuoiNgay,
+      thu_chuyen_khoan_cuoi_ngay: thuChuyenKhoanCuoiNgay,
       tong_thu_quay_cuoi_ngay: tongThuQuayCuoiNgay,
       tru_tien_vang_lai: coNhapThuCuoiNgay ? mealRev.doanh_thu_vang_lai : 0,
+      thu_khac_can_tin: thuKhacCanTin,
       doanh_thu_can_tin: doanhThuCanTin,
+      chi_nhap_tra_ngay: chiNhapTraNgayCt,
+      chi_nhap_mua_chiu: chiNhapMuaChiuCt,
       chi_nhap_hang_ngay: chiNhapHangCanTin,
       canh_bao_lech_vang_lai: canhBaoLechVangLai,
     },
   };
 }
 
+export interface SevenDayPoint {
+  ngay: string;
+  co_ghi_chep: boolean;
+  bep_tong_suat: number;
+  bep_doanh_thu: number;
+  bep_chi_ngay: number;
+  bep_lai_ngay: number;
+  can_tin_thu: number;
+  can_tin_chi: number;
+}
+
+export interface SevenDaySeriesSummary {
+  tu_ngay: string;
+  den_ngay: string;
+  so_ngay_co_ghi_chep: number;
+  tong_suat_7_ngay: number;
+  tong_doanh_thu_bep_7_ngay: number;
+  tong_chi_bep_7_ngay: number;
+  tong_lai_bep_7_ngay: number;
+  tong_thu_can_tin_7_ngay: number;
+  tong_chi_can_tin_7_ngay: number;
+  diem_ngay: SevenDayPoint[];
+}
+
+/**
+ * 2b. Chuỗi dữ liệu 7 ngày liên tiếp kết thúc tại `endNgay` (phục vụ biểu đồ cột 7 ngày).
+ */
+export function computeSevenDaySeries(
+  snapshot: BookSnapshot,
+  endNgay: string,
+  days = 7
+): SevenDaySeriesSummary {
+  const safeDays = Math.max(1, Math.min(31, Math.floor(days)));
+  const diem_ngay: SevenDayPoint[] = [];
+
+  let soNgayCoGhiChep = 0;
+  let tongSuat7 = 0;
+  let tongDoanhThuBep7 = 0;
+  let tongChiBep7 = 0;
+  let tongLaiBep7 = 0;
+  let tongThuCt7 = 0;
+  let tongChiCt7 = 0;
+
+  for (let offset = safeDays - 1; offset >= 0; offset--) {
+    const d = shiftDateISO(endNgay, -offset);
+    const daily = computeDailyReport(snapshot, d);
+    const coGhiChep =
+      daily.bep_an.tong_suat > 0 ||
+      daily.bep_an.tong_doanh_thu > 0 ||
+      daily.bep_an.tong_chi_ngay > 0 ||
+      daily.can_tin.tong_thu_quay_cuoi_ngay > 0 ||
+      daily.can_tin.doanh_thu_can_tin > 0 ||
+      daily.can_tin.chi_nhap_hang_ngay > 0;
+
+    if (coGhiChep) soNgayCoGhiChep += 1;
+    tongSuat7 += daily.bep_an.tong_suat;
+    tongDoanhThuBep7 += daily.bep_an.tong_doanh_thu;
+    tongChiBep7 += daily.bep_an.tong_chi_ngay;
+    tongLaiBep7 += daily.bep_an.lai_uoc_tinh_ngay;
+    tongThuCt7 += daily.can_tin.doanh_thu_can_tin;
+    tongChiCt7 += daily.can_tin.chi_nhap_hang_ngay;
+
+    diem_ngay.push({
+      ngay: d,
+      co_ghi_chep: coGhiChep,
+      bep_tong_suat: daily.bep_an.tong_suat,
+      bep_doanh_thu: daily.bep_an.tong_doanh_thu,
+      bep_chi_ngay: daily.bep_an.tong_chi_ngay,
+      bep_lai_ngay: daily.bep_an.lai_uoc_tinh_ngay,
+      can_tin_thu: daily.can_tin.doanh_thu_can_tin,
+      can_tin_chi: daily.can_tin.chi_nhap_hang_ngay,
+    });
+  }
+
+  return {
+    tu_ngay: diem_ngay[0]?.ngay ?? endNgay,
+    den_ngay: endNgay,
+    so_ngay_co_ghi_chep: soNgayCoGhiChep,
+    tong_suat_7_ngay: tongSuat7,
+    tong_doanh_thu_bep_7_ngay: tongDoanhThuBep7,
+    tong_chi_bep_7_ngay: tongChiBep7,
+    tong_lai_bep_7_ngay: tongLaiBep7,
+    tong_thu_can_tin_7_ngay: tongThuCt7,
+    tong_chi_can_tin_7_ngay: tongChiCt7,
+    diem_ngay,
+  };
+}
+
+export interface MonthlyExpenseCategoryItem {
+  category_id: string;
+  ten_danh_muc: string;
+  icon: string;
+  mang: BusinessSegment;
+  kieu_tinh: CategoryCalcMode;
+  so_tien: number;
+  ty_le_phan_tram: number; // Làm tròn 1 chữ số thập phân (VD: 34.5)
+  la_uoc_tinh: boolean;    // True nếu dòng chi phí tháng này lấy tạm từ tháng trước
+}
+
 export interface MonthlyReport {
   ky_thang: string; // YYYY-MM
+  so_ngay_hoat_dong: number;
   bep_an: {
     tong_suat_truong: number;
     tong_suat_vang_lai: number;
+    tong_suat: number;
+    doanh_thu_truong: number;
+    doanh_thu_vang_lai: number;
+    thu_khac: number;
     doanh_thu: number;
-    chi_ngay: number; // nguyên liệu + công thợ
+    chi_nguyen_lieu_ngay: number;
+    tong_so_cong: number;
+    chi_cong_tho: number;
+    chi_ngay: number; // chi_nguyen_lieu_ngay + chi_cong_tho
     chi_cuoi_thang_rieng: number; // gia vị, gas gắn riêng mảng bếp ăn
     lai_bep_an: number;
+    doanh_thu_binh_quan_suat: number;
+    gia_von_nguyen_lieu_cong_moi_suat: number; // (chi_ngay) / tong_suat
+    gia_von_bep_day_du_moi_suat: number;       // (chi_ngay + chi_cuoi_thang_rieng) / tong_suat
+    gia_von_phan_bo_chung_moi_suat: number;    // (chi_ngay + chi_cuoi_thang_rieng + chi_cuoi_thang_chung) / tong_suat
+    lai_bep_moi_suat: number;                  // lai_bep_an / tong_suat
   };
   can_tin: {
     doanh_thu: number;
     chi_nhap_hang: number;
     chi_cuoi_thang_rieng: number;
     lai_can_tin: number;
+    ty_suat_lai_phan_tram: number;
   };
   chi_cuoi_thang_chung: number; // điện, nước, vệ sinh chung
   tong_chi_cuoi_thang_ap_dung: number;
   la_uoc_tinh_tu_thang_truoc: boolean; // True nếu tháng này chưa nhập chi phí tháng, lấy tạm tháng trước
+  ky_thang_nguon_chi_thang: string | null;
+  tong_doanh_thu_toan_co_so: number;
+  tong_chi_toan_co_so: number;
   lai_rong_toan_co_so: number;
+  chi_theo_danh_muc: MonthlyExpenseCategoryItem[];
 }
 
 /**
  * 3. Tính báo cáo THÁNG (chỉ trừ chi phí cuối tháng vào lợi nhuận tháng, không chia theo ngày).
- * Nếu tháng hiện tại chưa nhập chi phí cuối tháng (gia vị, điện, nước, gas), tự lấy tháng trước làm mức tạm ước tính.
+ * Nếu tháng đang có hoạt động mà chưa nhập chi phí cuối tháng (gia vị, điện, nước, gas),
+ * tự lấy tháng trước làm mức tạm ước tính cho tới khi nhập hóa đơn thực tế.
  */
 export function computeMonthlyReport(snapshot: BookSnapshot, kyThang: string): MonthlyReport {
   const bookId = snapshot.book.id;
@@ -316,21 +515,61 @@ export function computeMonthlyReport(snapshot: BookSnapshot, kyThang: string): M
     }
   }
 
+  let soNgayHoatDong = 0;
   let tongSuatTruong = 0;
   let tongSuatVangLai = 0;
+  let doanhThuTruong = 0;
+  let doanhThuVangLai = 0;
+  let thuKhacBep = 0;
   let doanhThuBep = 0;
+  let chiNguyenLieuBep = 0;
+  let tongSoCong = 0;
+  let chiCongTho = 0;
   let chiNgayBep = 0;
   let doanhThuCanTin = 0;
   let chiNhapHangCanTin = 0;
 
   for (const ngay of dateSet) {
     const daily = computeDailyReport(snapshot, ngay);
+    const coHoatDongNgay =
+      daily.bep_an.tong_suat > 0 ||
+      daily.bep_an.tong_doanh_thu > 0 ||
+      daily.bep_an.tong_chi_ngay > 0 ||
+      daily.can_tin.tong_thu_quay_cuoi_ngay > 0 ||
+      daily.can_tin.doanh_thu_can_tin > 0 ||
+      daily.can_tin.chi_nhap_hang_ngay > 0;
+
+    if (coHoatDongNgay) soNgayHoatDong += 1;
+
     tongSuatTruong += daily.bep_an.suat_truong;
     tongSuatVangLai += daily.bep_an.suat_vang_lai;
+    doanhThuTruong += daily.bep_an.doanh_thu_truong;
+    doanhThuVangLai += daily.bep_an.doanh_thu_vang_lai;
+    thuKhacBep += daily.bep_an.thu_khac;
     doanhThuBep += daily.bep_an.tong_doanh_thu;
+    chiNguyenLieuBep += daily.bep_an.chi_nguyen_lieu_ngay;
+    tongSoCong += daily.bep_an.tong_so_cong_ngay;
+    chiCongTho += daily.bep_an.chi_cong_tho_ngay;
     chiNgayBep += daily.bep_an.tong_chi_ngay;
     doanhThuCanTin += daily.can_tin.doanh_thu_can_tin;
     chiNhapHangCanTin += daily.can_tin.chi_nhap_hang_ngay;
+  }
+
+  // Trường hợp hiếm: có khoản chi theo_ngay nhưng gắn mảng 'chung'
+  const chiNgayChung = snapshot.transactions
+    .filter(
+      (t) =>
+        t.book_id === bookId &&
+        !t.da_xoa &&
+        getYearMonth(t.ngay) === kyThang &&
+        (t.loai === 'chi' || t.loai === 'chi_no') &&
+        t.mang === 'chung' &&
+        isDailyCalcCategory(snapshot.categories, t.category_id)
+    )
+    .reduce((s, t) => s + t.so_tien, 0);
+
+  if (chiNgayChung > 0 && soNgayHoatDong === 0) {
+    soNgayHoatDong = 1;
   }
 
   // Hàm lấy chi phí cuối tháng (theo_thang) của một kỳ
@@ -354,46 +593,266 @@ export function computeMonthlyReport(snapshot: BookSnapshot, kyThang: string): M
       .filter((t) => t.mang === 'chung')
       .reduce((s, t) => s + t.so_tien, 0);
 
-    return { bep, ct, chung, total: bep + ct + chung };
+    return { txs: monthlyTxs, bep, ct, chung, total: bep + ct + chung };
   };
 
   const currentOverheads = getMonthlyOverheads(kyThang);
   let appliedOverheads = currentOverheads;
   let laUocTinh = false;
+  let kyThangNguonChiThang: string | null =
+    currentOverheads.total > 0 ? kyThang : null;
 
-  if (currentOverheads.total === 0) {
-    const prevOverheads = getMonthlyOverheads(getPreviousYearMonth(kyThang));
+  // Chỉ tạm ước tính từ tháng trước khi tháng này ĐÃ có hoạt động phát sinh mà chưa nhập hóa đơn tháng
+  const hasOperationalActivity = soNgayHoatDong > 0;
+  if (currentOverheads.total === 0 && hasOperationalActivity) {
+    const prevMonth = getPreviousYearMonth(kyThang);
+    const prevOverheads = getMonthlyOverheads(prevMonth);
     if (prevOverheads.total > 0) {
       appliedOverheads = prevOverheads;
       laUocTinh = true;
+      kyThangNguonChiThang = prevMonth;
     }
   }
 
+  const chiChungTong = appliedOverheads.chung + chiNgayChung;
   const laiBepAn = doanhThuBep - chiNgayBep - appliedOverheads.bep;
   const laiCanTin = doanhThuCanTin - chiNhapHangCanTin - appliedOverheads.ct;
-  const laiRongToanCoSo = laiBepAn + laiCanTin - appliedOverheads.chung;
+  const laiRongToanCoSo = laiBepAn + laiCanTin - chiChungTong;
+
+  const tongSuatThang = tongSuatTruong + tongSuatVangLai;
+  const doanhThuBqSuat =
+    tongSuatThang > 0 ? Math.round(doanhThuBep / tongSuatThang) : 0;
+  const giaVonNguyenLieuCongSuat =
+    tongSuatThang > 0 ? Math.round(chiNgayBep / tongSuatThang) : 0;
+  const giaVonBepDayDuSuat =
+    tongSuatThang > 0
+      ? Math.round((chiNgayBep + appliedOverheads.bep) / tongSuatThang)
+      : 0;
+  const giaVonPhanBoChungSuat =
+    tongSuatThang > 0
+      ? Math.round((chiNgayBep + appliedOverheads.bep + chiChungTong) / tongSuatThang)
+      : 0;
+  const laiBepMoiSuat =
+    tongSuatThang > 0 ? Math.round(laiBepAn / tongSuatThang) : 0;
+
+  const tySuatLaiCt =
+    doanhThuCanTin > 0
+      ? Math.round((laiCanTin / doanhThuCanTin) * 1000) / 10
+      : 0;
+
+  const tongDoanhThuToanCoSo = doanhThuBep + doanhThuCanTin;
+  const tongChiToanCoSo =
+    chiNgayBep + chiNhapHangCanTin + chiNgayChung + appliedOverheads.total;
+
+  // Cơ cấu chi phí theo danh mục (khớp 100% với tongChiToanCoSo)
+  const categoryMap = new Map<
+    string,
+    {
+      category_id: string;
+      ten_danh_muc: string;
+      icon: string;
+      mang: BusinessSegment;
+      kieu_tinh: CategoryCalcMode;
+      so_tien: number;
+      la_uoc_tinh: boolean;
+    }
+  >();
+
+  // a) Toàn bộ giao dịch chi theo_ngay trong tháng
+  const dailyExpenseTxs = snapshot.transactions.filter(
+    (t) =>
+      t.book_id === bookId &&
+      !t.da_xoa &&
+      getYearMonth(t.ngay) === kyThang &&
+      (t.loai === 'chi' || t.loai === 'chi_no') &&
+      isDailyCalcCategory(snapshot.categories, t.category_id)
+  );
+
+  for (const tx of dailyExpenseTxs) {
+    const cat = snapshot.categories.find((c) => c.id === tx.category_id);
+    const key = `${tx.category_id}::${tx.mang}::real`;
+    const existing = categoryMap.get(key);
+    if (existing) {
+      existing.so_tien += tx.so_tien;
+    } else {
+      categoryMap.set(key, {
+        category_id: tx.category_id,
+        ten_danh_muc: cat?.ten_danh_muc ?? 'Chi phí khác',
+        icon: cat?.icon ?? '📝',
+        mang: tx.mang,
+        kieu_tinh: 'theo_ngay',
+        so_tien: tx.so_tien,
+        la_uoc_tinh: false,
+      });
+    }
+  }
+
+  // b) Công thợ phụ bếp theo chấm công
+  if (chiCongTho > 0) {
+    categoryMap.set('__cong_tho__', {
+      category_id: '__cong_tho__',
+      ten_danh_muc: `Công thợ phụ bếp (${tongSoCong} công)`,
+      icon: '👷',
+      mang: 'bep_an',
+      kieu_tinh: 'theo_ngay',
+      so_tien: chiCongTho,
+      la_uoc_tinh: false,
+    });
+  }
+
+  // c) Chi phí cuối tháng (thực tế hoặc tạm tính từ tháng trước)
+  for (const tx of appliedOverheads.txs) {
+    const cat = snapshot.categories.find((c) => c.id === tx.category_id);
+    const key = `${tx.category_id}::${tx.mang}::${laUocTinh ? 'est' : 'real'}`;
+    const existing = categoryMap.get(key);
+    if (existing) {
+      existing.so_tien += tx.so_tien;
+    } else {
+      categoryMap.set(key, {
+        category_id: tx.category_id,
+        ten_danh_muc: cat?.ten_danh_muc ?? 'Chi phí cuối tháng',
+        icon: cat?.icon ?? '⚡',
+        mang: tx.mang,
+        kieu_tinh: 'theo_thang',
+        so_tien: tx.so_tien,
+        la_uoc_tinh: laUocTinh,
+      });
+    }
+  }
+
+  const chiTheoDanhMuc: MonthlyExpenseCategoryItem[] = Array.from(
+    categoryMap.values()
+  )
+    .filter((item) => item.so_tien > 0)
+    .sort((a, b) => b.so_tien - a.so_tien)
+    .map((item) => ({
+      ...item,
+      ty_le_phan_tram:
+        tongChiToanCoSo > 0
+          ? Math.round((item.so_tien / tongChiToanCoSo) * 1000) / 10
+          : 0,
+    }));
 
   return {
     ky_thang: kyThang,
+    so_ngay_hoat_dong: soNgayHoatDong,
     bep_an: {
       tong_suat_truong: tongSuatTruong,
       tong_suat_vang_lai: tongSuatVangLai,
+      tong_suat: tongSuatThang,
+      doanh_thu_truong: doanhThuTruong,
+      doanh_thu_vang_lai: doanhThuVangLai,
+      thu_khac: thuKhacBep,
       doanh_thu: doanhThuBep,
+      chi_nguyen_lieu_ngay: chiNguyenLieuBep,
+      tong_so_cong: tongSoCong,
+      chi_cong_tho: chiCongTho,
       chi_ngay: chiNgayBep,
       chi_cuoi_thang_rieng: appliedOverheads.bep,
       lai_bep_an: laiBepAn,
+      doanh_thu_binh_quan_suat: doanhThuBqSuat,
+      gia_von_nguyen_lieu_cong_moi_suat: giaVonNguyenLieuCongSuat,
+      gia_von_bep_day_du_moi_suat: giaVonBepDayDuSuat,
+      gia_von_phan_bo_chung_moi_suat: giaVonPhanBoChungSuat,
+      lai_bep_moi_suat: laiBepMoiSuat,
     },
     can_tin: {
       doanh_thu: doanhThuCanTin,
       chi_nhap_hang: chiNhapHangCanTin,
       chi_cuoi_thang_rieng: appliedOverheads.ct,
       lai_can_tin: laiCanTin,
+      ty_suat_lai_phan_tram: tySuatLaiCt,
     },
-    chi_cuoi_thang_chung: appliedOverheads.chung,
+    chi_cuoi_thang_chung: chiChungTong,
     tong_chi_cuoi_thang_ap_dung: appliedOverheads.total,
     la_uoc_tinh_tu_thang_truoc: laUocTinh,
+    ky_thang_nguon_chi_thang: kyThangNguonChiThang,
+    tong_doanh_thu_toan_co_so: tongDoanhThuToanCoSo,
+    tong_chi_toan_co_so: tongChiToanCoSo,
     lai_rong_toan_co_so: laiRongToanCoSo,
+    chi_theo_danh_muc: chiTheoDanhMuc,
   };
+}
+
+/**
+ * Tạo câu tóm tắt tiếng Việt tự nhiên để đọc to Báo cáo Ngày cho ông bà nghe.
+ */
+export function buildSpokenDailyReport(
+  snapshot: BookSnapshot,
+  daily: DailyReport
+): string {
+  const tenSo = snapshot.book.ten;
+  const ngayLabel = formatVietnameseDate(daily.ngay);
+  const { bep_an: b, can_tin: c } = daily;
+
+  if (
+    b.tong_suat === 0 &&
+    b.tong_doanh_thu === 0 &&
+    b.tong_chi_ngay === 0 &&
+    c.tong_thu_quay_cuoi_ngay === 0 &&
+    c.chi_nhap_hang_ngay === 0
+  ) {
+    return `${tenSo}, ${ngayLabel}: chưa có ghi chép suất ăn hoặc thu chi nào.`;
+  }
+
+  const laiText =
+    b.lai_uoc_tinh_ngay >= 0
+      ? `lãi ước tính ${formatVND(b.lai_uoc_tinh_ngay)}`
+      : `tạm âm ${formatVND(Math.abs(b.lai_uoc_tinh_ngay))}`;
+
+  const parts: string[] = [
+    `Báo cáo ${tenSo}, ${ngayLabel}.`,
+    `Bếp ăn phục vụ ${b.tong_suat} suất, thu ${formatVND(b.tong_doanh_thu)}, chi chợ và công thợ ${formatVND(b.tong_chi_ngay)}, ${laiText}.`,
+  ];
+
+  if (b.tong_suat > 0) {
+    parts.push(`Giá vốn trong ngày khoảng ${formatVND(b.gia_von_ngay_moi_suat)} một suất.`);
+  }
+
+  if (c.doanh_thu_can_tin > 0 || c.chi_nhap_hang_ngay > 0) {
+    parts.push(
+      `Căn tin thu ${formatVND(c.doanh_thu_can_tin)}, chi nhập hàng ${formatVND(c.chi_nhap_hang_ngay)}.`
+    );
+  }
+
+  return parts.join(' ');
+}
+
+/**
+ * Tạo câu tóm tắt tiếng Việt tự nhiên để đọc to Báo cáo Tháng cho ông bà nghe.
+ */
+export function buildSpokenMonthlyReport(
+  snapshot: BookSnapshot,
+  monthly: MonthlyReport
+): string {
+  const tenSo = snapshot.book.ten;
+  const thangLabel = formatVietnameseMonth(monthly.ky_thang);
+
+  if (monthly.so_ngay_hoat_dong === 0 && monthly.tong_chi_cuoi_thang_ap_dung === 0) {
+    return `${tenSo}, ${thangLabel}: chưa có số liệu ghi chép trong tháng này.`;
+  }
+
+  const laiRongText =
+    monthly.lai_rong_toan_co_so >= 0
+      ? `lãi ròng toàn cơ sở ${formatVND(monthly.lai_rong_toan_co_so)}`
+      : `đang âm ${formatVND(Math.abs(monthly.lai_rong_toan_co_so))}`;
+
+  const parts: string[] = [
+    `Báo cáo ${tenSo}, ${thangLabel}.`,
+    `Bếp ăn nấu ${monthly.bep_an.tong_suat} suất, lãi ${formatVND(monthly.bep_an.lai_bep_an)}.`,
+    `Căn tin lãi ${formatVND(monthly.can_tin.lai_can_tin)}.`,
+  ];
+
+  if (monthly.tong_chi_cuoi_thang_ap_dung > 0) {
+    parts.push(
+      monthly.la_uoc_tinh_tu_thang_truoc
+        ? `Chi phí điện, nước, ga, gia vị đang tạm tính theo tháng trước là ${formatVND(monthly.tong_chi_cuoi_thang_ap_dung)}.`
+        : `Chi phí điện, nước, ga, gia vị cuối tháng là ${formatVND(monthly.tong_chi_cuoi_thang_ap_dung)}.`
+    );
+  }
+
+  parts.push(`Tổng kết ${laiRongText}.`);
+  return parts.join(' ');
 }
 
 export interface WalletBalanceSummary {

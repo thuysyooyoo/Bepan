@@ -158,7 +158,12 @@ export const AppShell: React.FC = () => {
               />
             )}
             {activeTab === 'hom_nay' && (
-              <HomNayTab snapshot={snapshot} selectedDate={selectedDate} />
+              <HomNayTab
+                snapshot={snapshot}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                onJumpToForm={handleJumpToForm}
+              />
             )}
             {activeTab === 'tien' && <DongTienTab snapshot={snapshot} />}
             {activeTab === 'no' && (

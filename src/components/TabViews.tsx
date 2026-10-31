@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
 import {
   Wallet as WalletIcon,
-  BookOpen,
   Users,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
 import {
-  computeDailyReport,
   computeDebtAndPayables,
   computeWalletBalances,
-  getEffectiveMealPrice,
 } from '../domain/accounting';
 import { formatVND, getTodayISO, getYearMonth } from '../domain/format';
 import type { BookSnapshot, Transaction } from '../types/models';
@@ -18,6 +15,7 @@ import { ChatAssistantBox } from './ChatAssistantBox';
 import { UndoBanner, type UndoState } from './ConfirmationCard';
 import { DailyLedgerList } from './DailyLedgerList';
 import { ManualEntryForms, type ManualFormKind } from './ManualEntryForms';
+import { ProfitReportView } from './ProfitReportView';
 
 interface GhiSoTabProps {
   snapshot: BookSnapshot;
@@ -208,118 +206,23 @@ export const GhiSoTab: React.FC<GhiSoTabProps> = ({
 interface TabContentProps {
   snapshot: BookSnapshot;
   selectedDate?: string;
+  onSelectDate?: (isoDate: string) => void;
   onJumpToForm?: (kind: ManualFormKind) => void;
 }
 
-export const HomNayTab: React.FC<TabContentProps> = ({ snapshot, selectedDate }) => {
-  const targetDate = selectedDate || getTodayISO();
-  const daily = computeDailyReport(snapshot, targetDate);
-
-  const giaSangTr = getEffectiveMealPrice(
-    snapshot.mealPrices,
-    snapshot.book.id,
-    'sang',
-    'truong',
-    targetDate
-  );
-  const giaTruaTr = getEffectiveMealPrice(
-    snapshot.mealPrices,
-    snapshot.book.id,
-    'trua',
-    'truong',
-    targetDate
-  );
-  const giaToiTr = getEffectiveMealPrice(
-    snapshot.mealPrices,
-    snapshot.book.id,
-    'toi',
-    'truong',
-    targetDate
-  );
-  const giaTruaVl = getEffectiveMealPrice(
-    snapshot.mealPrices,
-    snapshot.book.id,
-    'trua',
-    'vang_lai',
-    targetDate
-  );
-
+export const HomNayTab: React.FC<TabContentProps> = ({
+  snapshot,
+  selectedDate,
+  onSelectDate,
+  onJumpToForm,
+}) => {
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl bg-white border-2 border-teal-600 p-4 shadow-xs">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-extrabold text-teal-900">🍲 Bếp ăn — {targetDate}</h2>
-          <span className="text-base font-bold text-teal-800">
-            {daily.bep_an.suat_truong + daily.bep_an.suat_vang_lai} suất
-          </span>
-        </div>
-
-        <div className="mt-3 p-3.5 rounded-xl bg-teal-50 border border-teal-200">
-          <div className="text-lg text-teal-900 font-semibold">Lãi ước tính trong ngày</div>
-          <div className="text-3xl font-extrabold text-teal-800 mt-0.5">
-            {formatVND(daily.bep_an.lai_uoc_tinh_ngay, true)}
-          </div>
-          <div className="text-base text-stone-600 mt-1">
-            * Chưa gồm điện, nước, gas, gia vị cuối tháng
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 mt-3 text-lg">
-          <div className="p-3 rounded-xl bg-stone-100">
-            <div className="text-stone-600 text-base">Doanh thu suất ăn</div>
-            <div className="font-bold text-stone-900">
-              {formatVND(daily.bep_an.tong_doanh_thu)}
-            </div>
-          </div>
-          <div className="p-3 rounded-xl bg-stone-100">
-            <div className="text-stone-600 text-base">Chi chợ + Công thợ</div>
-            <div className="font-bold text-red-700">{formatVND(daily.bep_an.tong_chi_ngay)}</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl bg-white border-2 border-amber-500 p-4 shadow-xs">
-        <h2 className="text-xl font-extrabold text-amber-900">🏪 Căn tin — Thu/Chi ngày</h2>
-        <p className="text-base text-stone-600 mt-0.5">
-          Đã tự trừ {formatVND(daily.can_tin.tru_tien_vang_lai)} tiền suất vãng lai khỏi tổng thu cuối ngày
-        </p>
-        <div className="grid grid-cols-2 gap-3 mt-3 text-lg">
-          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
-            <div className="text-amber-900 text-base">Doanh thu Căn tin</div>
-            <div className="font-bold text-amber-950">
-              {formatVND(daily.can_tin.doanh_thu_can_tin)}
-            </div>
-          </div>
-          <div className="p-3 rounded-xl bg-stone-100">
-            <div className="text-stone-600 text-base">Chi nhập hàng</div>
-            <div className="font-bold text-red-700">
-              {formatVND(daily.can_tin.chi_nhap_hang_ngay)}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl bg-white border border-stone-300 p-4">
-        <div className="flex items-center gap-2 font-bold text-lg text-stone-800 mb-2">
-          <BookOpen className="w-5 h-5 text-teal-700" />
-          Đơn giá áp dụng tại {snapshot.book.ten}
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-base text-stone-700">
-          <div>
-            • Sáng (trường): <strong>{formatVND(giaSangTr)}</strong>
-          </div>
-          <div>
-            • Trưa (trường): <strong>{formatVND(giaTruaTr)}</strong>
-          </div>
-          <div>
-            • Tối (trường): <strong>{formatVND(giaToiTr)}</strong>
-          </div>
-          <div>
-            • Trưa (vãng lai): <strong>{formatVND(giaTruaVl)}</strong>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ProfitReportView
+      snapshot={snapshot}
+      selectedDate={selectedDate || getTodayISO()}
+      onSelectDate={onSelectDate}
+      onJumpToForm={onJumpToForm}
+    />
   );
 };
 

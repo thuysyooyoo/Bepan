@@ -78,6 +78,37 @@ export function getPreviousYearMonth(kyThang: string): string {
   return `${y}-${String(m).padStart(2, '0')}`;
 }
 
+export function getNextYearMonth(kyThang: string): string {
+  const [yStr, mStr] = kyThang.split('-');
+  let y = Number(yStr);
+  let m = Number(mStr) + 1;
+  if (m > 12) {
+    m = 1;
+    y += 1;
+  }
+  return `${y}-${String(m).padStart(2, '0')}`;
+}
+
+export function formatVietnameseMonth(kyThang: string): string {
+  if (!kyThang) return '';
+  const [yStr, mStr] = kyThang.split('-');
+  return `Tháng ${String(Number(mStr)).padStart(2, '0')}/${yStr}`;
+}
+
+export function formatShortWeekdayDate(isoDate: string): {
+  thuNgan: string;
+  ngayThang: string;
+} {
+  if (!isoDate) return { thuNgan: '', ngayThang: '' };
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const dateObj = new Date(y, m - 1, d);
+  const shortDays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  return {
+    thuNgan: shortDays[dateObj.getDay()] ?? '',
+    ngayThang: `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`,
+  };
+}
+
 export function formatVietnameseDate(isoDate: string): string {
   if (!isoDate) return '';
   const [y, m, d] = isoDate.split('-').map(Number);
