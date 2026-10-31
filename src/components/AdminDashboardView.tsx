@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BellRing,
   Check,
@@ -6,14 +6,19 @@ import {
   ChevronLeft,
   ChevronRight,
   Crown,
+  Download,
   Edit3,
+  FileJson,
   FileSpreadsheet,
   MessageSquareText,
   Mic,
   RefreshCw,
   Search,
   Share2,
+  Sparkles,
+  Upload,
   Wallet,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { dbRepo } from '../db';
@@ -23,18 +28,30 @@ import {
   extractChatLogAiPreview,
   extractChatLogTargetDate,
 } from '../domain/adminSummary';
+import {
+  extractDialectCandidates,
+  type DialectCandidate,
+} from '../domain/dialectLearner';
 import { downloadAdminCombinedMonthlyExcel } from '../domain/excelExport';
 import {
   formatCompactVND,
   formatVietnameseMonth,
   formatVND,
+  generateId,
   getNextYearMonth,
   getPreviousYearMonth,
   getTodayISO,
   getYearMonth,
 } from '../domain/format';
 import type { ActiveReminderCard } from '../domain/reminders';
-import type { BookId, BookSnapshot, ChatLog } from '../types/models';
+import {
+  checkWeeklyBackupStatus,
+  downloadBackupJsonFile,
+  exportFullSystemBackupPayload,
+  restoreFullSystemBackup,
+  validateBackupJsonPayload,
+} from '../domain/weeklyBackup';
+import type { BookId, BookSnapshot, Category, ChatLog, Supplier, Worker } from '../types/models';
 
 export interface AdminDashboardViewProps {
   initialMonth?: string;
@@ -106,6 +123,18 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [chatBookFilter, setChatBookFilter] = useState<'all' | BookId>('all');
   const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
   const [chatQuery, setChatQuery] = useState('');
+
+  const [exportingBackup, setExportingBackup] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+  const backupFileInputRef = useRef<HTMLInputElement>(null);
+  const [teachingCandidate, setTeachingCandidate] = useState<DialectCandidate | null>(null);
+  const [teachingLog, setTeachingLog] = useState<ChatLog | null>(null);
+  const [showCandidateReview, setShowCandidateReview] = useState(false);
+
+  const backupStatus = useMemo(
+    () => checkWeeklyBackupStatus(),
+    [exportingBackup, restoringBackup]
+  );
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -229,6 +258,60 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     showToast('✅ Đã đánh dấu câu nói là Đã xử lý / sửa hộ.');
   };
 
+  const handleExportBackup = async () => {
+    if (!session || exportingBackup) return;
+    try {
+      setExportingBackup(true);
+      const payload = await exportFullSystemBackupPayload(dbRepo, session);
+      const filename = downloadBackupJsonFile(payload);
+      showToast(`📥 Đã tải file sao lưu: ${filename}`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không thể xuất file sao lưu.');
+    } finally {
+      setExportingBackup(false);
+    }
+  };
+
+  const handleFileRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !session) return;
+    const confirmed = window.confirm(
+      'Khôi phục bản sao lưu sẽ nạp lại toàn bộ dữ liệu 2 cơ sở từ file .json. Bạn có chắc chắn muốn khôi phục không?'
+    );
+    if (!confirmed) {
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      setRestoringBackup(true);
+      const text = await file.text();
+      const payload = validateBackupJsonPayload(text);
+      const summary = await restoreFullSystemBackup(dbRepo, session, payload);
+      await loadBothBooks();
+      showToast(
+        `✅ Đã khôi phục thành công ${summary.totalTransactions} giao dịch & ${summary.totalCategories} danh mục!`
+      );
+    } catch (err) {
+      showToast(
+        err instanceof Error ? `Lỗi khôi phục: ${err.message}` : 'Không thể đọc file sao lưu.'
+      );
+    } finally {
+      setRestoringBackup(false);
+      e.target.value = '';
+    }
+  };
+
+  const dialectCandidates = useMemo(() => {
+    if (!combined || !hhSnap || !tdSnap) return [];
+    return extractDialectCandidates(
+      combined.combinedChatLogs,
+      hhSnap.categories,
+      [...hhSnap.suppliers, ...tdSnap.suppliers],
+      [...hhSnap.workers, ...tdSnap.workers]
+    );
+  }, [combined, hhSnap, tdSnap]);
+
   if (loading) {
     return (
       <div className="py-12 text-center text-xl font-bold text-stone-600">
@@ -315,6 +398,60 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <Share2 className="w-5 h-5 text-sky-700 shrink-0" />
             <span>Gửi tóm tắt Zalo</span>
           </button>
+        </div>
+      </div>
+
+      {/* THẺ SAO LƯU DỮ LIỆU TUẦN (.JSON) - RULE 10 */}
+      <div className="rounded-3xl bg-white border-2 border-indigo-200 p-4 shadow-xs space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <FileJson className="w-6 h-6 text-indigo-700 shrink-0" />
+            <h2 className="text-xl font-extrabold text-stone-900">
+              Sao lưu dữ liệu tuần (.json)
+            </h2>
+          </div>
+          {backupStatus.due ? (
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-950 text-xs font-extrabold border border-amber-400">
+              ⚠️ Đã đến kỳ sao lưu
+            </span>
+          ) : (
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-950 text-xs font-extrabold border border-emerald-300">
+              ✅ Tuần này đã an toàn
+            </span>
+          )}
+        </div>
+
+        <p className="text-sm text-stone-600 leading-relaxed">
+          Tải file sao lưu .json lưu trữ toàn bộ số liệu 2 cơ sở (Hiệp Hòa &amp; Tiên Du). Tuân thủ Rule 10: chỉ dùng file .json, tuyệt đối không tạo bất kỳ file backup .xlsx nào trên ổ đĩa.
+        </p>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={exportingBackup}
+            onClick={handleExportBackup}
+            className="min-h-[46px] px-3 py-2 rounded-2xl bg-indigo-700 hover:bg-indigo-800 disabled:opacity-60 text-white font-extrabold text-sm flex items-center justify-center gap-1.5 shadow-xs"
+          >
+            <Download className="w-5 h-5 shrink-0" />
+            <span>{exportingBackup ? 'Đang tạo .json...' : 'Tải sao lưu (.json)'}</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={restoringBackup}
+            onClick={() => backupFileInputRef.current?.click()}
+            className="min-h-[46px] px-3 py-2 rounded-2xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-900 font-extrabold text-sm flex items-center justify-center gap-1.5"
+          >
+            <Upload className="w-5 h-5 text-stone-700 shrink-0" />
+            <span>{restoringBackup ? 'Đang đọc...' : 'Khôi phục file'}</span>
+          </button>
+          <input
+            ref={backupFileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileRestore}
+            className="hidden"
+          />
         </div>
       </div>
 
@@ -669,6 +806,54 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </button>
         </div>
 
+        {dialectCandidates.length > 0 && (
+          <div className="p-3.5 rounded-2xl bg-purple-50 border-2 border-purple-300 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-extrabold text-sm text-purple-950 inline-flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                Phát hiện {dialectCandidates.length} từ địa phương / mối mới từ chat
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowCandidateReview((v) => !v)}
+                className="text-xs font-bold text-purple-800 underline"
+              >
+                {showCandidateReview ? 'Thu gọn' : 'Xem danh sách'}
+              </button>
+            </div>
+            {showCandidateReview && (
+              <div className="space-y-1.5 pt-1 max-h-48 overflow-y-auto">
+                {dialectCandidates.map((cand) => (
+                  <div
+                    key={cand.id}
+                    className="flex items-center justify-between p-2 rounded-xl bg-white border border-purple-200 text-xs"
+                  >
+                    <div>
+                      <strong className="text-stone-900">{cand.candidateTerm}</strong>{' '}
+                      <span className="text-stone-500">
+                        (
+                        {cand.suggestedType === 'category_keyword'
+                          ? `Danh mục: ${cand.suggestedCategoryName || 'Chi'}`
+                          : cand.suggestedType === 'new_supplier'
+                          ? 'Mối hàng mới'
+                          : 'Phụ bếp mới'}
+                        )
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTeachingCandidate(cand)}
+                      className="px-2.5 py-1 rounded-lg bg-purple-600 text-white font-bold hover:bg-purple-700"
+                    >
+                      Dạy ngay
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {filteredChatLogs.length === 0 ? (
           <div className="py-6 text-center text-base text-stone-500 font-semibold">
             Chưa có câu nói AI nào khớp bộ lọc này.
@@ -741,6 +926,16 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       <span>Mở sổ ngày {shortDate} sửa / ghi hộ</span>
                     </button>
 
+                    <button
+                      type="button"
+                      onClick={() => setTeachingLog(log)}
+                      className="min-h-[40px] px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-950 font-bold text-xs inline-flex items-center gap-1"
+                      title="Dạy từ mới hoặc thêm mối hàng từ câu này"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Dạy từ / Mối mới</span>
+                    </button>
+
                     {(log.ket_qua === 'cho_xac_nhan' || log.ket_qua === 'huy') && (
                       <button
                         type="button"
@@ -756,6 +951,417 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             })}
           </div>
         )}
+      </div>
+
+      {/* Hộp thoại Dạy từ mới / Mối mới */}
+      {(teachingLog || teachingCandidate) && hhSnap && (
+        <DialectTeachingModal
+          isOpen={Boolean(teachingLog || teachingCandidate)}
+          onClose={() => {
+            setTeachingLog(null);
+            setTeachingCandidate(null);
+          }}
+          utterance={teachingCandidate?.rawUtterance || teachingLog?.cau_noi || ''}
+          defaultCandidateTerm={teachingCandidate?.candidateTerm}
+          defaultType={teachingCandidate?.suggestedType}
+          defaultCategoryId={teachingCandidate?.suggestedCategoryId}
+          defaultBookId={teachingCandidate?.bookId || teachingLog?.book_id}
+          categories={hhSnap.categories}
+          onSaveKeyword={async (catId, kw) => {
+            if (!session) return;
+            const targetCat = hhSnap.categories.find((c) => c.id === catId);
+            if (!targetCat) return;
+            const cleanKw = kw.trim().toLowerCase();
+            const exists = targetCat.tu_khoa_ai.includes(cleanKw);
+            const nextKws = exists ? targetCat.tu_khoa_ai : [...targetCat.tu_khoa_ai, cleanKw];
+            await dbRepo.upsertCategory(session, { ...targetCat, tu_khoa_ai: nextKws });
+            if (teachingLog) {
+              await dbRepo.updateChatLogStatus(
+                session,
+                teachingLog.book_id,
+                teachingLog.id,
+                'da_sua'
+              );
+            }
+            await loadBothBooks();
+            showToast(`✅ Đã thêm từ "${kw}" vào danh mục ${targetCat.ten_danh_muc}!`);
+            setTeachingLog(null);
+            setTeachingCandidate(null);
+          }}
+          onSaveSupplier={async (bId, name, item, openingDebt) => {
+            if (!session) return;
+            const newSup: Supplier = {
+              id: `sup_${bId}_${generateId()}`,
+              book_id: bId,
+              ten_ncc: name,
+              mat_hang_chinh: item,
+              so_dien_thoai: '',
+              no_dau_ky: openingDebt,
+              dang_giao_dich: true,
+            };
+            await dbRepo.upsertSupplier(session, newSup);
+            if (teachingLog) {
+              await dbRepo.updateChatLogStatus(
+                session,
+                teachingLog.book_id,
+                teachingLog.id,
+                'da_sua'
+              );
+            }
+            await loadBothBooks();
+            showToast(`✅ Đã thêm mối hàng "${name}" vào sổ!`);
+            setTeachingLog(null);
+            setTeachingCandidate(null);
+          }}
+          onSaveWorker={async (bId, name, wage) => {
+            if (!session) return;
+            const newWrk: Worker = {
+              id: `wrk_${bId}_${generateId()}`,
+              book_id: bId,
+              ho_ten: name,
+              luong_ngay: wage,
+              dang_lam: true,
+            };
+            await dbRepo.upsertWorker(session, newWrk);
+            if (teachingLog) {
+              await dbRepo.updateChatLogStatus(
+                session,
+                teachingLog.book_id,
+                teachingLog.id,
+                'da_sua'
+              );
+            }
+            await loadBothBooks();
+            showToast(`✅ Đã thêm phụ bếp "${name}" vào sổ!`);
+            setTeachingLog(null);
+            setTeachingCandidate(null);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+// --- MODAL DẠY TỪ ĐỊA PHƯƠNG, THÊM MỐI HÀNG, THÊM PHỤ BẾP ---
+
+interface DialectTeachingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  utterance: string;
+  defaultCandidateTerm?: string;
+  defaultType?: 'category_keyword' | 'new_supplier' | 'new_worker';
+  defaultCategoryId?: string;
+  defaultBookId?: BookId;
+  categories: Category[];
+  onSaveKeyword: (catId: string, kw: string) => Promise<void>;
+  onSaveSupplier: (bookId: BookId, name: string, item: string, debt: number) => Promise<void>;
+  onSaveWorker: (bookId: BookId, name: string, wage: number) => Promise<void>;
+}
+
+const DialectTeachingModal: React.FC<DialectTeachingModalProps> = ({
+  isOpen,
+  onClose,
+  utterance,
+  defaultCandidateTerm = '',
+  defaultType = 'category_keyword',
+  defaultCategoryId,
+  defaultBookId = 'hiep_hoa',
+  categories,
+  onSaveKeyword,
+  onSaveSupplier,
+  onSaveWorker,
+}) => {
+  const [mode, setMode] = useState<'keyword' | 'supplier' | 'worker'>(() => {
+    if (defaultType === 'new_supplier') return 'supplier';
+    if (defaultType === 'new_worker') return 'worker';
+    return 'keyword';
+  });
+
+  const [keywordTerm, setKeywordTerm] = useState(defaultCandidateTerm);
+  const [targetCatId, setTargetCatId] = useState(
+    defaultCategoryId || categories.find((c) => c.nhom === 'chi')?.id || categories[0]?.id
+  );
+
+  const [targetBookId, setTargetBookId] = useState<BookId>(defaultBookId);
+  const [supplierName, setSupplierName] = useState(defaultCandidateTerm);
+  const [supplierItem, setSupplierItem] = useState('');
+  const [supplierDebt, setSupplierDebt] = useState(0);
+
+  const [workerName, setWorkerName] = useState(defaultCandidateTerm);
+  const [workerWage, setWorkerWage] = useState(250_000);
+
+  const [submitting, setSubmitting] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      if (mode === 'keyword') {
+        if (!keywordTerm.trim()) return;
+        await onSaveKeyword(targetCatId, keywordTerm.trim());
+      } else if (mode === 'supplier') {
+        if (!supplierName.trim()) return;
+        await onSaveSupplier(targetBookId, supplierName.trim(), supplierItem.trim(), supplierDebt);
+      } else {
+        if (!workerName.trim()) return;
+        await onSaveWorker(targetBookId, workerName.trim(), workerWage);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-center overflow-y-auto p-3">
+      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col my-auto border-2 border-purple-400 overflow-hidden">
+        {/* Header */}
+        <div className="bg-purple-900 text-white px-5 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-purple-300" />
+            <div>
+              <h3 className="text-xl font-extrabold">Dạy từ mới &amp; Thêm mối hàng</h3>
+              <p className="text-xs text-purple-200">Giúp AI hiểu chuẩn xác hơn lần sau</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form content */}
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="p-3 rounded-2xl bg-stone-50 border border-stone-200 space-y-1">
+            <span className="text-xs font-bold text-stone-500 uppercase">Câu nói gốc:</span>
+            <div className="text-base font-bold text-stone-900 italic">&ldquo;{utterance}&rdquo;</div>
+          </div>
+
+          {/* 3 tabs hành động */}
+          <div className="grid grid-cols-3 gap-1.5 bg-stone-100 p-1 rounded-2xl text-xs font-extrabold">
+            <button
+              type="button"
+              onClick={() => setMode('keyword')}
+              className={`py-2 px-1 rounded-xl transition ${
+                mode === 'keyword'
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'text-stone-700 hover:bg-stone-200'
+              }`}
+            >
+              🏷️ Danh mục
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('supplier')}
+              className={`py-2 px-1 rounded-xl transition ${
+                mode === 'supplier'
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'text-stone-700 hover:bg-stone-200'
+              }`}
+            >
+              🏪 Mối hàng
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('worker')}
+              className={`py-2 px-1 rounded-xl transition ${
+                mode === 'worker'
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'text-stone-700 hover:bg-stone-200'
+              }`}
+            >
+              👷 Phụ bếp
+            </button>
+          </div>
+
+          {/* Mode 1: Gán từ khóa địa phương */}
+          {mode === 'keyword' && (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">
+                  Từ / Cụm từ tiếng địa phương:
+                </label>
+                <input
+                  type="text"
+                  value={keywordTerm}
+                  onChange={(e) => setKeywordTerm(e.target.value)}
+                  placeholder="VD: bìa đậu, tương bần, sting, revive..."
+                  className="w-full rounded-xl border-2 border-stone-300 px-3.5 py-2.5 text-base font-bold text-stone-900"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">
+                  Gán vào Danh mục chi tiêu:
+                </label>
+                <select
+                  value={targetCatId}
+                  onChange={(e) => setTargetCatId(e.target.value)}
+                  className="w-full rounded-xl border-2 border-stone-300 px-3.5 py-2.5 text-base font-bold text-stone-900"
+                >
+                  {categories
+                    .filter((c) => c.nhom === 'chi')
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.icon} {c.ten_danh_muc} (
+                        {c.mang_mac_dinh === 'can_tin' ? 'Căn tin' : 'Bếp ăn'})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Mode 2: Thêm mối hàng */}
+          {mode === 'supplier' && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTargetBookId('hiep_hoa')}
+                  className={`py-2 rounded-xl text-xs font-bold border ${
+                    targetBookId === 'hiep_hoa'
+                      ? 'bg-teal-700 text-white border-teal-700'
+                      : 'bg-stone-50 text-stone-700 border-stone-300'
+                  }`}
+                >
+                  👨‍🍳 Sổ Hiệp Hòa (Bố)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTargetBookId('tien_du')}
+                  className={`py-2 rounded-xl text-xs font-bold border ${
+                    targetBookId === 'tien_du'
+                      ? 'bg-amber-700 text-white border-amber-700'
+                      : 'bg-stone-50 text-stone-700 border-stone-300'
+                  }`}
+                >
+                  👩‍🍳 Sổ Tiên Du (Mẹ)
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">
+                  Tên mối hàng / người bán:
+                </label>
+                <input
+                  type="text"
+                  value={supplierName}
+                  onChange={(e) => setSupplierName(e.target.value)}
+                  placeholder="VD: Chị Hương rau, Đại lý Minh..."
+                  className="w-full rounded-xl border-2 border-stone-300 px-3.5 py-2 text-base font-bold text-stone-900"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">
+                  Mặt hàng chính (tùy chọn):
+                </label>
+                <input
+                  type="text"
+                  value={supplierItem}
+                  onChange={(e) => setSupplierItem(e.target.value)}
+                  placeholder="VD: Rau củ quả, Thịt lợn..."
+                  className="w-full rounded-xl border-2 border-stone-300 px-3.5 py-2 text-base"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">
+                  Nợ cũ đầu kỳ (nếu có):
+                </label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={supplierDebt}
+                  onChange={(e) => setSupplierDebt(Number(e.target.value || 0))}
+                  className="w-full rounded-xl border-2 border-stone-300 px-3.5 py-2 text-base font-bold"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Mode 3: Thêm phụ bếp */}
+          {mode === 'worker' && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTargetBookId('hiep_hoa')}
+                  className={`py-2 rounded-xl text-xs font-bold border ${
+                    targetBookId === 'hiep_hoa'
+                      ? 'bg-teal-700 text-white border-teal-700'
+                      : 'bg-stone-50 text-stone-700 border-stone-300'
+                  }`}
+                >
+                  👨‍🍳 Sổ Hiệp Hòa (Bố)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTargetBookId('tien_du')}
+                  className={`py-2 rounded-xl text-xs font-bold border ${
+                    targetBookId === 'tien_du'
+                      ? 'bg-amber-700 text-white border-amber-700'
+                      : 'bg-stone-50 text-stone-700 border-stone-300'
+                  }`}
+                >
+                  👩‍🍳 Sổ Tiên Du (Mẹ)
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">
+                  Họ tên phụ bếp:
+                </label>
+                <input
+                  type="text"
+                  value={workerName}
+                  onChange={(e) => setWorkerName(e.target.value)}
+                  placeholder="VD: Cô Mùi, Bác Tiến..."
+                  className="w-full rounded-xl border-2 border-stone-300 px-3.5 py-2 text-base font-bold text-stone-900"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">
+                  Tiền công 1 ngày:
+                </label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={workerWage}
+                  onChange={(e) => setWorkerWage(Number(e.target.value || 0))}
+                  className="w-full rounded-xl border-2 border-stone-300 px-3.5 py-2 text-base font-bold"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="pt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-extrabold text-base"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-2 py-3 rounded-2xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-base shadow-sm"
+            >
+              {submitting ? 'Đang lưu...' : 'Lưu vào hệ thống'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

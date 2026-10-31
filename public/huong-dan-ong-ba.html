@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hướng Dẫn Sử Dụng Sổ Bếp — Dành Cho Bố Mẹ (1 Trang A4)</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm 12mm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      color: #1c1917;
+      background: #fafaf9;
+      line-height: 1.45;
+      font-size: 16px;
+    }
+    .page-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 24px;
+      border: 3px solid #0f766e;
+      border-radius: 16px;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #0f766e;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+    .header h1 {
+      font-size: 26px;
+      color: #0f766e;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+    }
+    .header p {
+      font-size: 16px;
+      color: #44403c;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+    .intro-banner {
+      background: #fef3c7;
+      border: 2px solid #f59e0b;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      color: #78350f;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .steps-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .step-card {
+      border: 2px solid #d6d3d1;
+      border-radius: 12px;
+      padding: 12px 16px;
+      background: #ffffff;
+    }
+    .step-card.teal {
+      border-color: #0f766e;
+      background: #f0fdfa;
+    }
+    .step-card.amber {
+      border-color: #d97706;
+      background: #fffbeb;
+    }
+    .step-card.indigo {
+      border-color: #4338ca;
+      background: #eef2ff;
+    }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .step-num {
+      width: 32px;
+      height: 32px;
+      background: #0f766e;
+      color: #ffffff;
+      border-radius: 50%;
+      font-weight: 900;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      shrink: 0;
+    }
+    .step-num.amber { background: #b45309; }
+    .step-num.indigo { background: #3730a3; }
+    .step-title {
+      font-size: 19px;
+      font-weight: 900;
+      color: #111827;
+    }
+    .step-content {
+      padding-left: 42px;
+      font-size: 15.5px;
+      color: #292524;
+    }
+    .step-content p {
+      margin-bottom: 4px;
+    }
+    .quote-box {
+      background: #ffffff;
+      border: 1.5px solid #0f766e;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-weight: bold;
+      font-style: italic;
+      color: #042f2e;
+      margin: 6px 0;
+      display: inline-block;
+      font-size: 15px;
+    }
+    .quote-box.amber {
+      border-color: #d97706;
+      color: #78350f;
+    }
+    .nav-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .nav-item {
+      background: #ffffff;
+      border: 1.5px solid #a8a29e;
+      padding: 6px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .footer {
+      margin-top: 14px;
+      text-align: center;
+      font-size: 13.5px;
+      color: #57534e;
+      border-top: 1px solid #e7e5e4;
+      padding-top: 8px;
+    }
+    .no-print {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .print-btn {
+      background: #0f766e;
+      color: #ffffff;
+      font-size: 18px;
+      font-weight: bold;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .print-btn:hover {
+      background: #115e59;
+    }
+    @media print {
+      body {
+        background: #ffffff;
+        font-size: 14.5px;
+      }
+      .page-container {
+        border: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      .no-print {
+        display: none;
+      }
+      .step-title {
+        font-size: 17px;
+      }
+      .step-content {
+        font-size: 14.5px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="no-print" style="padding-top: 20px;">
+    <button class="print-btn" onclick="window.print()">🖨️ Bấm vào đây để In ra giấy A4 (Dán ở Bếp)</button>
+  </div>
+
+  <div class="page-container">
+    <div class="header">
+      <h1>🍲 SỔ BẾP NHÀ MÌNH — HƯỚNG DẪN 4 BƯỚC DỄ DÀNG</h1>
+      <p>Cẩm nang tóm gọn 1 trang dành cho Bố (Hiệp Hòa) & Mẹ (Tiên Du)</p>
+    </div>
+
+    <div class="intro-banner">
+      <span style="font-size: 24px;">💡</span>
+      <span>Bố mẹ chỉ cần chạm ngón tay nói bình thường, máy tự động tính tiền và chia sổ chuẩn xác 100%!</span>
+    </div>
+
+    <div class="steps-grid">
+      <!-- BƯỚC 1 -->
+      <div class="step-card">
+        <div class="step-header">
+          <div class="step-num">1</div>
+          <div class="step-title">🔓 Mở sổ bằng mã PIN 4 số</div>
+        </div>
+        <div class="step-content">
+          <p>• Bố bấm vào hình <strong>👨‍🍳 Bố</strong> rồi bấm <strong>1 1 1 1</strong></p>
+          <p>• Mẹ bấm vào hình <strong>👩‍🍳 Mẹ</strong> rồi bấm <strong>2 2 2 2</strong></p>
+          <p style="color: #0f766e; font-weight: bold;">👉 Điện thoại tự nhớ trong 3 tháng, không phải bấm lại mỗi ngày!</p>
+        </div>
+      </div>
+
+      <!-- BƯỚC 2 -->
+      <div class="step-card teal">
+        <div class="step-header">
+          <div class="step-num">2</div>
+          <div class="step-title">🎙️ Ghi sổ bằng giọng nói (1 chạm Micro)</div>
+        </div>
+        <div class="step-content">
+          <p>1. Bấm vào <strong>nút Micro tròn màu xanh to</strong> ở giữa màn hình.</p>
+          <p>2. Nói tự nhiên như bình thường, ví dụ:</p>
+          <div class="quote-box">&ldquo;Trưa nay 210 suất trường, mua thịt chị Hoa 1 triệu 2 ghi nợ&rdquo;</div>
+          <p>3. Nghe máy đọc to lại để kiểm tra → Bấm nút xanh <strong>Lưu vào sổ</strong>.</p>
+          <p style="color: #991b1b; font-weight: bold;">(Nếu nói nhầm, bấm nút "Hoàn tác" màu đỏ ngay dưới là xong!)</p>
+        </div>
+      </div>
+
+      <!-- BƯỚC 3 -->
+      <div class="step-card amber">
+        <div class="step-header">
+          <div class="step-num amber">3</div>
+          <div class="step-title">🌙 Chiều tối chốt quầy (Cách A tự động)</div>
+        </div>
+        <div class="step-content">
+          <p>Cuối ngày, đếm tiền mặt két + xem tin nhắn CK chuyển vào <strong>TK Chị Nhàn</strong>.</p>
+          <p>Bấm nút <strong>Thu cuối ngày</strong> (hoặc bấm Mic nói):</p>
+          <div class="quote-box amber">&ldquo;Căn tin hôm nay tiền mặt 2 triệu, chuyển khoản 800 nghìn&rdquo;</div>
+          <p style="color: #92400e; font-weight: bold;">👉 Máy tự trừ tiền cơm vãng lai để ghi vào Bếp ăn, còn lại ghi vào Căn tin. Bố mẹ không cần tính nhẩm!</p>
+        </div>
+      </div>
+
+      <!-- BƯỚC 4 -->
+      <div class="step-card indigo">
+        <div class="step-header">
+          <div class="step-num indigo">4</div>
+          <div class="step-title">📊 Xem Lãi, Tiền thực có & Sổ nợ (4 nút dưới đáy)</div>
+        </div>
+        <div class="step-content">
+          <div class="nav-bar">
+            <div class="nav-item">💬 <strong>Ghi sổ</strong><br><small>Bấm mic nói</small></div>
+            <div class="nav-item">📊 <strong>Hôm nay</strong><br><small>Lãi ngày & tháng</small></div>
+            <div class="nav-item">💰 <strong>Tiền</strong><br><small>Số dư 3 ví</small></div>
+            <div class="nav-item">📕 <strong>Sổ nợ</strong><br><small>Nợ các mối hàng</small></div>
+          </div>
+          <p style="margin-top: 8px;">• Khi có việc cần làm (chưa nhập suất ăn, nợ đến hạn), chuông 🔔 trên cùng sẽ báo!</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <strong>Sổ Bếp Nhà Mình</strong> · Hỗ trợ kỹ thuật: Gọi cho con bất cứ lúc nào!
+    </div>
+  </div>
+
+</body>
+</html>

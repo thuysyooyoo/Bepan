@@ -44,7 +44,7 @@ function detectWalletKind(clause: string, defaultWallet: WalletKind = 'tien_mat'
 
 function isCreditPurchaseText(clause: string): boolean {
   const noAcc = stripAccents(clause);
-  return /\b(ghi no|mua chiu|lay chiu|ban chiu|chiu|ghi so|chua tra|tra sau|no lai|no chi|no co|no anh|no chu|no ba|no bac|no ong|no dai ly|no moi)\b/.test(
+  return /\b(ghi no|mua chiu|lay chiu|ban chiu|chiu|ghi so|ky so|gui no|chua tra|chua dua tien|chua thanh toan|thieu tien|tra sau|no lai|no chi|no co|no anh|no chu|no ba|no bac|no ong|no dai ly|no moi|ghi vao so)\b/.test(
     noAcc
   );
 }
@@ -130,6 +130,25 @@ function resolveSupplierFromClause(
   return suppliers[0] ? { supplier_id: suppliers[0].id } : { ten_ncc_moi: 'Mối hàng chợ' };
 }
 
+const BUILTIN_DIALECT_SYNONYMS: Array<{ regex: RegExp; categoryId: string; boost: number }> = [
+  // Đậu phụ, giò chả, đồ tươi hàng ngày
+  { regex: /\b(bia dau|dau khuon|dau mo|dau phu ran|dau ran|dau hu|dau trang|gio song|cha que|cha lua|moc|gio lua)\b/, categoryId: 'cat_trung_dau_gio', boost: 25 },
+  // Gia vị, mắm muối, tương bần, mắm tôm
+  { regex: /\b(mam tep|mam tom|tuong ban|mam chat|nuoc mam cot|mi chinh|hat nem|xi dau|dau hao|bot canh)\b/, categoryId: 'cat_gia_vi_thang', boost: 25 },
+  // Nước ngọt, sữa, giải khát căn tin
+  { regex: /\b(sting|bo huc|redbull|revive|c2|tra xanh|tra chanh|sua chua uong|nuoc suoi|aquafina|lavie)\b/, categoryId: 'cat_nhap_nuoc_ct', boost: 25 },
+  // Bánh kẹo, bim bim, kem căn tin
+  { regex: /\b(keo mut|banh quy|kem que|kem oc que|thach|oishi|snack|banh gao|chocopie)\b/, categoryId: 'cat_nhap_banh_keo_ct', boost: 25 },
+  // Ăn vặt căn tin
+  { regex: /\b(xien banh|vien chien|ca vien chien|bo vien|xuc xich ran|banh mi cay)\b/, categoryId: 'cat_nhap_an_vat_ct', boost: 25 },
+  // Thịt các loại
+  { regex: /\b(thit lon|thit ba chi|thit nac|thit ga|xuong ong|mong gio|thit vit|gio nac)\b/, categoryId: 'cat_thit', boost: 25 },
+  // Thủy hải sản
+  { regex: /\b(ca ro|ca tram|tom non|tom tuoi|ca dieu hong|ca basa|ca thu)\b/, categoryId: 'cat_ca_hai_san', boost: 25 },
+  // Rau củ quả
+  { regex: /\b(rau muong|rau ngot|mong toi|bap cai|bi xanh|ca chua|rau cai|cai ngot)\b/, categoryId: 'cat_rau_cu', boost: 25 },
+];
+
 /**
  * Nhận diện danh mục chi tiêu chuẩn xác nhất từ câu nói (khớp nguyên từ Unicode an toàn)
  */
@@ -148,6 +167,7 @@ function matchCategory(
 
   const expenseCats = categories.filter((c) => c.nhom === 'chi');
 
+  // 1. Khớp từ điển danh mục động (từ DB và được Admin dạy thêm từ khóa)
   for (const cat of expenseCats) {
     for (const kw of cat.tu_khoa_ai) {
       const kwLower = kw.toLowerCase().trim();
@@ -173,6 +193,20 @@ function matchCategory(
             bestScore = score;
             bestCat = cat;
           }
+        }
+      }
+    }
+  }
+
+  // 2. Nếu chưa tìm được danh mục khớp mạnh, đối chiếu từ điển tiếng địa phương dựng sẵn
+  if (bestScore < 15) {
+    for (const syn of BUILTIN_DIALECT_SYNONYMS) {
+      if (syn.regex.test(noAcc)) {
+        const found = expenseCats.find((c) => c.id === syn.categoryId);
+        if (found) {
+          bestCat = found;
+          bestScore = syn.boost;
+          break;
         }
       }
     }

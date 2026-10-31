@@ -5,6 +5,7 @@ import {
   BookMarked,
   CloudOff,
   Crown,
+  HelpCircle,
   LogOut,
   MessageSquareText,
   RefreshCw,
@@ -15,9 +16,11 @@ import { useAuth } from '../context/AuthContext';
 import { dbRepo, type OfflineQueueStatus } from '../db';
 import { getTodayISO, getYearMonth } from '../domain/format';
 import { evaluateActiveReminders, type ActiveReminderCard } from '../domain/reminders';
+import { runWeeklyAutoSnapshotIfDue } from '../domain/weeklyBackup';
 import type { BookId, BookSnapshot, Transaction } from '../types/models';
 import { AdminDashboardView } from './AdminDashboardView';
 import type { UndoState } from './ConfirmationCard';
+import { ElderlyGuideModal } from './ElderlyGuideModal';
 import type { ManualFormKind } from './ManualEntryForms';
 import { PwaInstallBanner } from './PwaInstallBanner';
 import { SettingsModal } from './SettingsModal';
@@ -44,6 +47,7 @@ export const AppShell: React.FC = () => {
   const [snapshot, setSnapshot] = useState<BookSnapshot | null>(null);
   const [error, setError] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [activeForm, setActiveForm] = useState<{
     kind: ManualFormKind;
     editTx?: Transaction | null;
@@ -96,6 +100,12 @@ export const AppShell: React.FC = () => {
     });
     return unsubscribe;
   }, [session, activeBookId, cloudStatus?.mode, reloadSnapshot]);
+
+  // Tự động kiểm tra và chụp ảnh sao lưu tuần nếu đã quá 7 ngày
+  useEffect(() => {
+    if (!session) return;
+    void runWeeklyAutoSnapshotIfDue(dbRepo, session);
+  }, [session]);
 
   const activeReminders = useMemo(
     () => (snapshot ? evaluateActiveReminders(snapshot) : []),
@@ -243,6 +253,16 @@ export const AppShell: React.FC = () => {
                 Cài đặt
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setShowGuide(true)}
+              aria-label="Xem hướng dẫn"
+              title="Xem hướng dẫn 1 trang chữ to"
+              className="px-2.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-semibold text-base inline-flex items-center gap-1"
+            >
+              <HelpCircle className="w-5 h-5" />
+              <span className="hidden sm:inline">Hướng dẫn</span>
+            </button>
             <button
               type="button"
               onClick={logout}
@@ -450,6 +470,12 @@ export const AppShell: React.FC = () => {
           onChanged={reloadSnapshot}
         />
       )}
+
+      {/* Hướng dẫn 1 trang chữ to cho Bố & Mẹ */}
+      <ElderlyGuideModal
+        isOpen={showGuide}
+        onClose={() => setShowGuide(false)}
+      />
     </div>
   );
 };

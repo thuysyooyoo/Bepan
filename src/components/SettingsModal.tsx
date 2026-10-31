@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
-import { Check, CloudUpload, Plus, RefreshCw, X } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Check, CloudUpload, Download, FileJson, Plus, RefreshCw, Upload, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { dbRepo } from '../db';
 import { getEffectiveMealPrice } from '../domain/accounting';
 import { formatVND, generateId, getTodayISO } from '../domain/format';
+import {
+  downloadBackupJsonFile,
+  exportFullSystemBackupPayload,
+  restoreFullSystemBackup,
+  validateBackupJsonPayload,
+} from '../domain/weeklyBackup';
 import type {
   BookSnapshot,
   BusinessSegment,
+  Category,
   CategoryCalcMode,
   GuestType,
   MealPeriod,
@@ -44,6 +51,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setErrMsg('');
     setToast(msg);
     setTimeout(() => setToast(''), 3000);
+  };
+
+  const [exportingBackup, setExportingBackup] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+  const backupFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExportBackup = async () => {
+    if (!session || exportingBackup) return;
+    try {
+      setExportingBackup(true);
+      const payload = await exportFullSystemBackupPayload(dbRepo, session);
+      const filename = downloadBackupJsonFile(payload);
+      notify(`📥 Đã tải file sao lưu: ${filename}`);
+    } catch (err) {
+      setErrMsg(err instanceof Error ? err.message : 'Không thể xuất file sao lưu.');
+    } finally {
+      setExportingBackup(false);
+    }
+  };
+
+  const handleFileRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !session) return;
+    const confirmed = window.confirm(
+      'Khôi phục bản sao lưu sẽ nạp lại danh mục, mối hàng, phụ bếp, suất ăn, chấm công và các giao dịch từ file .json. Bạn có chắc chắn muốn khôi phục không?'
+    );
+    if (!confirmed) {
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      setRestoringBackup(true);
+      const text = await file.text();
+      const payload = validateBackupJsonPayload(text);
+      const summary = await restoreFullSystemBackup(dbRepo, session, payload);
+      await onChanged();
+      notify(
+        `✅ Khôi phục thành công ${summary.totalTransactions} giao dịch & ${summary.totalCategories} danh mục!`
+      );
+    } catch (err) {
+      setErrMsg(
+        err instanceof Error
+          ? `Lỗi khôi phục: ${err.message}`
+          : 'Lỗi không xác định khi đọc file sao lưu.'
+      );
+    } finally {
+      setRestoringBackup(false);
+      e.target.value = '';
+    }
   };
 
   // --- TAB 1: ĐƠN GIÁ SUẤT ĂN ---
@@ -532,27 +589,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </form>
               )}
 
-              <div className="rounded-2xl bg-white border border-stone-300 p-4 space-y-2">
-                <div className="text-lg font-extrabold text-stone-900">
-                  Danh sách {snapshot.categories.length} danh mục chuẩn
-                </div>
-                {snapshot.categories.map((c) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center justify-between py-2 border-b border-stone-100 text-base"
-                  >
-                    <span className="font-bold text-stone-800">
-                      {c.icon} {c.ten_danh_muc}
-                    </span>
-                    <span className="text-sm px-2 py-0.5 rounded-lg bg-stone-100 text-stone-600 font-semibold">
-                      {c.kieu_tinh === 'theo_thang'
-                        ? 'Cuối tháng'
-                        : c.kieu_tinh === 'theo_ngay'
-                        ? 'Theo ngày'
-                        : 'Dòng tiền'}
-                    </span>
+              <div className="rounded-2xl bg-white border border-stone-300 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-lg font-extrabold text-stone-900">
+                    Danh mục &amp; Từ khóa địa phương ({snapshot.categories.length})
                   </div>
-                ))}
+                  <span className="text-xs text-stone-500 font-semibold">
+                    Chạm để xem/thêm từ khóa
+                  </span>
+                </div>
+                <div className="space-y-2 max-h-[460px] overflow-y-auto pr-0.5">
+                  {snapshot.categories.map((c) => (
+                    <CategoryEditCard
+                      key={c.id}
+                      category={c}
+                      isAdmin={session.vai_tro === 'admin'}
+                      onSave={async (updated) => {
+                        await dbRepo.upsertCategory(session, updated);
+                        await onChanged();
+                        notify(`Đã cập nhật từ khóa cho ${updated.ten_danh_muc}`);
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -751,6 +810,53 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </div>
               </div>
+
+              {session.vai_tro === 'admin' && (
+                <div className="rounded-2xl bg-white border-2 border-indigo-400 p-4 space-y-3 text-base text-stone-800">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-extrabold text-lg text-indigo-950 flex items-center gap-1.5">
+                      <FileJson className="w-5 h-5 text-indigo-700" />
+                      <span>Sao lưu toàn hệ thống (.json)</span>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-indigo-100 text-indigo-950 border border-indigo-300">
+                      Chuẩn Rule 10
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-stone-600 leading-relaxed">
+                    Tải về 1 file .json đầy đủ cả 2 cơ sở (Hiệp Hòa &amp; Tiên Du) để lưu trữ an toàn trên Google Drive / máy tính. Tuyệt đối không sinh bất kỳ file sao lưu .xlsx nào trên ổ đĩa.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={exportingBackup}
+                      onClick={handleExportBackup}
+                      className="min-h-[46px] px-3 py-2 rounded-xl bg-indigo-700 hover:bg-indigo-800 disabled:opacity-60 text-white font-extrabold text-sm flex items-center justify-center gap-1.5"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>{exportingBackup ? 'Đang tạo...' : 'Tải file .json'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={restoringBackup}
+                      onClick={() => backupFileInputRef.current?.click()}
+                      className="min-h-[46px] px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-900 font-extrabold text-sm flex items-center justify-center gap-1.5"
+                    >
+                      <Upload className="w-4 h-4 text-stone-700" />
+                      <span>{restoringBackup ? 'Đang đọc...' : 'Khôi phục file'}</span>
+                    </button>
+                    <input
+                      ref={backupFileInputRef}
+                      type="file"
+                      accept=".json"
+                      onChange={handleFileRestore}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -887,6 +993,107 @@ const SupplierEditCard: React.FC<{
           Lưu
         </button>
       </div>
+    </div>
+  );
+};
+
+const CategoryEditCard: React.FC<{
+  category: Category;
+  isAdmin: boolean;
+  onSave: (cat: Category) => Promise<void>;
+}> = ({ category, isAdmin, onSave }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [newKeyword, setNewKeyword] = useState('');
+  const [keywords, setKeywords] = useState<string[]>(category.tu_khoa_ai || []);
+
+  const handleAddKeyword = () => {
+    const kw = newKeyword.trim().toLowerCase();
+    if (!kw) return;
+    if (keywords.includes(kw)) {
+      setNewKeyword('');
+      return;
+    }
+    const next = [...keywords, kw];
+    setKeywords(next);
+    setNewKeyword('');
+    void onSave({ ...category, tu_khoa_ai: next });
+  };
+
+  const handleRemoveKeyword = (kwToRemove: string) => {
+    const next = keywords.filter((k) => k !== kwToRemove);
+    setKeywords(next);
+    void onSave({ ...category, tu_khoa_ai: next });
+  };
+
+  return (
+    <div className="rounded-2xl bg-white border border-stone-200 p-3 space-y-2">
+      <div
+        className="flex items-center justify-between cursor-pointer select-none"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <span className="font-bold text-stone-900 text-base">
+          {category.icon} {category.ten_danh_muc}
+        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs px-2 py-0.5 rounded-lg bg-stone-100 text-stone-600 font-semibold">
+            {keywords.length} từ khóa
+          </span>
+          <span className="text-stone-400 font-bold">{expanded ? '▲' : '▼'}</span>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="pt-2 border-t border-stone-100 space-y-2">
+          <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+            {keywords.map((kw) => (
+              <span
+                key={kw}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-900 text-xs font-bold"
+              >
+                {kw}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveKeyword(kw);
+                    }}
+                    className="text-stone-400 hover:text-rose-600 font-extrabold ml-0.5"
+                    title="Xóa từ khóa này"
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+
+          {isAdmin && (
+            <div className="flex gap-1.5 pt-1">
+              <input
+                type="text"
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddKeyword();
+                  }
+                }}
+                placeholder="Thêm từ địa phương (VD: bìa đậu, revive...)"
+                className="flex-1 rounded-xl border border-stone-300 px-3 py-1.5 text-sm font-semibold"
+              />
+              <button
+                type="button"
+                onClick={handleAddKeyword}
+                className="px-3 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shrink-0"
+              >
+                + Thêm
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

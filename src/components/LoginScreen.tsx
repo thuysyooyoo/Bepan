@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Delete, ArrowLeft, Lock } from 'lucide-react';
+import { Delete, ArrowLeft, Lock, BookOpen } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { PublicProfileSummary } from '../db';
+import { ElderlyGuideModal } from './ElderlyGuideModal';
 
 export const LoginScreen: React.FC = () => {
   const { profiles, lastProfileId, login } = useAuth();
@@ -9,6 +10,7 @@ export const LoginScreen: React.FC = () => {
   const [pin, setPin] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   // Tự chọn sẵn người dùng lần trước trên máy điện thoại này để ông bà đỡ bấm 1 bước
   useEffect(() => {
@@ -93,6 +95,17 @@ export const LoginScreen: React.FC = () => {
               </button>
             ))}
           </div>
+
+          <div className="mt-5">
+            <button
+              type="button"
+              onClick={() => setShowGuide(true)}
+              className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-stone-50 border-2 border-teal-700 text-teal-900 font-extrabold text-lg flex items-center justify-center gap-2 shadow-sm transition active:scale-[0.99]"
+            >
+              <BookOpen className="w-6 h-6 text-teal-700" />
+              <span>Xem hướng dẫn 1 trang chữ to</span>
+            </button>
+          </div>
         </div>
 
         {(import.meta.env.DEV || import.meta.env.VITE_DEMO_HINT === 'true') && (
@@ -101,6 +114,8 @@ export const LoginScreen: React.FC = () => {
             <strong>Admin 9999</strong>
           </div>
         )}
+
+        <ElderlyGuideModal isOpen={showGuide} onClose={() => setShowGuide(false)} />
       </div>
     );
   }
@@ -207,6 +222,18 @@ export const LoginScreen: React.FC = () => {
           PIN thử: Bố <b>1111</b> · Mẹ <b>2222</b> · Admin <b>9999</b>
         </div>
       )}
+
+      <div className="mt-2 text-center">
+        <button
+          type="button"
+          onClick={() => setShowGuide(true)}
+          className="text-stone-600 hover:text-stone-900 underline text-base font-semibold"
+        >
+          📖 Xem hướng dẫn dùng Sổ Bếp
+        </button>
+      </div>
+
+      <ElderlyGuideModal isOpen={showGuide} onClose={() => setShowGuide(false)} />
     </div>
   );
 };
