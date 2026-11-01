@@ -18,6 +18,7 @@ import {
 import type { BookSnapshot, Transaction } from '../types/models';
 import type { ManualFormKind } from './ManualEntryForms';
 import type { UndoState } from './ConfirmationCard';
+import { DeleteConfirmModal, type DeleteTargetInfo } from './DeleteConfirmModal';
 
 interface DailyLedgerListProps {
   selectedDate: string;
@@ -70,13 +71,17 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
     (t) => t.book_id === bookId && t.ngay === selectedDate && t.da_xoa
   );
 
-  const handleSoftDelete = async (tx: Transaction) => {
-    if (!session) return;
-    await dbRepo.softDeleteTransaction(session, bookId, tx.id);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTargetInfo | null>(null);
+
+  const handleConfirmDelete = async () => {
+    if (!session || !deleteTarget) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    await dbRepo.softDeleteTransaction(session, bookId, target.id);
     await onMutated({
-      message: `Đã xóa "${tx.ghi_chu || 'giao dịch'}" (${formatVND(tx.so_tien)})`,
+      message: `Đã xóa "${target.title}"`,
       undoFn: async () => {
-        await dbRepo.restoreTransaction(session, bookId, tx.id);
+        await dbRepo.restoreTransaction(session, bookId, target.id);
       },
     });
   };
@@ -95,6 +100,13 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
 
   return (
     <div className="space-y-2.5">
+      <DeleteConfirmModal
+        isOpen={deleteTarget !== null}
+        target={deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+      />
+
       {/* Thanh chuyển ngày gọn gàng */}
       <div className="rounded-xl bg-white border border-stone-200 p-2.5 shadow-xs space-y-2">
         <div className="flex items-center justify-between gap-2">
@@ -256,7 +268,15 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleSoftDelete(tx)}
+                    onClick={() =>
+                      setDeleteTarget({
+                        id: tx.id,
+                        title: tx.ghi_chu || cat?.ten_danh_muc || 'Giao dịch',
+                        amount: tx.so_tien,
+                        date: tx.ngay.split('-').reverse().join('/'),
+                        subtitle: subLine,
+                      })
+                    }
                     className="px-2 py-0.5 rounded-md bg-red-50 hover:bg-red-100 border border-red-200 font-semibold text-xs text-red-700 inline-flex items-center gap-1"
                   >
                     <Trash2 className="w-3 h-3" />

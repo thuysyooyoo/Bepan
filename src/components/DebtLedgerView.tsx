@@ -7,9 +7,12 @@ import {
   ChevronRight,
   ChevronUp,
   Clock,
+  FileSpreadsheet,
   Pencil,
+  Plus,
   School,
   Trash2,
+  UserPlus,
   Users,
   Volume2,
   X,
@@ -22,6 +25,7 @@ import {
   computeSupplierLedgerDetail,
   computeWalletBalances,
 } from '../domain/accounting';
+import { shareOrDownloadSingleBookExcel } from '../domain/excelExport';
 import {
   formatCompactVND,
   formatVietnameseDate,
@@ -40,6 +44,7 @@ import {
   type ConfirmationPreviewData,
   type UndoState,
 } from './ConfirmationCard';
+import { DeleteConfirmModal, type DeleteTargetInfo } from './DeleteConfirmModal';
 import { MoneyInput } from './MoneyInput';
 import type { ManualFormKind } from './ManualEntryForms';
 
@@ -78,6 +83,12 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
   const [confirmStep, setConfirmStep] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const [undoState, setUndoState] = useState<UndoState | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTargetInfo | null>(null);
+  const [exportingExcel, setExportingExcel] = useState<boolean>(false);
+  const [showAddWorkerModal, setShowAddWorkerModal] = useState<boolean>(false);
+  const [newWorkerName, setNewWorkerName] = useState<string>('');
+  const [newWorkerWage, setNewWorkerWage] = useState<number>(200000);
+  const [savingWorker, setSavingWorker] = useState<boolean>(false);
 
   const walletBalances = useMemo(
     () =>
@@ -405,16 +416,53 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
     }
   };
 
-  const handleDeleteHistoryTx = async (txId: string, desc: string) => {
-    if (!session) return;
-    await dbRepo.softDeleteTransaction(session, snapshot.book.id, txId);
-    setUndoState({
-      message: `Đã hoàn tác: ${desc}`,
-      undoFn: async () => {
-        await dbRepo.restoreTransaction(session, snapshot.book.id, txId);
-      },
-    });
-    await onDataChanged();
+  const handleConfirmDelete = async () => {
+    if (!session || !deleteTarget) return;
+    const targetId = deleteTarget.id;
+    const targetTitle = deleteTarget.title;
+    setDeleteTarget(null);
+    try {
+      await dbRepo.softDeleteTransaction(session, snapshot.book.id, targetId);
+      setUndoState({
+        message: `Đã xóa: ${targetTitle}`,
+        undoFn: async () => {
+          await dbRepo.restoreTransaction(session, snapshot.book.id, targetId);
+        },
+      });
+      await onDataChanged();
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleExportExcel = async () => {
+    setExportingExcel(true);
+    try {
+      await shareOrDownloadSingleBookExcel(snapshot, kyThang);
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleSaveNewWorker = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session || !newWorkerName.trim()) return;
+    setSavingWorker(true);
+    try {
+      await dbRepo.upsertWorker(session, {
+        book_id: snapshot.book.id,
+        ho_ten: newWorkerName.trim(),
+        luong_ngay: Math.max(0, newWorkerWage),
+        dang_lam: true,
+        ghi_chu: 'Thêm từ Sổ nợ & Lương',
+      });
+      setShowAddWorkerModal(false);
+      setNewWorkerName('');
+      setNewWorkerWage(200000);
+      await onDataChanged();
+    } finally {
+      setSavingWorker(false);
+    }
   };
 
   const maxDebtDays = Math.max(1, snapshot.book.so_ngay_nhac_no_ncc || 15);
@@ -443,39 +491,50 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
       />
 
       {/* HEADER TỔNG QUAN 2 CHIỀU: KHOẢN MÌNH NỢ & KHOẢN NGƯỜI TA NỢ MINH */}
-      <div className="rounded-3xl bg-stone-900 text-white p-4 shadow-sm space-y-3">
+      <div className="rounded-3xl bg-stone-900 text-white p-3.5 sm:p-4 shadow-sm space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xl font-extrabold">
-            <BookMarked className="w-6 h-6 text-amber-400 shrink-0" />
-            <span>Sổ Nợ & Khoản Phải Thu ({snapshot.book.ten})</span>
+          <div className="flex items-center gap-2 text-base sm:text-lg font-extrabold min-w-0">
+            <BookMarked className="w-5 h-5 text-amber-400 shrink-0" />
+            <span className="truncate">Sổ Nợ & Phải Thu ({snapshot.book.ten})</span>
           </div>
-          <button
-            type="button"
-            onClick={() => speakVietnameseText(spokenSummary)}
-            aria-label="Nghe đọc sổ nợ"
-            className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-sm inline-flex items-center gap-1.5 shrink-0"
-          >
-            <Volume2 className="w-4 h-4" />
-            Nghe đọc
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={exportingExcel}
+              className="px-2.5 py-1.5 rounded-xl bg-teal-800 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-xs inline-flex items-center gap-1 shadow-xs"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>{exportingExcel ? 'Đang xuất...' : 'Xuất Excel'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => speakVietnameseText(spokenSummary)}
+              aria-label="Nghe đọc sổ nợ"
+              className="px-2.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs inline-flex items-center gap-1 shrink-0"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>Nghe đọc</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-center">
-          <div className="p-3 rounded-2xl bg-rose-950/80 border border-rose-500/50">
-            <div className="text-sm font-bold text-rose-200">Khoản mình nợ (Phải trả)</div>
-            <div className="text-2xl font-black text-rose-300 mt-1">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-rose-950/80 border border-rose-500/50">
+            <div className="text-xs font-bold text-rose-200">Khoản mình nợ (Phải trả)</div>
+            <div className="text-xl sm:text-2xl font-black text-rose-300 mt-1">
               {formatVND(debt.tong_minh_no)}
             </div>
-            <div className="text-xs text-rose-300/80 mt-1">
+            <div className="text-[11px] text-rose-300/80 mt-1">
               NCC: {formatCompactVND(debt.nha_cung_cap.tong_no_ncc)} · Lương: {formatCompactVND(debt.luong_tho_ky_nay.con_phai_tra)}
             </div>
           </div>
-          <div className="p-3 rounded-2xl bg-emerald-950/80 border border-emerald-500/50">
-            <div className="text-sm font-bold text-emerald-200">Người ta nợ mình (Phải thu)</div>
-            <div className="text-2xl font-black text-emerald-300 mt-1">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-emerald-950/80 border border-emerald-500/50">
+            <div className="text-xs font-bold text-emerald-200">Người ta nợ mình (Phải thu)</div>
+            <div className="text-xl sm:text-2xl font-black text-emerald-300 mt-1">
               {formatVND(debt.tong_nguoi_ta_no)}
             </div>
-            <div className="text-xs text-emerald-300/80 mt-1">
+            <div className="text-[11px] text-emerald-300/80 mt-1">
               Trường: {formatCompactVND(debt.tien_truong_ky_nay.con_cho_chuyen)} · Khách: {formatCompactVND(debt.phai_thu_khach.tong_phai_thu_khach)}
             </div>
           </div>
@@ -836,10 +895,14 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    handleDeleteHistoryTx(
-                                      entry.tx.id,
-                                      isBorrow ? `Mua chịu ${formatVND(entry.so_tien)}` : `Trả nợ ${item.supplier.ten_ncc}`
-                                    )
+                                    setDeleteTarget({
+                                      id: entry.tx.id,
+                                      title: isBorrow
+                                        ? `Lấy hàng ghi sổ: ${item.supplier.ten_ncc}`
+                                        : `Trả nợ: ${item.supplier.ten_ncc}`,
+                                      amount: entry.so_tien,
+                                      date: entry.tx.ngay.split('-').reverse().join('/'),
+                                    })
                                   }
                                   className="px-2 py-0.5 rounded-lg bg-stone-50 hover:bg-rose-50 border border-stone-300 text-[11px] font-bold text-stone-600 hover:text-rose-700 inline-flex items-center gap-1"
                                 >
@@ -861,112 +924,157 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
       </section>
 
       {/* THANH CHỌN THÁNG CHO LƯƠNG THỢ & TIỀN TRƯỜNG */}
-      <div className="rounded-2xl bg-stone-200/80 border border-stone-300 p-2 flex items-center justify-between">
+      <div className="rounded-2xl bg-stone-200/80 border border-stone-300 px-3 py-2 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => setKyThang((m) => getPreviousYearMonth(m))}
-          className="px-3 py-2 rounded-xl bg-white border border-stone-300 font-bold text-base text-stone-800 inline-flex items-center gap-1"
+          className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-stone-50 border border-stone-300 font-bold text-xs sm:text-sm text-stone-700 inline-flex items-center gap-1 shrink-0 active:scale-95"
         >
-          <ChevronLeft className="w-5 h-5" />
-          Tháng trước
+          <ChevronLeft className="w-4 h-4" />
+          <span>Trước</span>
         </button>
 
-        <div className="text-lg font-extrabold text-stone-950">
+        <div className="text-sm sm:text-base font-extrabold text-stone-900 text-center whitespace-nowrap">
           {formatVietnameseMonth(kyThang)}
         </div>
 
         <button
           type="button"
           onClick={() => setKyThang((m) => getNextYearMonth(m))}
-          className="px-3 py-2 rounded-xl bg-white border border-stone-300 font-bold text-base text-stone-800 inline-flex items-center gap-1"
+          className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-stone-50 border border-stone-300 font-bold text-xs sm:text-sm text-stone-700 inline-flex items-center gap-1 shrink-0 active:scale-95"
         >
-          Tháng sau
-          <ChevronRight className="w-5 h-5" />
+          <span>Sau</span>
+          <ChevronRight className="w-4 h-4" />
         </button>
       </div>
 
       {/* ===================================================================== */}
       {/* NHÓM 2: LƯƠNG THỢ PHỤ BẾP PHẢI TRẢ KỲ THÁNG                           */}
       {/* ===================================================================== */}
-      <section className="rounded-3xl bg-white border-2 border-amber-300 p-4 shadow-xs space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <h2 className="text-xl font-extrabold text-amber-950 flex items-center gap-2">
-              <Users className="w-6 h-6 text-amber-700 shrink-0" />
-              <span>2. Lương thợ {formatVietnameseMonth(kyThang)}</span>
-            </h2>
-            <div className="text-3xl font-extrabold text-amber-800 mt-0.5">
-              {formatVND(debt.luong_tho_ky_nay.con_phai_tra)}
-            </div>
-            <div className="text-sm text-stone-600 font-semibold mt-0.5">
-              Tổng công: {formatVND(debt.luong_tho_ky_nay.tong_luong_tinh_theo_cong)} ·
-              Đã ứng/trả: {formatVND(debt.luong_tho_ky_nay.da_tra_hoac_ung)}
-            </div>
-          </div>
-        </div>
+      {(() => {
+        const activeWorkers = debt.luong_tho_ky_nay.chi_tiet_tho.filter(
+          (w) => w.tong_cong > 0 || w.da_ung > 0 || w.con_lai > 0
+        );
 
-        <div className="space-y-2.5">
-          {debt.luong_tho_ky_nay.chi_tiet_tho.map((w) => (
-            <div
-              key={w.worker.id}
-              className="p-3 rounded-2xl bg-amber-50/60 border border-amber-300 space-y-2"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="text-lg font-extrabold text-stone-900">
-                    {w.worker.ho_ten}
-                  </div>
-                  <div className="text-sm font-semibold text-stone-600">
-                    Chấm công: <strong>{w.tong_cong} công</strong> (
-                    {formatVND(w.thanh_tien)})
-                    {w.da_ung > 0 ? ` · Đã ứng: ${formatVND(w.da_ung)}` : ''}
-                  </div>
+        return (
+          <section className="rounded-3xl bg-white border-2 border-amber-300 p-3.5 sm:p-4 shadow-xs space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h2 className="text-base sm:text-lg font-extrabold text-amber-950 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-amber-700 shrink-0" />
+                  <span>2. Lương thợ {formatVietnameseMonth(kyThang)}</span>
+                </h2>
+                <div className="text-2xl font-black text-amber-800 mt-0.5">
+                  {formatVND(debt.luong_tho_ky_nay.con_phai_tra)}
                 </div>
-                <div className="text-right shrink-0">
-                  <div
-                    className={`text-lg font-extrabold ${
-                      w.con_lai > 0 ? 'text-amber-900' : 'text-emerald-700'
-                    }`}
-                  >
-                    {w.con_lai > 0 ? formatVND(w.con_lai) : 'Đã trả đủ'}
-                  </div>
+                <div className="text-xs sm:text-sm text-stone-600 font-semibold mt-0.5">
+                  Tổng công: {formatVND(debt.luong_tho_ky_nay.tong_luong_tinh_theo_cong)} ·
+                  Đã ứng/trả: {formatVND(debt.luong_tho_ky_nay.da_tra_hoac_ung)}
                 </div>
               </div>
 
-              {w.con_lai > 0 && (
-                <button
-                  type="button"
-                  onClick={() => openPayWorker(w.worker.id)}
-                  className="w-full min-h-[46px] px-3 py-2 rounded-2xl bg-amber-700 hover:bg-amber-800 text-white font-extrabold text-base inline-flex items-center justify-center gap-1.5"
-                >
-                  <Zap className="w-4 h-4 shrink-0" />
-                  <span>
-                    Trả đủ lương {w.worker.ho_ten} ({formatCompactVND(w.con_lai)})
-                  </span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setShowAddWorkerModal(true)}
+                className="px-2.5 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs inline-flex items-center gap-1 shrink-0"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>+ Thợ mới</span>
+              </button>
             </div>
-          ))}
-        </div>
-      </section>
+
+            {activeWorkers.length === 0 ? (
+              <div className="p-3.5 rounded-2xl bg-amber-50/50 border border-dashed border-amber-300 text-center space-y-2">
+                <div className="text-xs sm:text-sm font-semibold text-stone-600">
+                  Kỳ này chưa có phát sinh công thợ phụ bếp nào.
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {onOpenManualForm && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenManualForm('cham_cong')}
+                      className="px-3 py-1.5 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs inline-flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Chấm công thợ</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowAddWorkerModal(true)}
+                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-amber-100 border border-amber-400 text-amber-900 font-bold text-xs inline-flex items-center gap-1"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Thêm thợ mới</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {activeWorkers.map((w) => (
+                  <div
+                    key={w.worker.id}
+                    className="p-3 rounded-2xl bg-amber-50/60 border border-amber-300 space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-base font-extrabold text-stone-900">
+                          {w.worker.ho_ten}
+                        </div>
+                        <div className="text-xs sm:text-sm font-semibold text-stone-600">
+                          Chấm công: <strong>{w.tong_cong} công</strong> (
+                          {formatVND(w.thanh_tien)})
+                          {w.da_ung > 0 ? ` · Đã ứng: ${formatVND(w.da_ung)}` : ''}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div
+                          className={`text-base font-extrabold ${
+                            w.con_lai > 0 ? 'text-amber-900' : 'text-emerald-700'
+                          }`}
+                        >
+                          {w.con_lai > 0 ? formatVND(w.con_lai) : 'Đã trả đủ'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {w.con_lai > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => openPayWorker(w.worker.id)}
+                        className="w-full min-h-[42px] px-3 py-2 rounded-2xl bg-amber-700 hover:bg-amber-800 text-white font-bold text-sm inline-flex items-center justify-center gap-1.5"
+                      >
+                        <Zap className="w-4 h-4 shrink-0" />
+                        <span>
+                          Trả đủ lương {w.worker.ho_ten} ({formatCompactVND(w.con_lai)})
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })()}
 
       {/* ===================================================================== */}
       {/* NHÓM 3: TIỀN TRƯỜNG DỰ KIẾN CHUYỂN VỀ KỲ THÁNG                        */}
       {/* ===================================================================== */}
-      <section className="rounded-3xl bg-white border-2 border-sky-300 p-4 shadow-xs space-y-3">
+      <section className="rounded-3xl bg-white border-2 border-sky-300 p-3.5 sm:p-4 shadow-xs space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h2 className="text-xl font-extrabold text-sky-950 flex items-center gap-2">
-              <School className="w-6 h-6 text-sky-700 shrink-0" />
+            <h2 className="text-base sm:text-lg font-extrabold text-sky-950 flex items-center gap-2">
+              <School className="w-5 h-5 text-sky-700 shrink-0" />
               <span>3. Tiền trường {formatVietnameseMonth(kyThang)}</span>
             </h2>
-            <div className="text-3xl font-extrabold text-sky-800 mt-0.5">
+            <div className="text-2xl font-black text-sky-800 mt-0.5">
               {formatVND(debt.tien_truong_ky_nay.con_cho_chuyen)}
             </div>
           </div>
         </div>
 
-        <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200 space-y-1 text-base text-stone-800">
+        <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200 space-y-1 text-xs sm:text-sm text-stone-800">
           <div className="flex justify-between">
             <span>Tổng suất trường đã nấu:</span>
             <strong>{debt.tien_truong_ky_nay.tong_suat_truong} suất</strong>
@@ -987,43 +1095,43 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
           <button
             type="button"
             onClick={openSchoolTransfer}
-            className="w-full min-h-[50px] px-4 py-2.5 rounded-2xl bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-lg inline-flex items-center justify-center gap-2 active:scale-[0.99]"
+            className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-sm sm:text-base inline-flex items-center justify-center gap-2 active:scale-[0.99]"
           >
-            <Zap className="w-5 h-5 shrink-0" />
+            <Zap className="w-4 h-4 shrink-0" />
             <span>
               Ghi nhận trường chuyển về TK Mợ Diệp (
               {formatCompactVND(debt.tien_truong_ky_nay.con_cho_chuyen)})
             </span>
           </button>
         ) : debt.tien_truong_ky_nay.so_tien_du_kien > 0 ? (
-          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-400 text-emerald-950 font-bold text-base flex items-center gap-2">
-            <CheckCircle2 className="w-6 h-6 text-emerald-700 shrink-0" />
+          <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-400 text-emerald-950 font-bold text-xs sm:text-sm flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
             <span>Nhà trường đã thanh toán đủ 100% tiền ăn kỳ này!</span>
           </div>
         ) : (
-          <div className="text-base text-stone-500 italic">
+          <div className="text-xs sm:text-sm text-stone-500 italic">
             Chưa có suất ăn trường nào được ghi trong {formatVietnameseMonth(kyThang)}.
           </div>
         )}
       </section>
 
       {/* 4. KHOẢN PHẢI THU (Khách & Giáo viên ăn chịu, đặt cỗ chưa thanh toán) */}
-      <section className="rounded-3xl bg-white border-2 border-emerald-500 p-4 shadow-xs space-y-3">
+      <section className="rounded-3xl bg-white border-2 border-emerald-500 p-3.5 sm:p-4 shadow-xs space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-extrabold text-emerald-950 flex items-center gap-2">
-              <Users className="w-6 h-6 text-emerald-700 shrink-0" />
+            <h2 className="text-base sm:text-lg font-extrabold text-emerald-950 flex items-center gap-2">
+              <Users className="w-5 h-5 text-emerald-700 shrink-0" />
               <span>4. Khách / Giáo viên nợ tiền cơm (Phải thu)</span>
             </h2>
-            <div className="text-3xl font-extrabold text-emerald-800 mt-0.5">
+            <div className="text-2xl font-black text-emerald-800 mt-0.5">
               {formatVND(debt.phai_thu_khach.tong_phai_thu_khach)}
             </div>
           </div>
         </div>
 
         {debt.phai_thu_khach.danh_sach.length === 0 ? (
-          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 font-bold text-base flex items-center gap-2">
-            <CheckCircle2 className="w-6 h-6 text-emerald-700 shrink-0" />
+          <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 font-bold text-xs sm:text-sm flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
             <span>Hiện không có ai nợ tiền cơm / cỗ / căn tin ạ!</span>
           </div>
         ) : (
@@ -1031,19 +1139,19 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
             {debt.phai_thu_khach.danh_sach.map((khach) => (
               <div
                 key={khach.doi_tac}
-                className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-300 flex items-center justify-between gap-3"
+                className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-300 flex items-center justify-between gap-3"
               >
                 <div>
-                  <div className="text-lg font-extrabold text-emerald-950">
+                  <div className="text-sm sm:text-base font-extrabold text-emerald-950">
                     {khach.doi_tac}
                   </div>
-                  <div className="text-sm text-stone-600">
+                  <div className="text-xs text-stone-600">
                     Đã nợ {formatVND(khach.tong_ban_chiu)} · Đã trả {formatVND(khach.tong_da_thu)}
                   </div>
                 </div>
 
                 <div className="text-right shrink-0">
-                  <div className="text-xl font-black text-rose-700">
+                  <div className="text-lg font-black text-rose-700">
                     {formatVND(khach.con_phai_thu)}
                   </div>
                 </div>
@@ -1052,6 +1160,81 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
           </div>
         )}
       </section>
+
+      {/* MODAL THÊM THỢ MỚI */}
+      {showAddWorkerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-sm rounded-3xl bg-white border border-stone-200 p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-base font-extrabold text-stone-900 flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-amber-700" />
+                <span>Thêm thợ / phụ bếp mới</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddWorkerModal(false)}
+                className="p-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveNewWorker} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Họ và tên thợ / phụ bếp:
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newWorkerName}
+                  onChange={(e) => setNewWorkerName(e.target.value)}
+                  placeholder="Ví dụ: Chị Lan, Cô Hoa..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border-2 border-stone-300 text-sm font-semibold focus:border-amber-600 outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Mức lương thỏa thuận (đ/ngày công):
+                </label>
+                <MoneyInput
+                  label=""
+                  value={newWorkerWage}
+                  onChange={setNewWorkerWage}
+                  placeholder="200000"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddWorkerModal(false)}
+                  className="min-h-[42px] px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingWorker || !newWorkerName.trim()}
+                  className="min-h-[42px] px-3 py-2 rounded-xl bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white font-bold text-xs"
+                >
+                  {savingWorker ? 'Đang lưu...' : 'Lưu thợ mới'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL XÁC NHẬN XÓA 10 GIÂY */}
+      <DeleteConfirmModal
+        target={deleteTarget}
+        isOpen={Boolean(deleteTarget)}
+        countdownSeconds={10}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

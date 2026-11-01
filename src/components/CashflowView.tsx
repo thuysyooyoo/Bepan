@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
   CheckCircle2,
+  FileSpreadsheet,
   Pencil,
   Scale,
   Trash2,
@@ -24,6 +25,7 @@ import {
   getTodayISO,
   getYearMonth,
 } from '../domain/format';
+import { shareOrDownloadSingleBookExcel } from '../domain/excelExport';
 import type { BookSnapshot, Transaction } from '../types/models';
 import {
   ConfirmationCard,
@@ -33,6 +35,7 @@ import {
 } from './ConfirmationCard';
 import { MoneyInput } from './MoneyInput';
 import type { ManualFormKind } from './ManualEntryForms';
+import { DeleteConfirmModal, type DeleteTargetInfo } from './DeleteConfirmModal';
 
 interface CashflowViewProps {
   snapshot: BookSnapshot;
@@ -84,6 +87,10 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
   const [toWalletId, setToWalletId] = useState<string>('');
   const [transferAmount, setTransferAmount] = useState<number>(0);
   const [transferNote, setTransferNote] = useState<string>('');
+
+  // State cho Xóa có đếm ngược 10s
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTargetInfo | null>(null);
+  const [exportingExcel, setExportingExcel] = useState<boolean>(false);
 
   const balances = useMemo(
     () =>
@@ -299,20 +306,37 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
     }
   };
 
-  const handleDeleteTimelineTx = async (txId: string, label: string) => {
-    if (!session) return;
-    await dbRepo.softDeleteTransaction(session, snapshot.book.id, txId);
+  const handleConfirmDelete = async () => {
+    if (!session || !deleteTarget) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    await dbRepo.softDeleteTransaction(session, snapshot.book.id, target.id);
     setUndoState({
-      message: `Đã xóa: ${label}`,
+      message: `Đã xóa: ${target.title}`,
       undoFn: async () => {
-        await dbRepo.restoreTransaction(session, snapshot.book.id, txId);
+        await dbRepo.restoreTransaction(session, snapshot.book.id, target.id);
       },
     });
     await onDataChanged();
   };
 
+  const handleExportExcel = async () => {
+    if (exportingExcel) return;
+    setExportingExcel(true);
+    try {
+      const targetMonth = filterMonth || currentMonth;
+      const res = await shareOrDownloadSingleBookExcel(snapshot, targetMonth);
+      setUndoState({
+        message: res.shared ? `Đã mở chia sẻ Zalo file: ${res.filename}` : `Đã tải file Excel: ${res.filename}`,
+        undoFn: async () => {},
+      });
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <UndoBanner
         undoState={undoState}
         onDismiss={() => setUndoState(null)}
@@ -322,13 +346,33 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
         }}
       />
 
-      {/* THẺ TỔNG TIỀN THỰC TẾ TOÀN CƠ SỞ */}
-      <div className="rounded-2xl bg-teal-900 text-white p-3.5 shadow-xs space-y-1">
-        <div className="text-xs font-bold opacity-90 uppercase tracking-wide">
-          Tổng tiền thực có ({snapshot.book.ten})
+      <DeleteConfirmModal
+        isOpen={deleteTarget !== null}
+        target={deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+      />
+
+      {/* THẺ TỔNG TIỀN THỰC TẾ TOÀN CƠ SỞ + NÚT XUẤT EXCEL ZALO */}
+      <div className="rounded-xl bg-teal-900 text-white p-3 shadow-xs space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="text-[11px] font-bold opacity-90 uppercase tracking-wide">
+              Tổng tiền thực có ({snapshot.book.ten})
+            </div>
+            <div className="text-lg font-black mt-0.5">{formatVND(tongTienThucTe)}</div>
+          </div>
+          <button
+            type="button"
+            disabled={exportingExcel}
+            onClick={handleExportExcel}
+            className="py-1.5 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs inline-flex items-center gap-1.5 shrink-0 shadow-xs"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>{exportingExcel ? 'Đang xuất...' : 'Xuất Excel gửi Zalo'}</span>
+          </button>
         </div>
-        <div className="text-lg font-black">{formatVND(tongTienThucTe)}</div>
-        <div className="text-[11px] opacity-80">
+        <div className="text-[11px] opacity-80 border-t border-teal-800/80 pt-1.5">
           100% thực thu thực chi (không cộng tiền trường chưa về, không trừ mua chịu)
         </div>
       </div>
@@ -548,32 +592,32 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
       )}
 
       {/* DANH SÁCH 3 VÍ THỰC TẾ */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {balances.map(({ wallet, so_du_hien_tai, tong_tien_vao, tong_tien_ra }) => {
           const isSelected = filterWalletId === wallet.id;
           return (
             <div
               key={wallet.id}
-              className={`rounded-3xl bg-white border-2 p-4 space-y-3 shadow-xs transition ${
+              className={`rounded-xl bg-white border p-3 space-y-2 shadow-xs transition ${
                 isSelected ? 'border-teal-700 ring-2 ring-teal-600/30' : 'border-stone-200'
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start justify-between gap-2">
                 <button
                   type="button"
                   onClick={() =>
                     setFilterWalletId(isSelected ? null : wallet.id)
                   }
-                  className="flex items-center gap-3 min-w-0 text-left"
+                  className="flex items-center gap-2.5 min-w-0 text-left flex-1"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-800 flex items-center justify-center shrink-0 border border-teal-200">
-                    <WalletIcon className="w-6 h-6" />
+                  <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-800 flex items-center justify-center shrink-0 border border-teal-200">
+                    <WalletIcon className="w-4 h-4" />
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-xl font-extrabold text-stone-900 truncate">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-stone-900 leading-snug">
                       {wallet.ten_vi}
                     </div>
-                    <div className="text-base text-stone-600 truncate">
+                    <div className="text-[11px] text-stone-500 mt-0.5">
                       {wallet.chu_tai_khoan}
                     </div>
                   </div>
@@ -581,27 +625,27 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
 
                 <div className="text-right shrink-0">
                   <div
-                    className={`text-xl font-extrabold ${
+                    className={`text-xs font-black ${
                       so_du_hien_tai >= 0 ? 'text-stone-950' : 'text-rose-700'
                     }`}
                   >
                     {formatVND(so_du_hien_tai)}
                   </div>
                   {isSelected && (
-                    <span className="inline-block text-xs font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-900">
+                    <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-teal-100 text-teal-900 mt-0.5">
                       Đang lọc
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="flex flex-wrap justify-between gap-2 text-sm text-stone-600 pt-2 border-t border-stone-100">
-                <span>Đầu kỳ: {formatVND(wallet.so_du_dau_ky)}</span>
+              <div className="flex flex-wrap justify-between gap-1.5 text-[11px] text-stone-600 pt-1.5 border-t border-stone-100">
+                <span>Đầu kỳ: {formatCompactVND(wallet.so_du_dau_ky)}</span>
                 <span className="text-emerald-700 font-bold">
-                  Vào: +{formatVND(tong_tien_vao)}
+                  Vào: +{formatCompactVND(tong_tien_vao)}
                 </span>
                 <span className="text-rose-700 font-bold">
-                  Ra: -{formatVND(tong_tien_ra)}
+                  Ra: -{formatCompactVND(tong_tien_ra)}
                 </span>
               </div>
 
@@ -609,17 +653,17 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
                 <button
                   type="button"
                   onClick={() => openReconcileTool(wallet.id)}
-                  className="min-h-[46px] px-3 py-2 rounded-2xl bg-teal-50 hover:bg-teal-100 border border-teal-500 text-teal-950 font-extrabold text-base inline-flex items-center justify-center gap-1.5"
+                  className="py-1.5 px-2 rounded-lg bg-teal-50 hover:bg-teal-100 border border-teal-500 text-teal-950 font-bold text-xs inline-flex items-center justify-center gap-1.5"
                 >
-                  <Scale className="w-4 h-4 shrink-0" />
+                  <Scale className="w-3.5 h-3.5 shrink-0" />
                   <span>Đếm tiền thực tế</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => openTransferTool(wallet.id)}
-                  className="min-h-[46px] px-3 py-2 rounded-2xl bg-sky-50 hover:bg-sky-100 border border-sky-400 text-sky-950 font-extrabold text-base inline-flex items-center justify-center gap-1.5"
+                  className="py-1.5 px-2 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-400 text-sky-950 font-bold text-xs inline-flex items-center justify-center gap-1.5"
                 >
-                  <ArrowLeftRight className="w-4 h-4 shrink-0" />
+                  <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" />
                   <span>Chuyển quỹ</span>
                 </button>
               </div>
@@ -756,7 +800,13 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
                     <button
                       type="button"
                       onClick={() =>
-                        handleDeleteTimelineTx(entry.tx.id, entry.tieu_de)
+                        setDeleteTarget({
+                          id: entry.tx.id,
+                          title: entry.tieu_de,
+                          amount: entry.tx.so_tien,
+                          date: entry.tx.ngay.split('-').reverse().join('/'),
+                          subtitle: entry.ten_vi_hien_thi,
+                        })
                       }
                       className="px-2 py-0.5 rounded-lg bg-white hover:bg-rose-50 border border-stone-300 text-[11px] font-bold text-stone-600 hover:text-rose-700 inline-flex items-center gap-1"
                     >

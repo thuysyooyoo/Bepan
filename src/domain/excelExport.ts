@@ -1085,6 +1085,46 @@ export async function downloadSingleBookMonthlyExcel(
   return filename;
 }
 
+/**
+ * Xuất file Excel và mở hộp thoại chia sẻ Zalo / App (nếu trình duyệt điện thoại hỗ trợ navigator.share với file),
+ * hoặc tự động tải file .xlsx về máy nếu không hỗ trợ share file.
+ */
+export async function shareOrDownloadSingleBookExcel(
+  snapshot: BookSnapshot,
+  kyThang: string
+): Promise<{ filename: string; shared: boolean }> {
+  const bytes = await buildSingleBookMonthlyExcelBuffer(snapshot, kyThang);
+  const filename = buildSingleBookExcelFilename(snapshot.book.id, kyThang);
+
+  // Thử gọi Web Share API (trên điện thoại Chrome Android / iOS Safari để gửi thẳng qua Zalo)
+  if (
+    typeof navigator !== 'undefined' &&
+    typeof navigator.canShare === 'function' &&
+    typeof File !== 'undefined'
+  ) {
+    try {
+      const file = new File(
+        [bytes],
+        filename,
+        { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+      );
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `Báo cáo ${snapshot.book.ten} - ${kyThang}`,
+          text: `File Excel báo cáo ${snapshot.book.ten} (${kyThang})`,
+          files: [file],
+        });
+        return { filename, shared: true };
+      }
+    } catch {
+      // Người dùng hủy hộp thoại share hoặc lỗi quyền share file -> fallback tải file xuống
+    }
+  }
+
+  triggerBrowserXlsxDownload(bytes, filename);
+  return { filename, shared: false };
+}
+
 export async function downloadAdminCombinedMonthlyExcel(
   hhSnapshot: BookSnapshot,
   tdSnapshot: BookSnapshot,

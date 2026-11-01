@@ -25,7 +25,7 @@ import {
   getEffectiveMealPrice,
 } from '../domain/accounting';
 import { buildZaloDailySummaryText } from '../domain/adminSummary';
-import { downloadSingleBookMonthlyExcel } from '../domain/excelExport';
+import { shareOrDownloadSingleBookExcel } from '../domain/excelExport';
 import {
   formatCompactVND,
   formatShortWeekdayDate,
@@ -41,6 +41,7 @@ import {
 import type { BookSnapshot, BusinessSegment, MealPeriod, Transaction } from '../types/models';
 import { speakVietnameseText, stopVietnameseSpeech, UndoBanner, type UndoState } from './ConfirmationCard';
 import type { ManualFormKind } from './ManualEntryForms';
+import { DeleteConfirmModal, type DeleteTargetInfo } from './DeleteConfirmModal';
 
 export interface ProfitReportViewProps {
   snapshot: BookSnapshot;
@@ -109,18 +110,21 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
   );
   const [exportingExcel, setExportingExcel] = useState(false);
   const [reportNotice, setReportNotice] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTargetInfo | null>(null);
 
   const dayTransactions = snapshot.transactions.filter(
     (t) => t.book_id === snapshot.book.id && t.ngay === localDate && !t.da_xoa
   );
 
-  const handleDeleteTx = async (tx: Transaction) => {
-    if (!session) return;
-    await dbRepo.softDeleteTransaction(session, snapshot.book.id, tx.id);
+  const handleConfirmDelete = async () => {
+    if (!session || !deleteTarget) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    await dbRepo.softDeleteTransaction(session, snapshot.book.id, target.id);
     const undo: UndoState = {
-      message: `Đã xóa: ${tx.ghi_chu || 'giao dịch'} (${formatVND(tx.so_tien)})`,
+      message: `Đã xóa: ${target.title}`,
       undoFn: async () => {
-        await dbRepo.restoreTransaction(session, snapshot.book.id, tx.id);
+        await dbRepo.restoreTransaction(session, snapshot.book.id, target.id);
       },
     };
     setUndoState(undo);
@@ -171,8 +175,12 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
     if (exportingExcel) return;
     try {
       setExportingExcel(true);
-      const filename = await downloadSingleBookMonthlyExcel(snapshot, selectedMonth);
-      showNotice(`Đã xuất báo cáo Excel: ${filename}`);
+      const res = await shareOrDownloadSingleBookExcel(snapshot, selectedMonth);
+      showNotice(
+        res.shared
+          ? `Đã mở chia sẻ Zalo file: ${res.filename}`
+          : `Đã xuất báo cáo Excel: ${res.filename}`
+      );
     } catch (err) {
       showNotice(
         err instanceof Error ? `Lỗi xuất Excel: ${err.message}` : 'Không xuất được Excel.'
@@ -331,21 +339,19 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
           </button>
         </div>
 
-        {mode === 'thang' && (
-          <button
-            type="button"
-            disabled={exportingExcel}
-            onClick={handleExportMonthlyExcel}
-            className="w-full py-2.5 px-4 rounded-2xl bg-teal-800 hover:bg-teal-900 disabled:opacity-60 text-white font-extrabold text-base flex items-center justify-center gap-2 shadow-xs"
-          >
-            <FileSpreadsheet className="w-5 h-5 shrink-0" />
-            <span>
-              {exportingExcel
-                ? 'Đang tạo file Excel...'
-                : `Xuất Excel báo cáo ${formatVietnameseMonth(selectedMonth)}`}
-            </span>
-          </button>
-        )}
+        <button
+          type="button"
+          disabled={exportingExcel}
+          onClick={handleExportMonthlyExcel}
+          className="w-full py-2 px-3 rounded-xl bg-teal-800 hover:bg-teal-900 disabled:opacity-60 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs"
+        >
+          <FileSpreadsheet className="w-4 h-4 shrink-0" />
+          <span>
+            {exportingExcel
+              ? 'Đang tạo file Excel...'
+              : `Xuất Excel báo cáo ${formatVietnameseMonth(selectedMonth)} (gửi Zalo / Khách)`}
+          </span>
+        </button>
 
         {reportNotice && (
           <div className="p-2.5 rounded-2xl bg-emerald-900 text-white text-sm font-bold flex items-center gap-2">
@@ -354,6 +360,13 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
           </div>
         )}
       </div>
+
+      <DeleteConfirmModal
+        isOpen={deleteTarget !== null}
+        target={deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+      />
 
       {/* ================================================================= */}
       {/* CHẾ ĐỘ 1: BÁO CÁO NGÀY + BIỂU ĐỒ 7 NGÀY                           */}
@@ -748,7 +761,15 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                         )}
                         <button
                           type="button"
-                          onClick={() => handleDeleteTx(tx)}
+                          onClick={() =>
+                            setDeleteTarget({
+                              id: tx.id,
+                              title: tx.ghi_chu || cat?.ten_danh_muc || 'Khoản thu chi',
+                              amount: tx.so_tien,
+                              date: tx.ngay.split('-').reverse().join('/'),
+                              subtitle: isIncome ? 'Khoản thu' : 'Khoản chi',
+                            })
+                          }
                           className="px-2 py-0.5 rounded-lg bg-white hover:bg-rose-50 border border-stone-300 text-[11px] font-bold text-stone-600 hover:text-rose-700 inline-flex items-center gap-1"
                         >
                           <Trash2 className="w-3 h-3 text-rose-600" />
