@@ -24,6 +24,7 @@ export interface ConfirmationPreviewData {
 interface ConfirmationCardProps {
   data: ConfirmationPreviewData;
   saving?: boolean;
+  needsClarification?: boolean;
   onConfirm: () => void;
   onEdit: () => void;
 }
@@ -65,6 +66,7 @@ export function speakVietnameseText(text: string): void {
 export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
   data,
   saving = false,
+  needsClarification = false,
   onConfirm,
   onEdit,
 }) => {
@@ -169,12 +171,22 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
       <div className="grid grid-cols-2 gap-2 pt-0.5">
         <button
           type="button"
-          disabled={saving}
+          disabled={saving || needsClarification}
           onClick={onConfirm}
-          className="py-2.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white font-bold text-sm shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50 transition"
+          className={`py-2.5 px-3 rounded-xl font-bold text-sm shadow-xs flex items-center justify-center gap-1.5 transition ${
+            needsClarification
+              ? 'bg-amber-100 text-amber-900 border border-amber-300 opacity-90 cursor-not-allowed'
+              : 'bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white disabled:opacity-50'
+          }`}
         >
           <Check className="w-4 h-4 stroke-[3]" />
-          <span>{saving ? 'Đang lưu...' : 'Lưu sổ ngay'}</span>
+          <span>
+            {saving
+              ? 'Đang lưu...'
+              : needsClarification
+              ? 'Chọn hình thức ở trên'
+              : 'Lưu sổ ngay'}
+          </span>
         </button>
 
         <button

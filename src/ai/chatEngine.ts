@@ -20,11 +20,12 @@ import type {
   BookSnapshot,
   EntrySource,
   MealPeriod,
+  Supplier,
   Transaction,
   WalletKind,
 } from '../types/models';
 import type { AIParseResult, ParsedIntentItem } from './intentSchema';
-import { answerReportQuestion, parseVietnameseCommandLocal } from './localVnNlu';
+import { answerReportQuestion, parseVietnameseCommandLocal, stripAccents } from './localVnNlu';
 import { normalizeAsrTranscript } from './voiceEngine';
 
 function buildContextPayload(snapshot: BookSnapshot, referenceDate: string) {
@@ -259,6 +260,35 @@ function getWalletByKind(snapshot: BookSnapshot, kind?: WalletKind) {
     snapshot.wallets.find((w) => w.loai_vi === 'tien_mat') ??
     snapshot.wallets[0]
   );
+}
+
+function resolveBestSupplierForCategory(
+  snapshot: BookSnapshot,
+  categoryId?: string
+): Supplier | null {
+  const bookSuppliers = snapshot.suppliers.filter(
+    (s) => s.book_id === snapshot.book.id && s.dang_giao_dich
+  );
+  if (bookSuppliers.length === 0) return null;
+  if (!categoryId) return bookSuppliers[0];
+
+  const cat = snapshot.categories.find((c) => c.id === categoryId);
+  const catNameNoAcc = stripAccents(cat?.ten_danh_muc ?? '').toLowerCase();
+
+  const matched = bookSuppliers.find((s) => {
+    const matHangNoAcc = stripAccents(s.mat_hang_chinh).toLowerCase();
+    const tenNccNoAcc = stripAccents(s.ten_ncc).toLowerCase();
+    return (
+      (catNameNoAcc.includes('thit') && (matHangNoAcc.includes('thit') || tenNccNoAcc.includes('thit'))) ||
+      (catNameNoAcc.includes('rau') && (matHangNoAcc.includes('rau') || tenNccNoAcc.includes('rau'))) ||
+      (catNameNoAcc.includes('gao') && (matHangNoAcc.includes('gao') || tenNccNoAcc.includes('gao'))) ||
+      (catNameNoAcc.includes('gas') && (matHangNoAcc.includes('gas') || tenNccNoAcc.includes('gas'))) ||
+      (catNameNoAcc.includes('nuoc') && (matHangNoAcc.includes('nuoc') || tenNccNoAcc.includes('nuoc'))) ||
+      (catNameNoAcc.includes('banh') && (matHangNoAcc.includes('banh') || tenNccNoAcc.includes('banh')))
+    );
+  });
+
+  return matched ?? bookSuppliers[0];
 }
 
 /**
@@ -541,9 +571,14 @@ export function buildActionCardFromIntent(
 
     const wallet = getWalletByKind(snapshot, item.vi);
     const existingSup = snapshot.suppliers.find((s) => s.id === item.supplier_id);
+    const matchedSup =
+      isCredit && !existingSup && !item.ten_ncc_moi
+        ? resolveBestSupplierForCategory(snapshot, cat.id)
+        : null;
+    const effectiveSup = existingSup ?? matchedSup;
     const supplierLabel = item.ten_ncc_moi
       ? `${item.ten_ncc_moi} (Thêm mới vào danh sách mối hàng)`
-      : existingSup?.ten_ncc ?? 'Mối hàng chợ';
+      : effectiveSup?.ten_ncc ?? 'Mối hàng chợ';
 
     return {
       manualFallbackKind: isMonthly ? 'chi_phi_thang' : 'chi',
@@ -557,7 +592,7 @@ export function buildActionCardFromIntent(
         category_id: cat.id,
         so_tien: amount,
         wallet_id: isCredit ? null : wallet.id,
-        supplier_id: existingSup?.id ?? null,
+        supplier_id: isCredit ? (effectiveSup?.id ?? null) : null,
         ky_thang: isMonthly ? kyThang : null,
         ghi_chu: item.ghi_chu || cat.ten_danh_muc,
         cau_noi_goc: rawSentence,
@@ -584,7 +619,7 @@ export function buildActionCardFromIntent(
           { label: 'Nội dung gốc', value: item.ghi_chu },
         ],
         bookImpactNote: isCredit
-          ? `Trừ chi phí ${isMonthly ? `tháng ${kyThang}` : 'hôm nay'} · Tăng Sổ nợ +${formatVND(
+          ? `Trừ chi phí ${isMonthly ? `tháng ${kyThang}` : 'hôm nay'} · Tăng Sổ nợ ${supplierLabel} +${formatVND(
               amount
             )} · Tiền trong ví giữ nguyên.`
           : `Trừ chi phí ${isMonthly ? `tháng ${kyThang}` : 'hôm nay'} · Trừ ${
@@ -592,12 +627,12 @@ export function buildActionCardFromIntent(
             } -${formatVND(amount)}.`,
         spokenText: `Ghi chi ${cat.ten_danh_muc} ${formatCompactVND(amount)}, ${
           isCredit
-            ? `mua chịu ghi nợ ${item.ten_ncc_moi ?? existingSup?.ten_ncc ?? 'mối hàng'}`
+            ? `mua chịu ghi nợ ${item.ten_ncc_moi ?? effectiveSup?.ten_ncc ?? 'mối hàng'}`
             : `trả bằng ${wallet.ten_vi}`
         }. Đúng không ạ?`,
       },
       commit: async (actor, source) => {
-        let finalSupplierId = existingSup?.id ?? null;
+        let finalSupplierId = effectiveSup?.id ?? null;
         if (isCredit && item.ten_ncc_moi) {
           const createdSup = await repo.upsertSupplier(actor, {
             book_id: bookId,

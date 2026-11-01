@@ -674,6 +674,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
                             <ConfirmationCard
                               data={built.preview}
                               saving={savingCardId === card.cardId}
+                              needsClarification={!!card.item.cau_hoi_lam_ro}
                               onConfirm={() => handleSaveSingleCard(turn, card)}
                               onEdit={async () => {
                                 if (session && turn.logId) {

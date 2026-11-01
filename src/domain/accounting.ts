@@ -1103,20 +1103,36 @@ export function computeSupplierLedgerDetail(
   referenceDate: string = getTodayISO()
 ): SupplierLedgerDetail | null {
   const bookId = snapshot.book.id;
-  const supplier = snapshot.suppliers.find(
-    (s) => s.id === supplierId && s.book_id === bookId
-  );
+  const isVirtual = supplierId === '__unassigned_supplier__';
+  const supplier: Supplier | undefined = isVirtual
+    ? {
+        id: '__unassigned_supplier__',
+        book_id: bookId,
+        ten_ncc: 'Mối hàng chợ (Chưa gán tên)',
+        mat_hang_chinh: 'Hàng thực phẩm mua chịu',
+        no_dau_ky: 0,
+        dang_giao_dich: true,
+        so_dien_thoai: '',
+        ghi_chu: 'Các khoản mua chịu chưa chỉ định rõ tên mối hàng',
+      }
+    : snapshot.suppliers.find((s) => s.id === supplierId && s.book_id === bookId);
   if (!supplier) return null;
 
   const catMap = new Map(snapshot.categories.map((c) => [c.id, c]));
   const walletMap = new Map(snapshot.wallets.map((w) => [w.id, w]));
+
+  const knownSupplierIds = new Set(
+    snapshot.suppliers.filter((s) => s.book_id === bookId).map((s) => s.id)
+  );
 
   const supTxs = snapshot.transactions
     .filter(
       (t) =>
         t.book_id === bookId &&
         !t.da_xoa &&
-        t.supplier_id === supplierId &&
+        (isVirtual
+          ? (!t.supplier_id || !knownSupplierIds.has(t.supplier_id))
+          : t.supplier_id === supplierId) &&
         (t.loai === 'chi_no' || t.loai === 'tra_no')
     )
     .sort((a, b) => {
@@ -1276,6 +1292,28 @@ export function computeDebtAndPayables(
         so_ngay_no_lau_nhat: detail?.so_ngay_no_lau_nhat ?? 0,
       };
     });
+
+  // Kiểm tra nếu có bất kỳ khoản mua chịu / trả nợ nào chưa gán mối hàng
+  const unassignedDetail = computeSupplierLedgerDetail(
+    snapshot,
+    '__unassigned_supplier__',
+    referenceDate
+  );
+  if (
+    unassignedDetail &&
+    (unassignedDetail.tong_mua_chiu > 0 ||
+      unassignedDetail.tong_da_tra > 0 ||
+      unassignedDetail.con_no !== 0)
+  ) {
+    supplierItems.unshift({
+      supplier: unassignedDetail.supplier,
+      tong_mua_chiu: unassignedDetail.tong_mua_chiu,
+      tong_da_tra: unassignedDetail.tong_da_tra,
+      con_no: unassignedDetail.con_no,
+      ngay_no_cu_nhat: unassignedDetail.ngay_no_cu_nhat,
+      so_ngay_no_lau_nhat: unassignedDetail.so_ngay_no_lau_nhat,
+    });
+  }
 
   const tongNoNcc = supplierItems.reduce((s, item) => s + Math.max(0, item.con_no), 0);
 

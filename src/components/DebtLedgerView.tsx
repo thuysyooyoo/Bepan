@@ -321,9 +321,10 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
     setSaving(true);
     try {
       if (activeAction.kind === 'tra_no_ncc') {
-        const sup = snapshot.suppliers.find(
-          (s) => s.id === activeAction.supplierId
-        );
+        const isVirtual = activeAction.supplierId === '__unassigned_supplier__';
+        const sup = isVirtual
+          ? { ten_ncc: 'Mối hàng chợ' }
+          : snapshot.suppliers.find((s) => s.id === activeAction.supplierId);
         const saved = await dbRepo.addTransaction(session, {
           book_id: snapshot.book.id,
           ngay: todayISO,
@@ -332,7 +333,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
           category_id: 'cat_tra_no_ncc',
           so_tien: Math.round(amount),
           wallet_id: walletId,
-          supplier_id: activeAction.supplierId,
+          supplier_id: isVirtual ? null : activeAction.supplierId,
           ghi_chu: note.trim() || `Trả nợ ${sup?.ten_ncc ?? 'mối hàng'}`,
           nguon: 'tay',
           nguoi_tao: session.profile_id,

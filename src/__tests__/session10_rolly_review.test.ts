@@ -282,4 +282,46 @@ describe('Phiên 10 — Review & Hoàn Thiện: Tinh Gọn Rolly, Sổ Nợ / Ph
     expect(item2.cham_cong?.length).toBe(2);
     expect(item2.cham_cong?.every((c) => c.so_cong === 1)).toBe(true);
   });
+
+  it('8. Mua hàng ghi nợ (chi_no) dù chưa gán mối hàng vẫn vào Sổ Nợ (tong_minh_no) và tự động khớp mối hàng theo danh mục', async () => {
+    const snap = await getSeededSnapshot();
+    const today = '2026-11-01';
+
+    const initialDebt = computeDebtAndPayables(snap, '2026-11');
+
+    // Thêm giao dịch chi_no không có supplier_id (như screenshot người dùng: Mua 5 cân thịt 450k)
+    const chiNoUnassignedTx: Transaction = {
+      id: 'tx-chi-no-test-unassigned',
+      book_id: 'hiep_hoa',
+      ngay: today,
+      timestamp: '2026-11-01T10:00:00Z',
+      mang: 'bep_an',
+      loai: 'chi_no',
+      category_id: 'cat_thit',
+      so_tien: 450_000,
+      wallet_id: null,
+      supplier_id: null,
+      ghi_chu: 'Mua 5 cân thịt 4 trăm rưỡi',
+      cau_noi_goc: 'Mua 5 cân thịt 4 trăm rưỡi',
+      nguon: 'chat',
+      nguoi_tao: 'test-user',
+      da_xoa: false,
+    };
+
+    const snapWithDebt: BookSnapshot = {
+      ...snap,
+      transactions: [...snap.transactions, chiNoUnassignedTx],
+    };
+
+    // 1. computeDebtAndPayables: Phải tăng đúng 450.000đ ở tong_minh_no
+    const updatedDebt = computeDebtAndPayables(snapWithDebt, '2026-11');
+    expect(updatedDebt.tong_minh_no - initialDebt.tong_minh_no).toBe(450_000);
+
+    // 2. Phải có 1 mục NCC tương ứng (hoặc mối hàng chưa gán tên) với số nợ 450.000đ
+    const unassignedItem = updatedDebt.nha_cung_cap.danh_sach.find(
+      (item) => item.supplier.id === '__unassigned_supplier__'
+    );
+    expect(unassignedItem).toBeDefined();
+    expect(unassignedItem?.con_no).toBe(450_000);
+  });
 });
