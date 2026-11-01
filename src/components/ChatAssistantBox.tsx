@@ -524,7 +524,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
         {turns.length === 0 ? (
           <div className="rounded-xl bg-stone-50 border border-stone-200/80 p-3 text-stone-700 space-y-2">
             <div className="font-bold text-stone-900 text-xs sm:text-sm flex items-center gap-1.5">
-              <span>🎤</span>
+              <span></span>
               <span>Bấm nút Micro bên dưới rồi nói tự nhiên:</span>
             </div>
             <div className="space-y-1 text-stone-800">
@@ -533,7 +533,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
                 onClick={() => submitUtterance('Hôm nay lãi bao nhiêu?', 'chat')}
                 className="w-full text-left p-2 rounded-lg bg-white border border-stone-200 font-medium hover:bg-stone-100 flex items-center justify-between text-xs transition"
               >
-                <span>📊 “Hôm nay lãi bao nhiêu?”</span>
+                <span>“Hôm nay lãi bao nhiêu?”</span>
                 <span className="text-[10px] text-stone-400">Thử</span>
               </button>
               <button
@@ -541,7 +541,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
                 onClick={() => submitUtterance('Mua 5 cân thịt 4 trăm rưỡi', 'chat')}
                 className="w-full text-left p-2 rounded-lg bg-white border border-stone-200 font-medium hover:bg-stone-100 flex items-center justify-between text-xs transition"
               >
-                <span>🥩 “Mua 5 cân thịt 4 trăm rưỡi”</span>
+                <span>“Mua 5 cân thịt 4 trăm rưỡi”</span>
                 <span className="text-[10px] text-stone-400">Thử</span>
               </button>
               <button
@@ -549,7 +549,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
                 onClick={() => submitUtterance('Ai đang nợ mình?', 'chat')}
                 className="w-full text-left p-2 rounded-lg bg-white border border-stone-200 font-medium hover:bg-stone-100 flex items-center justify-between text-xs transition"
               >
-                <span>📗 “Ai đang nợ mình?”</span>
+                <span>“Ai đang nợ mình?”</span>
                 <span className="text-[10px] text-stone-400">Thử</span>
               </button>
             </div>
@@ -570,7 +570,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
                   <div className="flex justify-end">
                     <div className="max-w-[85%] rounded-2xl rounded-tr-xs bg-teal-800 text-white px-3.5 py-2 text-xs sm:text-sm font-medium shadow-xs">
                       <span className="mr-1 opacity-80">
-                        {turn.source === 'giong' ? '🎤' : '💬'}
+                        {turn.source === 'giong' ? '' : ''}
                       </span>
                       “{turn.userText}”
                     </div>
@@ -663,7 +663,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
                                     }
                                     className="py-2 px-3 rounded-lg bg-white hover:bg-amber-100 border border-amber-500 text-amber-950 font-bold text-xs sm:text-sm text-left transition"
                                   >
-                                    👉 {ch.label}
+                                    {ch.label}
                                   </button>
                                 ))}
                               </div>
@@ -740,14 +740,14 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
               onClick={() => speechSessionRef.current?.finishNow()}
               className="py-2 px-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center justify-center gap-1 transition"
             >
-              ✅ Xong, gửi luôn
+              Xong, gửi luôn
             </button>
             <button
               type="button"
               onClick={handleCancelVoice}
               className="py-2 px-2.5 rounded-lg bg-white hover:bg-stone-100 border border-stone-300 text-stone-700 font-semibold text-xs flex items-center justify-center gap-1 transition"
             >
-              ✖ Hủy nói
+              Hủy nói
             </button>
           </div>
         </div>
@@ -770,14 +770,14 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
               onClick={() => void handleStopFallbackRecording()}
               className="py-2 px-2.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs transition"
             >
-              ⏹ Dừng & gửi
+              Dừng & gửi
             </button>
             <button
               type="button"
               onClick={handleCancelVoice}
               className="py-2 px-2.5 rounded-lg bg-white border border-stone-300 text-stone-700 font-semibold text-xs transition"
             >
-              ✖ Hủy
+              Hủy
             </button>
           </div>
         </div>
@@ -786,7 +786,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
       {/* Thông báo lỗi / gợi ý nếu chưa nghe rõ */}
       {voiceFeedbackMsg && (
         <div className="shrink-0 bg-amber-50 border-t border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-950 flex items-start justify-between gap-2">
-          <span>💡 {voiceFeedbackMsg}</span>
+          <span>{voiceFeedbackMsg}</span>
           <button
             type="button"
             onClick={() => setVoiceFeedbackMsg(null)}

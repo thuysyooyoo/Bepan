@@ -49,9 +49,9 @@ interface ManualEntryFormsProps {
 }
 
 const PERIOD_LABELS: Record<MealPeriod, string> = {
-  sang: '🌅 Bữa sáng',
-  trua: '☀️ Bữa trưa',
-  toi: '🌙 Bữa tối',
+  sang: 'Bữa sáng',
+  trua: 'Bữa trưa',
+  toi: 'Bữa tối',
 };
 
 export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
@@ -256,7 +256,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       setConfirmState({
         preview: {
-          badge: '🍚 BÁO SUẤT ĂN HÔM NAY',
+          badge: 'BÁO SUẤT ĂN HÔM NAY',
           tone: 'info',
           title: `Suất ăn ${snapshot.book.ten}`,
           headlineAmount: tongTien,
@@ -266,7 +266,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
           dateLabel,
           rows,
           bookImpactNote:
-            '📒 Tính ngay vào Doanh thu Bếp ăn hôm nay · 📕 Suất trường cộng vào Tiền trường dự kiến về cuối tháng (chưa cộng ví tiền mặt).',
+            'Tính ngay vào Doanh thu Bếp ăn hôm nay · Suất trường cộng vào Tiền trường dự kiến về cuối tháng (chưa cộng ví tiền mặt).',
           spokenText: `Ghi suất ăn ngày ${ngay}: ${tongSuatTr} suất trường${
             tongSuatVl > 0 ? ` và ${tongSuatVl} suất vãng lai` : ''
           }, tổng thành tiền ${formatCompactVND(tongTien)}. Đúng chưa ạ?`,
@@ -321,7 +321,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       setConfirmState({
         preview: {
-          badge: '💵 TỔNG THU CUỐI NGÀY',
+          badge: 'TỔNG THU CUỐI NGÀY',
           tone: 'income',
           title: 'Thu tiền mặt & CK Chị Nhàn cuối ngày',
           headlineAmount: tongQuay,
@@ -332,9 +332,9 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
             { label: 'Trừ tiền suất vãng lai hôm nay', value: `-${formatVND(tienVangLai)}` },
             { label: '→ Doanh thu Căn tin còn lại', value: formatVND(doanhThuCanTin), highlight: true },
           ],
-          bookImpactNote: `💰 Ví Tiền mặt +${formatVND(thuTienMat)}, TK Chị Nhàn +${formatVND(
+          bookImpactNote: `Ví Tiền mặt +${formatVND(thuTienMat)}, TK Chị Nhàn +${formatVND(
             thuChuyenKhoan
-          )} · 📒 Tự tách ${formatVND(tienVangLai)} vãng lai cho Bếp ăn, ${formatVND(
+          )} · Tự tách ${formatVND(tienVangLai)} vãng lai cho Bếp ăn, ${formatVND(
             doanhThuCanTin
           )} cho Căn tin.`,
           spokenText: `Ghi tổng thu cuối ngày ${formatCompactVND(
@@ -385,7 +385,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       setConfirmState({
         preview: {
-          badge: '👷 CHẤM CÔNG PHỤ BẾP',
+          badge: 'CHẤM CÔNG PHỤ BẾP',
           tone: 'info',
           title: `Chấm công ngày (${tongCong} công)`,
           headlineAmount: tongTienCong,
@@ -401,7 +401,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
             return { label: w.ho_ten, value: labelVal, highlight: c > 0 };
           }),
           bookImpactNote:
-            '📒 Trừ vào chi phí Bếp ăn hôm nay để tính đúng lãi ngày · 📕 Cộng vào Lương thợ phải trả cuối tháng (chưa trừ tiền mặt).',
+            'Trừ vào chi phí Bếp ăn hôm nay để tính đúng lãi ngày · Cộng vào Lương thợ phải trả cuối tháng (chưa trừ tiền mặt).',
           spokenText: `Ghi chấm công hôm nay tổng cộng ${tongCong} công, thành tiền ${formatCompactVND(
             tongTienCong
           )}. Đúng chưa ạ?`,
@@ -501,18 +501,18 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
         kind === 'chi_phi_thang' ? cat.mang_mac_dinh : mang;
       const mangLabel =
         effectiveMang === 'bep_an'
-          ? '🍲 Bếp ăn'
+          ? 'Bếp ăn'
           : effectiveMang === 'can_tin'
-          ? '🏪 Căn tin'
-          : '🏠 Dùng chung cả cơ sở';
+          ? 'Căn tin'
+          : 'Dùng chung cả cơ sở';
 
       setConfirmState({
         preview: {
           badge: isGhiNo
-            ? '📕 MUA CHỊU (GHI SỔ NỢ)'
+            ? 'MUA CHỊU (GHI SỔ NỢ)'
             : kind === 'chi_phi_thang'
-            ? `⚡ CHI PHÍ THÁNG ${kyThang}`
-            : '🥩 CHI TIỀN TRẢ LUÔN',
+            ? `CHI PHÍ THÁNG ${kyThang}`
+            : 'CHI TIỀN TRẢ LUÔN',
           tone: isGhiNo ? 'debt' : 'expense',
           title: `${cat.icon} ${cat.ten_danh_muc}`,
           headlineAmount: soTien,
@@ -532,14 +532,14 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
             ...(ghiChu ? [{ label: 'Ghi chú', value: ghiChu }] : []),
           ],
           bookImpactNote: isGhiNo
-            ? `📒 Tính vào chi phí ${
+            ? `Tính vào chi phí ${
                 kind === 'chi_phi_thang' ? `tháng ${kyThang}` : 'hôm nay'
-              } · 📕 Ghi nợ ${targetSupplierName} +${formatVND(
+              } · Ghi nợ ${targetSupplierName} +${formatVND(
                 soTien
-              )} · 💰 Tiền trong ví giữ nguyên.`
-            : `📒 Tính vào chi phí ${
+              )} · Tiền trong ví giữ nguyên.`
+            : `Tính vào chi phí ${
                 kind === 'chi_phi_thang' ? `tháng ${kyThang}` : 'hôm nay'
-              } · 💰 Trừ ${selectedWallet?.ten_vi ?? 'ví'} -${formatVND(soTien)}.`,
+              } · Trừ ${selectedWallet?.ten_vi ?? 'ví'} -${formatVND(soTien)}.`,
           spokenText: `Ghi chi ${cat.ten_danh_muc} ${formatCompactVND(soTien)}, ${
             isGhiNo
               ? `mua chịu ghi nợ ${targetSupplierName}`
@@ -594,7 +594,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       setConfirmState({
         preview: {
-          badge: '🤝 TRẢ NỢ MỐI HÀNG',
+          badge: 'TRẢ NỢ MỐI HÀNG',
           tone: 'expense',
           title: `Trả nợ: ${supItem.supplier.ten_ncc}`,
           headlineAmount: soTien,
@@ -604,9 +604,9 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
             { label: 'Trả từ ví', value: selectedWallet?.ten_vi ?? 'Tiền mặt', highlight: true },
             { label: 'Còn nợ lại sau khi trả', value: formatVND(conLaiSauTra), highlight: true },
           ],
-          bookImpactNote: `💰 Trừ ${selectedWallet?.ten_vi} -${formatVND(
+          bookImpactNote: `Trừ ${selectedWallet?.ten_vi} -${formatVND(
             soTien
-          )} · 📕 Giảm nợ ${supItem.supplier.ten_ncc} · 📒 Không trừ lặp lại vào Lãi lỗ.`,
+          )} · Giảm nợ ${supItem.supplier.ten_ncc} · Không trừ lặp lại vào Lãi lỗ.`,
           spokenText: `Ghi trả nợ ${supItem.supplier.ten_ncc} ${formatCompactVND(
             soTien
           )}, còn nợ lại ${formatCompactVND(conLaiSauTra)}. Đúng chưa ạ?`,
@@ -637,7 +637,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
       const selectedWallet = snapshot.wallets.find((w) => w.id === walletId);
       setConfirmState({
         preview: {
-          badge: '🏫 TRƯỜNG CHUYỂN TIỀN ĂN',
+          badge: 'TRƯỜNG CHUYỂN TIỀN ĂN',
           tone: 'income',
           title: `Nhận tiền ăn kỳ tháng ${kyThang}`,
           headlineAmount: soTien,
@@ -650,9 +650,9 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
             },
             ...(ghiChu ? [{ label: 'Ghi chú', value: ghiChu }] : []),
           ],
-          bookImpactNote: `💰 Cộng +${formatVND(soTien)} vào ${
+          bookImpactNote: `Cộng +${formatVND(soTien)} vào ${
             selectedWallet?.ten_vi
-          } · 🔔 Đánh dấu trường đã chuyển tiền kỳ ${kyThang} (không cộng trùng vào Lãi lỗ).`,
+          } · Đánh dấu trường đã chuyển tiền kỳ ${kyThang} (không cộng trùng vào Lãi lỗ).`,
           spokenText: `Ghi nhận nhà trường chuyển tiền ăn kỳ tháng ${kyThang} số tiền ${formatCompactVND(
             soTien
           )} vào ${selectedWallet?.ten_vi}. Đúng chưa ạ?`,
@@ -688,7 +688,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       setConfirmState({
         preview: {
-          badge: '💰 TRẢ LƯƠNG PHỤ BẾP',
+          badge: 'TRẢ LƯƠNG PHỤ BẾP',
           tone: 'expense',
           title: titleText,
           headlineAmount: soTien,
@@ -698,9 +698,9 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
             { label: 'Người nhận', value: selectedWorker?.ho_ten ?? 'Cả đội phụ bếp' },
             { label: 'Chi từ ví', value: selectedWallet?.ten_vi ?? 'Tiền mặt', highlight: true },
           ],
-          bookImpactNote: `💰 Trừ ${selectedWallet?.ten_vi} -${formatVND(
+          bookImpactNote: `Trừ ${selectedWallet?.ten_vi} -${formatVND(
             soTien
-          )} · 📕 Giảm lương còn phải trả kỳ ${kyThang} (không trừ trùng vào Lãi lỗ ngày).`,
+          )} · Giảm lương còn phải trả kỳ ${kyThang} (không trừ trùng vào Lãi lỗ ngày).`,
           spokenText: `Ghi trả lương kỳ ${kyThang} số tiền ${formatCompactVND(soTien)} từ ${
             selectedWallet?.ten_vi
           }. Đúng chưa ạ?`,
@@ -738,7 +738,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       setConfirmState({
         preview: {
-          badge: '🔄 CHUYỂN QUỸ / RÚT TIỀN',
+          badge: 'CHUYỂN QUỸ / RÚT TIỀN',
           tone: 'info',
           title: `${fromW?.ten_vi} → ${toW?.ten_vi}`,
           headlineAmount: soTien,
@@ -748,9 +748,9 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
             { label: 'Đưa vào', value: toW?.ten_vi ?? '', highlight: true },
             ...(ghiChu ? [{ label: 'Ghi chú', value: ghiChu }] : []),
           ],
-          bookImpactNote: `💰 ${fromW?.ten_vi} -${formatVND(soTien)}, ${
+          bookImpactNote: `${fromW?.ten_vi} -${formatVND(soTien)}, ${
             toW?.ten_vi
-          } +${formatVND(soTien)} · 📒 Lãi lỗ không thay đổi.`,
+          } +${formatVND(soTien)} · Lãi lỗ không thay đổi.`,
           spokenText: `Chuyển ${formatCompactVND(soTien)} từ ${fromW?.ten_vi} sang ${
             toW?.ten_vi
           }. Đúng chưa ạ?`,
@@ -831,7 +831,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
       {kind === 'suat_an' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h3 className="text-2xl font-extrabold text-teal-900">🍚 Báo suất ăn trong ngày</h3>
+            <h3 className="text-2xl font-extrabold text-teal-900">Báo suất ăn trong ngày</h3>
             {prevMealHint && (
               <button
                 type="button"
@@ -919,7 +919,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
       {kind === 'thu_cuoi_ngay' && (
         <div className="space-y-4">
           <h3 className="text-2xl font-extrabold text-emerald-900">
-            💵 Thu tiền cuối ngày (Căn tin + Vãng lai)
+            Thu tiền cuối ngày (Căn tin + Vãng lai)
           </h3>
           {hasExistingCollection && (
             <div className="rounded-xl bg-amber-50 border border-amber-400 p-3 text-base font-semibold text-amber-950">
@@ -962,10 +962,10 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
         <div className="space-y-4">
           <h3 className="text-2xl font-extrabold text-orange-900">
             {editingTx
-              ? '✏️ Sửa khoản chi'
+              ? 'Sửa khoản chi'
               : kind === 'chi_phi_thang'
-              ? '⚡ Ghi chi phí cuối tháng (Điện, Nước, Gas, Gia vị)'
-              : '🥩 Ghi tiền đi chợ / nhập hàng'}
+              ? 'Ghi chi phí cuối tháng (Điện, Nước, Gas, Gia vị)'
+              : 'Ghi tiền đi chợ / nhập hàng'}
           </h3>
 
           {kind === 'chi' && (
@@ -979,7 +979,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                     : 'border-stone-300 bg-stone-50 text-stone-800'
                 }`}
               >
-                🍲 Bếp ăn (Đi chợ)
+                Bếp ăn (Đi chợ)
               </button>
               <button
                 type="button"
@@ -990,7 +990,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                     : 'border-stone-300 bg-stone-50 text-stone-800'
                 }`}
               >
-                🏪 Căn tin (Nhập hàng)
+                Căn tin (Nhập hàng)
               </button>
             </div>
           )}
@@ -1064,7 +1064,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                     : 'border-stone-300 bg-stone-50 text-stone-800'
                 }`}
               >
-                💵 Trả tiền luôn
+                Trả tiền luôn
               </button>
               <button
                 type="button"
@@ -1075,7 +1075,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                     : 'border-stone-300 bg-stone-50 text-stone-800'
                 }`}
               >
-                📕 Mua chịu (Ghi nợ)
+                Mua chịu (Ghi nợ)
               </button>
             </div>
           </div>
@@ -1156,7 +1156,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
       {kind === 'cham_cong' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-2xl font-extrabold text-teal-900">👷 Chấm công hôm nay</h3>
+            <h3 className="text-2xl font-extrabold text-teal-900">Chấm công hôm nay</h3>
             <button
               type="button"
               onClick={() => {
@@ -1220,7 +1220,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
       {/* --- GIAO DIỆN FORM 5: TRẢ NỢ NHÀ CUNG CẤP --- */}
       {kind === 'tra_no' && (
         <div className="space-y-4">
-          <h3 className="text-2xl font-extrabold text-rose-900">🤝 Trả nợ mối hàng</h3>
+          <h3 className="text-2xl font-extrabold text-rose-900">Trả nợ mối hàng</h3>
           <div>
             <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
               Chọn mối hàng cần trả:
@@ -1278,7 +1278,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
       {kind === 'truong_chuyen' && (
         <div className="space-y-4">
           <h3 className="text-2xl font-extrabold text-sky-900">
-            🏫 Nhà trường chuyển tiền ăn
+            Nhà trường chuyển tiền ăn
           </h3>
 
           <div>
@@ -1341,7 +1341,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
       {/* --- GIAO DIỆN FORM 7: TRẢ / ỨNG LƯƠNG CÔNG NHÂN --- */}
       {kind === 'tra_luong' && (
         <div className="space-y-4">
-          <h3 className="text-2xl font-extrabold text-amber-900">💰 Trả / ứng lương phụ bếp</h3>
+          <h3 className="text-2xl font-extrabold text-amber-900">Trả / ứng lương phụ bếp</h3>
           <div>
             <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
               Lương của kỳ tháng nào?
@@ -1431,7 +1431,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
       {kind === 'chuyen_quy' && (
         <div className="space-y-4">
           <h3 className="text-2xl font-extrabold text-teal-900">
-            🔄 Chuyển tiền giữa các ví / Rút tiền mặt
+            Chuyển tiền giữa các ví / Rút tiền mặt
           </h3>
           <div>
             <label className="block text-lg font-extrabold text-stone-900 mb-1.5">

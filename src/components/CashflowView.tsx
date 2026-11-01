@@ -134,7 +134,7 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
   const reconcilePreview: ConfirmationPreviewData | null =
     reconcileTarget && reconcileDiff && reconcileDiff.chenh_lech !== 0
       ? {
-          badge: '⚖️ ĐIỀU CHỈNH KIỂM ĐẾM THỰC TẾ',
+          badge: 'ĐIỀU CHỈNH KIỂM ĐẾM THỰC TẾ',
           tone: reconcileDiff.chenh_lech > 0 ? 'income' : 'expense',
           title: reconcileTarget.wallet.ten_vi,
           headlineAmount: reconcileDiff.chenh_lech,
@@ -159,11 +159,11 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
               highlight: true,
             },
           ],
-          bookImpactNote: `💰 Cập nhật ${
+          bookImpactNote: `Cập nhật ${
             reconcileTarget.wallet.ten_vi
           } khớp đúng ${formatVND(
             reconcileDiff.tien_dem_thuc_te
-          )} · 📒 Không làm sai lệch báo cáo Lãi lỗ Bếp & Căn tin.`,
+          )} · Không làm sai lệch báo cáo Lãi lỗ Bếp & Căn tin.`,
           spokenText: `Điều chỉnh ${reconcileTarget.wallet.ten_vi} theo tiền đếm thực tế ${formatCompactVND(
             reconcileDiff.tien_dem_thuc_te
           )}, lệch ${formatCompactVND(Math.abs(reconcileDiff.chenh_lech))}. Đúng không ạ?`,
@@ -222,7 +222,7 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
     transferFrom.wallet.id !== transferTo.wallet.id &&
     transferAmount > 0
       ? {
-          badge: '🔄 CHUYỂN QUỸ NỘI BỘ',
+          badge: 'CHUYỂN QUỸ NỘI BỘ',
           tone: 'info',
           title: `${transferFrom.wallet.ten_vi} → ${transferTo.wallet.ten_vi}`,
           headlineAmount: transferAmount,
@@ -243,7 +243,7 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
               highlight: true,
             },
           ],
-          bookImpactNote: `💰 Chuyển tiền giữa 2 ví cùng cơ sở · 📒 Tổng tiền và Lãi lỗ không đổi.`,
+          bookImpactNote: `Chuyển tiền giữa 2 ví cùng cơ sở · Tổng tiền và Lãi lỗ không đổi.`,
           spokenText: `Chuyển ${formatCompactVND(transferAmount)} từ ${
             transferFrom.wallet.ten_vi
           } sang ${transferTo.wallet.ten_vi}. Đúng không ạ?`,
@@ -310,7 +310,7 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
       {/* THẺ TỔNG TIỀN THỰC TẾ TOÀN CƠ SỞ */}
       <div className="rounded-3xl bg-teal-900 text-white p-5 shadow-sm space-y-1.5">
         <div className="text-lg font-bold opacity-95">
-          💰 Tổng tiền thực có ({snapshot.book.ten})
+          Tổng tiền thực có ({snapshot.book.ten})
         </div>
         <div className="text-3xl font-extrabold">{formatVND(tongTienThucTe)}</div>
         <div className="text-base opacity-90">
@@ -430,7 +430,7 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
                         onClick={() => setConfirmStep(true)}
                         className="w-full min-h-[54px] rounded-2xl bg-teal-800 hover:bg-teal-900 text-white font-extrabold text-lg"
                       >
-                        ⚖️ Xem thẻ xác nhận điều chỉnh ví
+                        Xem thẻ xác nhận điều chỉnh ví
                       </button>
                     </div>
                   )}
@@ -525,7 +525,7 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
                 onClick={() => setConfirmStep(true)}
                 className="w-full min-h-[54px] rounded-2xl bg-sky-700 hover:bg-sky-800 disabled:bg-stone-300 text-white font-extrabold text-lg"
               >
-                🔄 Tiếp tục xác nhận chuyển quỹ
+                Tiếp tục xác nhận chuyển quỹ
               </button>
             </div>
           )}
@@ -617,7 +617,7 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
       <div className="rounded-3xl bg-white border-2 border-stone-300 p-4 shadow-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-xl font-extrabold text-stone-900">
-            📜 Dòng thời gian Vào / Ra
+            Dòng thời gian Vào / Ra
           </h2>
           <span className="text-sm font-bold text-stone-600">
             {timeline.length} giao dịch

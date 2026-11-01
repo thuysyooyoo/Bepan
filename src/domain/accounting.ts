@@ -680,7 +680,7 @@ export function computeMonthlyReport(snapshot: BookSnapshot, kyThang: string): M
       categoryMap.set(key, {
         category_id: tx.category_id,
         ten_danh_muc: cat?.ten_danh_muc ?? 'Chi phí khác',
-        icon: cat?.icon ?? '📝',
+        icon: cat?.icon ?? '',
         mang: tx.mang,
         kieu_tinh: 'theo_ngay',
         so_tien: tx.so_tien,
@@ -694,7 +694,7 @@ export function computeMonthlyReport(snapshot: BookSnapshot, kyThang: string): M
     categoryMap.set('__cong_tho__', {
       category_id: '__cong_tho__',
       ten_danh_muc: `Công thợ phụ bếp (${tongSoCong} công)`,
-      icon: '👷',
+      icon: '',
       mang: 'bep_an',
       kieu_tinh: 'theo_ngay',
       so_tien: chiCongTho,
@@ -713,7 +713,7 @@ export function computeMonthlyReport(snapshot: BookSnapshot, kyThang: string): M
       categoryMap.set(key, {
         category_id: tx.category_id,
         ten_danh_muc: cat?.ten_danh_muc ?? 'Chi phí cuối tháng',
-        icon: cat?.icon ?? '⚡',
+        icon: cat?.icon ?? '',
         mang: tx.mang,
         kieu_tinh: 'theo_thang',
         so_tien: tx.so_tien,
@@ -1033,19 +1033,19 @@ export function computeWalletTimeline(
     const sup = tx.supplier_id ? supMap.get(tx.supplier_id) : undefined;
     const worker = tx.worker_id ? workerMap.get(tx.worker_id) : undefined;
 
-    let icon = cat?.icon ?? '💵';
+    let icon = cat?.icon ?? '';
     let tieuDe = tx.ghi_chu || cat?.ten_danh_muc || 'Giao dịch ví';
     if (tx.loai === 'tra_no' && sup) {
-      icon = '🤝';
+      icon = '';
       tieuDe = `Trả nợ ${sup.ten_ncc}${tx.ghi_chu ? ` — ${tx.ghi_chu}` : ''}`;
     } else if (tx.loai === 'tra_luong' && worker) {
-      icon = '👷';
+      icon = '';
       tieuDe = `Trả/ứng lương ${worker.ho_ten}`;
     } else if (tx.loai === 'chuyen_quy') {
-      icon = '🔄';
+      icon = '';
       tieuDe = tx.ghi_chu || `Chuyển quỹ nội bộ`;
     } else if (tx.loai === 'dieu_chinh_vi') {
-      icon = '⚖️';
+      icon = '';
       tieuDe =
         tx.ghi_chu ||
         (tx.so_tien >= 0 ? 'Điều chỉnh thừa tiền khi kiểm két' : 'Điều chỉnh hụt tiền khi kiểm két');
@@ -1251,8 +1251,8 @@ export interface DebtAndPayablesSummary {
 /**
  * 5. SỔ NỢ & PHẢI TRẢ / DỰ KIẾN THU (Tách riêng hoàn toàn khỏi Sổ Dòng Tiền):
  * Gồm 2 bảng rõ ràng:
- * - 📕 Khoản mình nợ (Phải trả): Nợ mua chịu nhà cung cấp + Lương thợ lũy kế phải trả.
- * - 📗 Khoản người ta nợ mình (Phải thu): Tiền suất ăn trường dự kiến về + Khách/giáo viên ăn chịu.
+ * - Khoản mình nợ (Phải trả): Nợ mua chịu nhà cung cấp + Lương thợ lũy kế phải trả.
+ * - Khoản người ta nợ mình (Phải thu): Tiền suất ăn trường dự kiến về + Khách/giáo viên ăn chịu.
  */
 export function computeDebtAndPayables(
   snapshot: BookSnapshot,

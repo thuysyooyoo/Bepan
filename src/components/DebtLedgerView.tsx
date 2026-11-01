@@ -108,7 +108,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
     [snapshot, kyThang, todayISO]
   );
 
-  // Tự động bung chi tiết mối hàng khi nhảy từ Thẻ nhắc việc 🔔 sang
+  // Tự động bung chi tiết mối hàng khi nhảy từ Thẻ nhắc việc sang
   useEffect(() => {
     if (focusedSupplierId) {
       setShowAllSuppliers(true);
@@ -189,8 +189,8 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
       return {
         badge:
           conLaiSauTra === 0
-            ? '🤝 TẤT TOÁN HẾT NỢ MỐI HÀNG'
-            : '🤝 TRẢ BỚT NỢ MỐI HÀNG',
+            ? 'TẤT TOÁN HẾT NỢ MỐI HÀNG'
+            : 'TRẢ BỚT NỢ MỐI HÀNG',
         tone: 'debt',
         title: `Trả nợ ${supItem.supplier.ten_ncc}`,
         headlineAmount: -amount,
@@ -219,11 +219,11 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
             highlight: true,
           },
         ],
-        bookImpactNote: `💰 Trừ ${formatVND(amount)} khỏi ${
+        bookImpactNote: `Trừ ${formatVND(amount)} khỏi ${
           selectedWallet.ten_vi
-        } · 📕 Giảm nợ ${
+        } · Giảm nợ ${
           supItem.supplier.ten_ncc
-        } · 📒 Không trừ trùng vào Lãi lỗ (vì đã tính lúc mua hàng).`,
+        } · Không trừ trùng vào Lãi lỗ (vì đã tính lúc mua hàng).`,
         spokenText: `Trả nợ ${supItem.supplier.ten_ncc} ${formatCompactVND(
           amount
         )} từ ${selectedWallet.ten_vi}. ${
@@ -241,7 +241,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
       if (!wItem) return null;
       const conLai = Math.max(0, wItem.con_lai - amount);
       return {
-        badge: '👷 TRẢ LƯƠNG PHỤ BẾP',
+        badge: 'TRẢ LƯƠNG PHỤ BẾP',
         tone: 'expense',
         title: `${wItem.worker.ho_ten} (${formatVietnameseMonth(kyThang)})`,
         headlineAmount: -amount,
@@ -266,9 +266,9 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
             highlight: true,
           },
         ],
-        bookImpactNote: `💰 Trừ ${formatVND(amount)} khỏi ${
+        bookImpactNote: `Trừ ${formatVND(amount)} khỏi ${
           selectedWallet.ten_vi
-        } · 📕 Giảm phải trả lương · 📒 Không trừ trùng vào Lãi lỗ (công đã tính theo ngày).`,
+        } · Giảm phải trả lương · Không trừ trùng vào Lãi lỗ (công đã tính theo ngày).`,
         spokenText: `Trả lương ${wItem.worker.ho_ten} ${formatCompactVND(
           amount
         )} cho ${formatVietnameseMonth(kyThang)} từ ${selectedWallet.ten_vi}. Đúng không ạ?`,
@@ -278,7 +278,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
     // activeAction.kind === 'truong_chuyen'
     const conCho = Math.max(0, debt.tien_truong_ky_nay.con_cho_chuyen - amount);
     return {
-      badge: '🏫 NHÀ TRƯỜNG CHUYỂN TIỀN ĂN',
+      badge: 'NHÀ TRƯỜNG CHUYỂN TIỀN ĂN',
       tone: 'income',
       title: `Tiền trường ${formatVietnameseMonth(kyThang)}`,
       headlineAmount: amount,
@@ -305,9 +305,9 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
           highlight: true,
         },
       ],
-      bookImpactNote: `💰 Cộng ${formatVND(amount)} vào ${
+      bookImpactNote: `Cộng ${formatVND(amount)} vào ${
         selectedWallet.ten_vi
-      } · 📕 Khấu trừ công nợ trường · 📒 Không cộng trùng vào Lãi lỗ (doanh thu đã tính theo suất ngày).`,
+      } · Khấu trừ công nợ trường · Không cộng trùng vào Lãi lỗ (doanh thu đã tính theo suất ngày).`,
       spokenText: `Ghi nhận nhà trường chuyển ${formatCompactVND(
         amount
       )} tiền ăn ${formatVietnameseMonth(kyThang)} vào ${
@@ -457,7 +457,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
 
         <div className="grid grid-cols-2 gap-2 text-center">
           <div className="p-3 rounded-2xl bg-rose-950/80 border border-rose-500/50">
-            <div className="text-sm font-bold text-rose-200">📕 Khoản mình nợ (Phải trả)</div>
+            <div className="text-sm font-bold text-rose-200">Khoản mình nợ (Phải trả)</div>
             <div className="text-2xl font-black text-rose-300 mt-1">
               {formatVND(debt.tong_minh_no)}
             </div>
@@ -466,7 +466,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
             </div>
           </div>
           <div className="p-3 rounded-2xl bg-emerald-950/80 border border-emerald-500/50">
-            <div className="text-sm font-bold text-emerald-200">📗 Người ta nợ mình (Phải thu)</div>
+            <div className="text-sm font-bold text-emerald-200">Người ta nợ mình (Phải thu)</div>
             <div className="text-2xl font-black text-emerald-300 mt-1">
               {formatVND(debt.tong_nguoi_ta_no)}
             </div>
@@ -484,11 +484,11 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
             <div className="text-xl font-extrabold text-teal-950">
               {activeAction.kind === 'tra_no_ncc'
                 ? activeAction.mode === 'full'
-                  ? '⚡ Trả hết nợ 1 chạm'
-                  : '✍️ Trả một phần nợ mối hàng'
+                  ? 'Trả hết nợ 1 chạm'
+                  : 'Trả một phần nợ mối hàng'
                 : activeAction.kind === 'tra_luong_tho'
-                ? '👷 Ghi trả / ứng lương thợ'
-                : '🏫 Ghi nhận trường chuyển tiền'}
+                ? 'Ghi trả / ứng lương thợ'
+                : 'Ghi nhận trường chuyển tiền'}
             </div>
             <button
               type="button"
@@ -512,10 +512,10 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
                 const selected = wallet.id === walletId;
                 const shortName =
                   wallet.loai_vi === 'tien_mat'
-                    ? '💵 Tiền mặt'
+                    ? 'Tiền mặt'
                     : wallet.loai_vi === 'tk_mo_diep'
-                    ? '🏦 Mợ Diệp'
-                    : '🏦 Chị Nhàn';
+                    ? 'Mợ Diệp'
+                    : 'Chị Nhàn';
                 return (
                   <button
                     key={wallet.id}
@@ -622,7 +622,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-xl font-extrabold text-rose-950">
-              📕 1. Nợ nhà cung cấp (Mua chịu)
+              1. Nợ nhà cung cấp (Mua chịu)
             </h2>
             <div className="text-3xl font-extrabold text-rose-700 mt-0.5">
               {formatVND(debt.nha_cung_cap.tong_no_ncc)}
@@ -735,7 +735,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
                         onClick={() => openPaySupplier(item.supplier.id, 'partial')}
                         className="min-h-[48px] px-3 py-2 rounded-2xl bg-white hover:bg-rose-50 border-2 border-rose-500 text-rose-900 font-extrabold text-base"
                       >
-                        ✍️ Trả một phần
+                        Trả một phần
                       </button>
                     </div>
                   )}
@@ -752,7 +752,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
                     className="w-full py-2 px-3 rounded-xl bg-white border border-stone-300 text-stone-800 font-bold text-sm flex items-center justify-between"
                   >
                     <span>
-                      📋 Lịch sử lấy hàng & trả nợ (Mua chịu:{' '}
+                      Lịch sử lấy hàng & trả nợ (Mua chịu:{' '}
                       {formatCompactVND(item.tong_mua_chiu)} · Đã trả:{' '}
                       {formatCompactVND(item.tong_da_tra)})
                     </span>
@@ -787,7 +787,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
                                   <div className="text-base font-extrabold text-stone-900">
-                                    {isBorrow ? '🛒 Lấy hàng ghi sổ' : '🤝 Đã trả tiền'}
+                                    {isBorrow ? 'Lấy hàng ghi sổ' : 'Đã trả tiền'}
                                     {entry.tx.ghi_chu ? ` — ${entry.tx.ghi_chu}` : ''}
                                   </div>
                                   <div className="text-xs font-semibold text-stone-600">
@@ -854,7 +854,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
         </button>
 
         <div className="text-lg font-extrabold text-stone-950">
-          📅 {formatVietnameseMonth(kyThang)}
+          {formatVietnameseMonth(kyThang)}
         </div>
 
         <button
@@ -1017,7 +1017,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
               >
                 <div>
                   <div className="text-lg font-extrabold text-emerald-950">
-                    👤 {khach.doi_tac}
+                    {khach.doi_tac}
                   </div>
                   <div className="text-sm text-stone-600">
                     Đã nợ {formatVND(khach.tong_ban_chiu)} · Đã trả {formatVND(khach.tong_da_thu)}

@@ -306,7 +306,7 @@ describe('Phiên 6 — Dòng tiền 3 Ví, Đếm tiền thực tế, Sổ nợ 
     expect(summary.nha_cung_cap.tong_no_ncc).toBe(0);
   });
 
-  it('3. Giả lập 1 tháng vận hành 5 loại Thẻ Nhắc Việc 🔔: Bật đúng ngày/giờ, tính đúng tiền & Tự tắt 100% khi nhập đủ', async () => {
+  it('3. Giả lập 1 tháng vận hành 5 loại Thẻ Nhắc Việc : Bật đúng ngày/giờ, tính đúng tiền & Tự tắt 100% khi nhập đủ', async () => {
     const repo = new LocalDexieAdapter(`TestDB_S6_Reminders_${Date.now()}`);
     const me = await repo.loginWithPin('me', '2222');
 

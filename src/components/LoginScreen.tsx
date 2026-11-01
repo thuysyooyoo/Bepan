@@ -61,8 +61,8 @@ export const LoginScreen: React.FC = () => {
       <div className="min-h-screen bg-stone-100 flex flex-col justify-between px-4 py-6 max-w-md mx-auto">
         <div>
           <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-700 text-white text-3xl shadow-md mb-3">
-              🍲
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-700 text-white shadow-md mb-3">
+              <BookOpen className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-extrabold text-stone-900 tracking-tight">
               Sổ Bếp Nhà Mình
@@ -86,9 +86,17 @@ export const LoginScreen: React.FC = () => {
                   p.id
                 )}`}
               >
-                <span className="text-5xl shrink-0" role="img" aria-label={p.xung_ho}>
-                  {p.avatar_emoji}
-                </span>
+                <div
+                  className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-lg shadow-xs shrink-0 ${
+                    p.id === 'bo'
+                      ? 'bg-teal-700 text-white'
+                      : p.id === 'me'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-slate-700 text-white text-sm'
+                  }`}
+                >
+                  {p.id === 'bo' ? 'BỐ' : p.id === 'me' ? 'MẸ' : 'ADMIN'}
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-2xl font-bold leading-snug">{p.ten_hien_thi}</div>
                   <div className="text-lg opacity-85 mt-0.5">{p.mo_ta}</div>
@@ -140,7 +148,17 @@ export const LoginScreen: React.FC = () => {
         </button>
 
         <div className="text-center mt-4">
-          <div className="text-4xl mb-1.5">{selectedProfile.avatar_emoji}</div>
+          <div
+            className={`w-14 h-14 mx-auto rounded-2xl flex items-center justify-center font-black text-lg shadow-sm mb-2 ${
+              selectedProfile.id === 'bo'
+                ? 'bg-teal-700 text-white'
+                : selectedProfile.id === 'me'
+                ? 'bg-amber-600 text-white'
+                : 'bg-slate-700 text-white text-sm'
+            }`}
+          >
+            {selectedProfile.id === 'bo' ? 'BỐ' : selectedProfile.id === 'me' ? 'MẸ' : 'ADMIN'}
+          </div>
           <h2 className="text-xl font-black text-stone-900">
             Xin chào {selectedProfile.xung_ho}!
           </h2>
@@ -232,7 +250,7 @@ export const LoginScreen: React.FC = () => {
           onClick={() => setShowGuide(true)}
           className="text-stone-500 hover:text-stone-800 underline text-xs font-medium"
         >
-          📖 Xem hướng dẫn dùng Sổ Bếp
+          Xem hướng dẫn dùng Sổ Bếp
         </button>
       </div>
 

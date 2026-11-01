@@ -133,7 +133,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
     try {
       setExportingExcel(true);
       const filename = await downloadSingleBookMonthlyExcel(snapshot, selectedMonth);
-      showNotice(`📥 Đã xuất báo cáo Excel: ${filename}`);
+      showNotice(`Đã xuất báo cáo Excel: ${filename}`);
     } catch (err) {
       showNotice(
         err instanceof Error ? `Lỗi xuất Excel: ${err.message}` : 'Không xuất được Excel.'
@@ -148,11 +148,11 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
       mode === 'ngay'
         ? buildZaloDailySummaryText(snapshot, localDate)
         : [
-            `📊 BÁO CÁO ${snapshot.book.ten.toUpperCase()} — ${formatVietnameseMonth(selectedMonth).toUpperCase()}`,
-            `🏆 Lãi ròng tháng: ${formatVND(monthly.lai_rong_toan_co_so, true)}`,
-            `• 🍲 Bếp ăn (${monthly.bep_an.tong_suat} suất): ${formatVND(monthly.bep_an.lai_bep_an, true)}`,
-            `• 🏪 Căn tin: ${formatVND(monthly.can_tin.lai_can_tin, true)}`,
-            `• ⚡ Chi phí cuối tháng: -${formatVND(monthly.tong_chi_cuoi_thang_ap_dung)}`,
+            `BÁO CÁO ${snapshot.book.ten.toUpperCase()} — ${formatVietnameseMonth(selectedMonth).toUpperCase()}`,
+            `Lãi ròng tháng: ${formatVND(monthly.lai_rong_toan_co_so, true)}`,
+            `• Bếp ăn (${monthly.bep_an.tong_suat} suất): ${formatVND(monthly.bep_an.lai_bep_an, true)}`,
+            `• Căn tin: ${formatVND(monthly.can_tin.lai_can_tin, true)}`,
+            `• Chi phí cuối tháng: -${formatVND(monthly.tong_chi_cuoi_thang_ap_dung)}`,
           ].join('\n');
 
     try {
@@ -168,7 +168,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
     }
     try {
       await navigator.clipboard.writeText(text);
-      showNotice('✅ Đã chép tóm tắt — mở Zalo dán gửi cho con/gia đình ngay!');
+      showNotice('Đã chép tóm tắt — mở Zalo dán gửi cho con/gia đình ngay!');
     } catch {
       showNotice('Không chép tự động được, vui lòng thử lại.');
     }
@@ -245,7 +245,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                 : 'text-stone-700 hover:bg-stone-200'
             }`}
           >
-            <span>📅</span>
+            <span></span>
             <span>Theo Ngày</span>
           </button>
           <button
@@ -260,7 +260,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                 : 'text-stone-700 hover:bg-stone-200'
             }`}
           >
-            <span>📆</span>
+            <span></span>
             <span>Theo Tháng</span>
           </button>
         </div>
@@ -272,7 +272,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
             className="py-2.5 px-3 rounded-2xl bg-sky-50 hover:bg-sky-100 border-2 border-sky-400 text-sky-950 font-bold text-sm flex items-center justify-center gap-1.5 active:scale-[0.99]"
           >
             <Volume2 className="w-5 h-5 text-sky-700 shrink-0" />
-            <span>🔊 Nghe đọc báo cáo</span>
+            <span>Nghe đọc báo cáo</span>
           </button>
 
           <button
@@ -296,7 +296,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
             <span>
               {exportingExcel
                 ? 'Đang tạo file Excel...'
-                : `📥 Xuất Excel báo cáo ${formatVietnameseMonth(selectedMonth)}`}
+                : `Xuất Excel báo cáo ${formatVietnameseMonth(selectedMonth)}`}
             </span>
           </button>
         )}
@@ -375,7 +375,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
           {/* THẺ 1: BẾP ĂN — LÃI ƯỚC TÍNH NGÀY & GIÁ VỐN / SUẤT */}
           <div className="rounded-3xl bg-white border-2 border-teal-700 p-4 shadow-xs space-y-3.5">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-xl font-extrabold text-teal-950">🍲 Bếp ăn trong ngày</h2>
+              <h2 className="text-xl font-extrabold text-teal-950">Bếp ăn trong ngày</h2>
               <span className="px-3 py-1 rounded-full bg-teal-100 border border-teal-300 text-base font-extrabold text-teal-900">
                 {daily.bep_an.tong_suat} suất
               </span>
@@ -465,7 +465,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                         onClick={() => onJumpToForm('suat_an')}
                         className="px-3 py-1.5 rounded-xl bg-teal-700 text-white font-bold text-base shrink-0"
                       >
-                        🍚 Báo suất ăn
+                        Báo suất ăn
                       </button>
                     )}
                   </div>
@@ -508,7 +508,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
           <div className="rounded-3xl bg-white border-2 border-amber-500 p-4 shadow-xs space-y-3">
             <div>
               <h2 className="text-xl font-extrabold text-amber-950">
-                🏪 Căn tin — Thu & Chi trong ngày
+                Căn tin — Thu & Chi trong ngày
               </h2>
               <p className="text-base text-stone-600 mt-0.5">
                 Không tính lãi ngày Căn tin (lãi Căn tin được chốt theo tháng)
@@ -577,7 +577,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                   onClick={() => onJumpToForm('thu_cuoi_ngay')}
                   className="w-full py-2.5 px-4 rounded-2xl bg-amber-100 hover:bg-amber-200 border border-amber-400 text-amber-950 font-bold text-base"
                 >
-                  💵 Nhập tổng thu cuối ngày (TM + CK Chị Nhàn)
+                  Nhập tổng thu cuối ngày (TM + CK Chị Nhàn)
                 </button>
               )
             )}
@@ -773,7 +773,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
             }`}
           >
             <div className="text-lg font-bold opacity-95">
-              🏆 Lãi ròng toàn cơ sở ({formatVietnameseMonth(selectedMonth)})
+              Lãi ròng toàn cơ sở ({formatVietnameseMonth(selectedMonth)})
             </div>
             <div className="text-3xl font-extrabold">
               {formatVND(monthly.lai_rong_toan_co_so, true)}
@@ -799,7 +799,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
           {monthly.la_uoc_tinh_tu_thang_truoc ? (
             <div className="rounded-3xl bg-amber-50 border-2 border-amber-500 p-4 space-y-2.5">
               <div className="text-lg font-extrabold text-amber-950">
-                ⏳ Đang tạm ước tính điện, nước, gas, gia vị:{' '}
+                Đang tạm ước tính điện, nước, gas, gia vị:{' '}
                 {formatVND(monthly.tong_chi_cuoi_thang_ap_dung)}
               </div>
               <p className="text-base text-amber-950 leading-relaxed">
@@ -815,7 +815,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                   onClick={() => onJumpToForm('chi_phi_thang')}
                   className="w-full py-3 px-4 rounded-2xl bg-amber-700 hover:bg-amber-800 text-white font-extrabold text-base"
                 >
-                  ⚡ Nhập hóa đơn điện, nước, gas, gia vị thực tế
+                  Nhập hóa đơn điện, nước, gas, gia vị thực tế
                 </button>
               )}
             </div>
@@ -823,7 +823,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
             <div className="rounded-3xl bg-emerald-50 border-2 border-emerald-500 p-4 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <div className="text-lg font-extrabold text-emerald-950">
-                  ✅ Chi phí cuối tháng thực tế:{' '}
+                  Chi phí cuối tháng thực tế:{' '}
                   {formatVND(monthly.tong_chi_cuoi_thang_ap_dung)}
                 </div>
                 <div className="text-base text-emerald-900">
@@ -844,7 +844,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
             monthly.so_ngay_hoat_dong > 0 && (
               <div className="rounded-3xl bg-purple-50 border-2 border-purple-400 p-4 space-y-2">
                 <div className="text-lg font-extrabold text-purple-950">
-                  ⚡ Chưa có hóa đơn điện, nước, gas, gia vị cuối tháng
+                  Chưa có hóa đơn điện, nước, gas, gia vị cuối tháng
                 </div>
                 <div className="text-base text-purple-900">
                   Cuối tháng có hóa đơn, ông/bà nhập vào đây để tính chuẩn lãi ròng cả tháng.
@@ -855,7 +855,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                     onClick={() => onJumpToForm('chi_phi_thang')}
                     className="w-full py-2.5 px-4 rounded-2xl bg-purple-700 text-white font-bold text-base"
                   >
-                    ⚡ Nhập điện, nước, gas, gia vị
+                    Nhập điện, nước, gas, gia vị
                   </button>
                 )}
               </div>
@@ -866,7 +866,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
           <div className="rounded-3xl bg-white border-2 border-teal-700 p-4 shadow-xs space-y-3">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-xl font-extrabold text-teal-950">
-                🍲 Bếp ăn cả tháng
+                Bếp ăn cả tháng
               </h2>
               <span className="px-3 py-1 rounded-full bg-teal-100 border border-teal-300 text-base font-extrabold text-teal-900">
                 {monthly.bep_an.tong_suat} suất
@@ -935,7 +935,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
             {monthly.bep_an.tong_suat > 0 && (
               <div className="rounded-2xl bg-teal-50 border border-teal-300 p-3.5 space-y-1.5">
                 <div className="text-base font-extrabold text-teal-950">
-                  📐 Tính bình quân trên 1 suất ăn ({monthly.bep_an.tong_suat} suất):
+                  Tính bình quân trên 1 suất ăn ({monthly.bep_an.tong_suat} suất):
                 </div>
                 <div className="space-y-1 text-base text-stone-800">
                   <div className="flex justify-between">
@@ -973,7 +973,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
           <div className="rounded-3xl bg-white border-2 border-amber-500 p-4 shadow-xs space-y-3">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-xl font-extrabold text-amber-950">
-                🏪 Căn tin cả tháng
+                Căn tin cả tháng
               </h2>
               {monthly.can_tin.doanh_thu > 0 && (
                 <span className="px-3 py-1 rounded-full bg-amber-100 border border-amber-300 text-sm font-extrabold text-amber-950">

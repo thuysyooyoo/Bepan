@@ -216,18 +216,18 @@ export const AppShell: React.FC = () => {
           <div className="min-w-0">
             <div className="text-base font-extrabold truncate">
               {isAdminCombinedMode
-                ? '👑 Tổng hợp 2 cơ sở'
+                ? 'Tổng hợp 2 cơ sở'
                 : snapshot
                 ? snapshot.book.ten
                 : 'Đang mở sổ...'}
             </div>
             <div className="text-xs opacity-90 truncate">
-              {session.avatar_emoji} {session.xung_ho} ·{' '}
+              {session.xung_ho} ·{' '}
               {offlineStatus && !offlineStatus.isOnline
-                ? '📡 Ngoại tuyến'
+                ? 'Ngoại tuyến'
                 : cloudStatus?.connected
-                ? '☁️ Đám mây'
-                : '📱 Lưu máy'}
+                ? 'Đám mây'
+                : 'Lưu máy'}
             </div>
           </div>
 
@@ -290,7 +290,7 @@ export const AppShell: React.FC = () => {
                       : 'text-white/85 hover:text-white'
                   }`}
                 >
-                  {bid === 'hiep_hoa' ? '👨‍🍳 Hiệp Hòa' : '👩‍🍳 Tiên Du'}
+                  {bid === 'hiep_hoa' ? 'Hiệp Hòa' : 'Tiên Du'}
                 </button>
               );
             })}
@@ -518,7 +518,7 @@ export const AppShell: React.FC = () => {
       {snapshot && (
         <>
           <RollyDetailDrawer
-            title={`📊 Lợi nhuận ${snapshot.book.ten}`}
+            title={`Lợi nhuận ${snapshot.book.ten}`}
             isOpen={detailDrawer === 'profit'}
             onClose={() => setDetailDrawer(null)}
           >
@@ -531,7 +531,7 @@ export const AppShell: React.FC = () => {
           </RollyDetailDrawer>
 
           <RollyDetailDrawer
-            title={`💰 Tiền thực tế ${snapshot.book.ten}`}
+            title={`Tiền thực tế ${snapshot.book.ten}`}
             isOpen={detailDrawer === 'wallets'}
             onClose={() => setDetailDrawer(null)}
           >
@@ -543,7 +543,7 @@ export const AppShell: React.FC = () => {
           </RollyDetailDrawer>
 
           <RollyDetailDrawer
-            title={`📕 Sổ Nợ & Phải Thu ${snapshot.book.ten}`}
+            title={`Sổ Nợ & Phải Thu ${snapshot.book.ten}`}
             isOpen={detailDrawer === 'debts'}
             onClose={() => setDetailDrawer(null)}
           >
@@ -567,7 +567,7 @@ export const AppShell: React.FC = () => {
         >
           <div className="w-full bg-white rounded-3xl p-5 shadow-2xl space-y-3 border-2 border-stone-300">
             <div className="flex items-center justify-between border-b pb-2">
-              <div className="text-xl font-black text-stone-900">⚙️ Tùy chọn hệ thống</div>
+              <div className="text-xl font-black text-stone-900">Tùy chọn hệ thống</div>
               <button
                 type="button"
                 onClick={() => setShowMainMenu(false)}
@@ -606,7 +606,7 @@ export const AppShell: React.FC = () => {
                 className="w-full p-3.5 rounded-2xl bg-stone-50 hover:bg-stone-100 border border-stone-300 font-bold text-left text-stone-900 flex items-center gap-2"
               >
                 <HelpCircle className="w-5 h-5 text-teal-700" />
-                📖 Cẩm nang sử dụng cho Bố/Mẹ
+                Cẩm nang sử dụng cho Bố/Mẹ
               </button>
 
               <button
@@ -618,7 +618,7 @@ export const AppShell: React.FC = () => {
                 className="w-full p-3.5 rounded-2xl bg-stone-50 hover:bg-stone-100 border border-stone-300 font-bold text-left text-stone-900 flex items-center gap-2"
               >
                 <Settings className="w-5 h-5 text-teal-700" />
-                ⚙️ Cài đặt sổ (Đơn giá, Thợ, Mối hàng, PIN)
+                Cài đặt sổ (Đơn giá, Thợ, Mối hàng, PIN)
               </button>
 
               {session.vai_tro === 'admin' && (
@@ -635,7 +635,7 @@ export const AppShell: React.FC = () => {
                       }}
                       className="p-2 rounded-xl bg-white border border-stone-300 font-bold text-sm"
                     >
-                      👨‍🍳 Hiệp Hòa
+                      Hiệp Hòa
                     </button>
                     <button
                       type="button"
@@ -645,7 +645,7 @@ export const AppShell: React.FC = () => {
                       }}
                       className="p-2 rounded-xl bg-white border border-stone-300 font-bold text-sm"
                     >
-                      👩‍🍳 Tiên Du
+                      Tiên Du
                     </button>
                   </div>
                 </div>
@@ -660,7 +660,7 @@ export const AppShell: React.FC = () => {
                 className="w-full p-3.5 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-300 font-extrabold text-left text-rose-800 flex items-center gap-2"
               >
                 <LogOut className="w-5 h-5 text-rose-700" />
-                🚪 Đăng xuất / Đổi người dùng
+                Đăng xuất / Đổi người dùng
               </button>
             </div>
           </div>

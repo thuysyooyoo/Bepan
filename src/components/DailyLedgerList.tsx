@@ -109,7 +109,7 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
 
           <div className="text-center flex-1">
             <div className="text-lg font-extrabold text-stone-900">
-              📖 Sổ ngày: {formatVietnameseDate(selectedDate)}
+              Sổ ngày: {formatVietnameseDate(selectedDate)}
             </div>
             <input
               type="date"
@@ -151,7 +151,7 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
             <div className="rounded-2xl bg-white border-2 border-teal-500 p-4 flex items-center justify-between gap-3">
               <div>
                 <div className="text-lg font-extrabold text-teal-900">
-                  🍚 Suất ăn: {mealRev.suat_truong} trường
+                  Suất ăn: {mealRev.suat_truong} trường
                   {mealRev.suat_vang_lai > 0 ? ` + ${mealRev.suat_vang_lai} vãng lai` : ''}
                 </div>
                 <div className="text-base text-stone-600 mt-0.5">
@@ -179,7 +179,7 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
             <div className="rounded-2xl bg-white border-2 border-sky-400 p-4 flex items-center justify-between gap-3">
               <div>
                 <div className="text-lg font-extrabold text-sky-950">
-                  👷 Phụ bếp đi làm: {tongCongNgay} công
+                  Phụ bếp đi làm: {tongCongNgay} công
                 </div>
                 <div className="text-base text-stone-600 mt-0.5">
                   Chi phí công hôm nay:{' '}
@@ -215,11 +215,11 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
               : 'text-orange-800';
 
             const subLine = isCreditBuy
-              ? `📕 Mua chịu: ${supplier?.ten_ncc ?? 'Mối hàng'}`
+              ? `Mua chịu: ${supplier?.ten_ncc ?? 'Mối hàng'}`
               : tx.loai === 'tra_no'
-              ? `🤝 Trả nợ ${supplier?.ten_ncc ?? ''} · ${wallet?.ten_vi ?? ''}`
+              ? `Trả nợ ${supplier?.ten_ncc ?? ''} · ${wallet?.ten_vi ?? ''}`
               : tx.loai === 'chuyen_quy'
-              ? `🔄 Chuyển quỹ (${wallet?.ten_vi ?? ''})`
+              ? `Chuyển quỹ (${wallet?.ten_vi ?? ''})`
               : wallet?.ten_vi ?? '';
 
             return (
@@ -230,7 +230,7 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-lg font-extrabold text-stone-900">
-                      {cat?.icon ?? '📝'} {tx.ghi_chu || cat?.ten_danh_muc}
+                      {cat?.icon ?? ''} {tx.ghi_chu || cat?.ten_danh_muc}
                     </div>
                     <div className="text-base text-stone-600 mt-0.5">{subLine}</div>
                   </div>

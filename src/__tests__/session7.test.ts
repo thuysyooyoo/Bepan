@@ -54,7 +54,7 @@ function createMockRlsSupabase(options?: { schemaReady?: boolean }) {
         vai_tro: 'owner',
         book_id: 'hiep_hoa',
         virtual_email: 'bo@sobep.local',
-        avatar_emoji: '👨‍🍳',
+        avatar_emoji: '',
       },
       {
         id: 'me',
@@ -65,7 +65,7 @@ function createMockRlsSupabase(options?: { schemaReady?: boolean }) {
         vai_tro: 'owner',
         book_id: 'tien_du',
         virtual_email: 'me@sobep.local',
-        avatar_emoji: '👩‍🍳',
+        avatar_emoji: '',
       },
       {
         id: 'admin',
@@ -76,7 +76,7 @@ function createMockRlsSupabase(options?: { schemaReady?: boolean }) {
         vai_tro: 'admin',
         book_id: null,
         virtual_email: 'admin@sobep.local',
-        avatar_emoji: '🛡️',
+        avatar_emoji: '',
       },
     ],
     wallets: structuredClone(SEED_WALLETS) as unknown as Array<Record<string, unknown>>,

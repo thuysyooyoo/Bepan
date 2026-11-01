@@ -37,7 +37,7 @@ export interface EvaluateRemindersOptions {
 }
 
 /**
- * Động cơ sinh & tắt tự động 5 loại Thẻ Nhắc Việc 🔔 cho Bố (Hiệp Hòa) và Mẹ (Tiên Du):
+ * Động cơ sinh & tắt tự động 5 loại Thẻ Nhắc Việc cho Bố (Hiệp Hòa) và Mẹ (Tiên Du):
  *  1) Hằng ngày từ giờ hẹn (mặc định 18:00): chưa nhập suất ăn hoặc chưa nhập thu cuối ngày Căn tin.
  *  2) Từ ngày hẹn (mặc định ngày 20): Trường chưa chuyển đủ tiền ăn tháng X (kèm số tiền dự kiến).
  *  3) Cuối tháng (từ ngày 25 hoặc đầu tháng sau): Trả lương thợ tháng X kèm số tiền gợi ý.
@@ -99,19 +99,19 @@ export function evaluateActiveReminders(
         tieuDe = 'Chưa ghi suất ăn & thu cuối ngày hôm nay';
         noiDung =
           'Đã qua giờ chốt sổ chiều nay, ông/bà nhớ báo số suất ăn và tổng thu cuối ngày nhé!';
-        actionLabel = '🍚 Ghi suất ăn ngay';
+        actionLabel = 'Ghi suất ăn ngay';
         formKind = 'suat_an';
       } else if (missingMeals) {
         tieuDe = 'Hôm nay chưa báo số suất ăn trường';
         noiDung =
           'Ông/bà bấm báo suất ăn (hoặc chọn Giống hôm qua) để sổ tính lãi Bếp ăn hôm nay nhé!';
-        actionLabel = '🍚 Báo suất ăn ngay';
+        actionLabel = 'Báo suất ăn ngay';
         formKind = 'suat_an';
       } else {
         tieuDe = 'Chưa nhập tổng thu cuối ngày Căn tin';
         noiDung =
           'Ông/bà đếm tiền mặt trong quầy + kiểm tra CK Chị Nhàn rồi nhập tổng thu cuối ngày nhé!';
-        actionLabel = '💵 Nhập thu cuối ngày';
+        actionLabel = 'Nhập thu cuối ngày';
         formKind = 'thu_cuoi_ngay';
       }
 
@@ -120,7 +120,7 @@ export function evaluateActiveReminders(
         loai_nhac: 'nhap_so_ngay',
         ky_thang: refDate,
         muc_do: 'nhac_nho',
-        icon: '🔔',
+        icon: '',
         tieu_de: tieuDe,
         noi_dung: noiDung,
         spoken_text: `Nhắc việc ${snapshot.book.ten}: ${tieuDe}. ${noiDung}`,
@@ -162,12 +162,12 @@ export function evaluateActiveReminders(
         loai_nhac: 'truong_chuyen_tien',
         ky_thang: m,
         muc_do: m === prevMonth ? 'khan' : 'quan_trong',
-        icon: '🏫',
+        icon: '',
         tieu_de: tieuDe,
         noi_dung: noiDung,
         so_tien_du_kien: con_cho_chuyen,
         spoken_text: `${tieuDe}. Số tiền dự kiến còn chờ về là ${formatVND(con_cho_chuyen)}.`,
-        action_label: '🏫 Ghi nhận tiền trường về',
+        action_label: 'Ghi nhận tiền trường về',
         action_target: { type: 'form', kind: 'truong_chuyen' },
       });
     }
@@ -203,12 +203,12 @@ export function evaluateActiveReminders(
         loai_nhac: 'tra_luong',
         ky_thang: m,
         muc_do: m === prevMonth ? 'khan' : 'quan_trong',
-        icon: '👷',
+        icon: '',
         tieu_de: tieuDe,
         noi_dung: noiDung,
         so_tien_du_kien: con_phai_tra,
         spoken_text: `${tieuDe}. Số tiền gợi ý còn phải trả là ${formatVND(con_phai_tra)}.`,
-        action_label: '💰 Ghi trả lương thợ',
+        action_label: 'Ghi trả lương thợ',
         action_target: { type: 'form', kind: 'tra_luong' },
       });
     }
@@ -236,7 +236,7 @@ export function evaluateActiveReminders(
         loai_nhac: 'chi_phi_thang',
         ky_thang: m,
         muc_do: 'quan_trong',
-        icon: '⚡',
+        icon: '',
         tieu_de: tieuDe,
         noi_dung: noiDung,
         so_tien_du_kien:
@@ -244,7 +244,7 @@ export function evaluateActiveReminders(
             ? mReport.tong_chi_cuoi_thang_ap_dung
             : undefined,
         spoken_text: `${tieuDe}. ${noiDung}`,
-        action_label: '⚡ Nhập hóa đơn tháng',
+        action_label: 'Nhập hóa đơn tháng',
         action_target: { type: 'form', kind: 'chi_phi_thang' },
       });
     }
@@ -275,12 +275,12 @@ export function evaluateActiveReminders(
         loai_nhac: 'no_qua_han',
         ky_thang: periodKey,
         muc_do: 'khan',
-        icon: '📕',
+        icon: '',
         tieu_de: tieuDe,
         noi_dung: noiDung,
         so_tien_du_kien: item.con_no,
         spoken_text: `${tieuDe}. Tổng số tiền đang nợ là ${formatVND(item.con_no)}.`,
-        action_label: '🤝 Trả nợ ngay',
+        action_label: 'Trả nợ ngay',
         action_target: { type: 'tab_no', supplierId: item.supplier.id },
       });
     }

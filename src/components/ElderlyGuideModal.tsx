@@ -22,7 +22,7 @@ export const ElderlyGuideModal: React.FC<ElderlyGuideModalProps> = ({
         {/* Header thân thiện */}
         <div className="bg-teal-800 text-white px-5 py-4 flex items-center justify-between sticky top-0 z-10 print:hidden">
           <div className="flex items-center gap-2">
-            <span className="text-3xl">📖</span>
+            <span className="text-3xl"></span>
             <div>
               <h2 className="text-2xl font-extrabold tracking-tight">
                 Hướng Dẫn Dùng Sổ Bếp
@@ -46,7 +46,7 @@ export const ElderlyGuideModal: React.FC<ElderlyGuideModalProps> = ({
         <div className="p-5 sm:p-6 space-y-5 text-stone-900 flex-1 overflow-y-auto">
           {/* Lời mở đầu ấm áp */}
           <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 flex items-center gap-3">
-            <span className="text-4xl shrink-0">🍲</span>
+            <span className="text-4xl shrink-0"></span>
             <div className="text-lg font-bold leading-snug">
               Bố mẹ chỉ cần chạm ngón tay nói bình thường, máy tự tính tiền và chia sổ chuẩn từng đồng ạ!
             </div>
@@ -59,18 +59,18 @@ export const ElderlyGuideModal: React.FC<ElderlyGuideModalProps> = ({
                 1
               </span>
               <h3 className="text-xl font-extrabold text-teal-950">
-                🔓 Mở sổ bằng 4 số PIN
+                Mở sổ bằng 4 số PIN
               </h3>
             </div>
             <div className="text-lg text-stone-800 space-y-1.5 pl-11">
               <p>
-                • Bố bấm vào hình <strong>👨‍🍳 Bố</strong> rồi bấm <strong>1 1 1 1</strong>.
+                • Bố bấm vào hình <strong>Bố</strong> rồi bấm <strong>1 1 1 1</strong>.
               </p>
               <p>
-                • Mẹ bấm vào hình <strong>👩‍🍳 Mẹ</strong> rồi bấm <strong>2 2 2 2</strong>.
+                • Mẹ bấm vào hình <strong>Mẹ</strong> rồi bấm <strong>2 2 2 2</strong>.
               </p>
               <p className="text-base text-stone-600 italic">
-                👉 Điện thoại tự nhớ 3 tháng mới phải bấm lại một lần!
+                Điện thoại tự nhớ 3 tháng mới phải bấm lại một lần!
               </p>
             </div>
           </div>
@@ -82,7 +82,7 @@ export const ElderlyGuideModal: React.FC<ElderlyGuideModalProps> = ({
                 2
               </span>
               <h3 className="text-xl font-extrabold text-teal-950">
-                🎙️ Ghi sổ bằng giọng nói
+                Ghi sổ bằng giọng nói
               </h3>
             </div>
             <div className="text-lg text-stone-800 space-y-2 pl-11">
@@ -111,7 +111,7 @@ export const ElderlyGuideModal: React.FC<ElderlyGuideModalProps> = ({
                 3
               </span>
               <h3 className="text-xl font-extrabold text-amber-950">
-                🌙 Chiều tối chốt quầy (Cách A)
+                Chiều tối chốt quầy (Cách A)
               </h3>
             </div>
             <div className="text-lg text-stone-800 space-y-1.5 pl-11">
@@ -125,7 +125,7 @@ export const ElderlyGuideModal: React.FC<ElderlyGuideModalProps> = ({
                 &ldquo;Căn tin hôm nay tiền mặt 2 triệu, chuyển khoản 800 nghìn&rdquo;
               </div>
               <p className="text-base text-amber-900 font-semibold">
-                👉 Máy sẽ <strong>tự động trừ phần tiền cơm vãng lai</strong> để ghi vào Bếp, còn lại ghi đúng vào Căn tin. Bố mẹ không cần tính nhẩm!
+                Máy sẽ <strong>tự động trừ phần tiền cơm vãng lai</strong> để ghi vào Bếp, còn lại ghi đúng vào Căn tin. Bố mẹ không cần tính nhẩm!
               </p>
             </div>
           </div>
@@ -137,21 +137,21 @@ export const ElderlyGuideModal: React.FC<ElderlyGuideModalProps> = ({
                 4
               </span>
               <h3 className="text-xl font-extrabold text-indigo-950">
-                📊 Xem Tiền &amp; Sổ nợ ở 4 nút dưới đáy
+                Xem Tiền &amp; Sổ nợ ở 4 nút dưới đáy
               </h3>
             </div>
             <div className="grid grid-cols-2 gap-2 pl-11 text-base font-bold">
               <div className="p-2.5 rounded-xl bg-white border border-stone-300">
-                💬 <strong>Ghi sổ</strong>: Bấm mic nói
+                <strong>Ghi sổ</strong>: Bấm mic nói
               </div>
               <div className="p-2.5 rounded-xl bg-white border border-stone-300">
-                📊 <strong>Hôm nay</strong>: Xem lãi ngày
+                <strong>Hôm nay</strong>: Xem lãi ngày
               </div>
               <div className="p-2.5 rounded-xl bg-white border border-stone-300">
-                💰 <strong>Tiền</strong>: Xem 3 ví
+                <strong>Tiền</strong>: Xem 3 ví
               </div>
               <div className="p-2.5 rounded-xl bg-white border border-stone-300">
-                📕 <strong>Sổ nợ</strong>: Xem nợ mối hàng
+                <strong>Sổ nợ</strong>: Xem nợ mối hàng
               </div>
             </div>
           </div>
@@ -165,7 +165,7 @@ export const ElderlyGuideModal: React.FC<ElderlyGuideModalProps> = ({
             className="min-h-[48px] px-4 py-2.5 rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-900 font-extrabold text-base inline-flex items-center gap-2"
           >
             <Printer className="w-5 h-5 text-stone-700" />
-            <span>🖨️ In ra giấy A4 dán ở bếp</span>
+            <span>In ra giấy A4 dán ở bếp</span>
           </button>
 
           <button

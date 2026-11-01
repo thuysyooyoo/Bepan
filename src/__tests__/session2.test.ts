@@ -186,7 +186,7 @@ describe('Phiên 2 — Cài đặt, Nhập tay đủ quy trình, Sửa/Xóa mề
         nhom: 'chi',
         kieu_tinh: 'theo_ngay',
         mang_mac_dinh: 'bep_an',
-        icon: '🥬',
+        icon: '',
         tu_khoa_ai: [],
         thu_tu: 99,
       })
@@ -199,7 +199,7 @@ describe('Phiên 2 — Cài đặt, Nhập tay đủ quy trình, Sửa/Xóa mề
         nhom: 'chi',
         kieu_tinh: 'theo_ngay',
         mang_mac_dinh: 'bep_an',
-        icon: '🟨',
+        icon: '',
         tu_khoa_ai: ['đậu mơ'],
         thu_tu: 99,
       })

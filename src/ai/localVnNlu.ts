@@ -262,7 +262,7 @@ export function answerReportQuestion(
       ky_thang: targetMonth,
       chu_de_hoi: 'ai_no_minh',
       ghi_chu: 'Hỏi người ta nợ mình (khoản phải thu)',
-      cau_tra_loi: `📗 Người ta nợ mình (${snapshot.book.ten}): ${formatVND(
+      cau_tra_loi: `Người ta nợ mình (${snapshot.book.ten}): ${formatVND(
         debt.tong_nguoi_ta_no
       )}\n${truongLine}\n${khachLines}`,
     };
@@ -286,7 +286,7 @@ export function answerReportQuestion(
       ngay: targetDate,
       chu_de_hoi: 'so_no_ncc',
       ghi_chu: 'Hỏi các khoản mình đang nợ',
-      cau_tra_loi: `📕 Tổng khoản mình nợ (${snapshot.book.ten}): ${formatVND(
+      cau_tra_loi: `Tổng khoản mình nợ (${snapshot.book.ten}): ${formatVND(
         debt.tong_minh_no
       )}\n${detail}\n${luongLine}`,
     };
@@ -308,7 +308,7 @@ export function answerReportQuestion(
       ky_thang: targetMonth,
       chu_de_hoi: 'tien_truong',
       ghi_chu: `Hỏi tiền trường kỳ ${targetMonth}`,
-      cau_tra_loi: `🏫 Kỳ ${targetMonth} (${snapshot.book.ten}):\n• Đã nấu: ${
+      cau_tra_loi: `Kỳ ${targetMonth} (${snapshot.book.ten}):\n• Đã nấu: ${
         t.tong_suat_truong
       } suất trường → Dự kiến ${formatVND(t.so_tien_du_kien)}\n• ${statusLine}`,
     };
@@ -324,7 +324,7 @@ export function answerReportQuestion(
       ky_thang: targetMonth,
       chu_de_hoi: 'luong_tho',
       ghi_chu: `Hỏi lương thợ kỳ ${targetMonth}`,
-      cau_tra_loi: `👷 Lương phụ bếp kỳ ${targetMonth}: Tổng tính công ${formatVND(
+      cau_tra_loi: `Lương phụ bếp kỳ ${targetMonth}: Tổng tính công ${formatVND(
         l.tong_luong_tinh_theo_cong
       )}, đã trả/ứng ${formatVND(l.da_tra_hoac_ung)}, còn phải trả ${formatVND(
         l.con_phai_tra
@@ -352,7 +352,7 @@ export function answerReportQuestion(
       ngay: targetDate,
       chu_de_hoi: 'so_du_vi',
       ghi_chu: 'Hỏi số dư tiền thực tế',
-      cau_tra_loi: `💰 Tiền thực có tại ${snapshot.book.ten}: ${formatVND(total)}\n${lines}`,
+      cau_tra_loi: `Tiền thực có tại ${snapshot.book.ten}: ${formatVND(total)}\n${lines}`,
     };
   }
 
@@ -365,7 +365,7 @@ export function answerReportQuestion(
       ky_thang: targetMonth,
       chu_de_hoi: 'lai_thang',
       ghi_chu: `Hỏi lãi tháng ${targetMonth}`,
-      cau_tra_loi: `📊 Tháng ${targetMonth} (${snapshot.book.ten}):\n• Lãi Bếp ăn: ${formatVND(
+      cau_tra_loi: `Tháng ${targetMonth} (${snapshot.book.ten}):\n• Lãi Bếp ăn: ${formatVND(
         m.bep_an.lai_bep_an,
         true
       )}\n• Lãi Căn tin: ${formatVND(
@@ -373,7 +373,7 @@ export function answerReportQuestion(
         true
       )}\n• Chi phí chung cuối tháng: -${formatVND(m.chi_cuoi_thang_chung)}${
         m.la_uoc_tinh_tu_thang_truoc ? ' (tạm tính theo tháng trước)' : ''
-      }\n👉 Lãi ròng toàn cơ sở: ${formatVND(m.lai_rong_toan_co_so, true)}`,
+      }\nLãi ròng toàn cơ sở: ${formatVND(m.lai_rong_toan_co_so, true)}`,
     };
   }
 
@@ -388,16 +388,16 @@ export function answerReportQuestion(
     ngay: targetDate,
     chu_de_hoi: 'lai_hom_nay',
     ghi_chu: `Tổng kết ngày ${targetDate}`,
-    cau_tra_loi: `📊 Ngày ${targetDate} (${snapshot.book.ten}):\n• 🍲 Bếp ăn: Thu ${formatVND(
+    cau_tra_loi: `Ngày ${targetDate} (${snapshot.book.ten}):\n• Bếp ăn: Thu ${formatVND(
       daily.bep_an.tong_doanh_thu
     )} − Chi ${formatVND(daily.bep_an.tong_chi_ngay)} = Lãi ước tính ${formatVND(
       daily.bep_an.lai_uoc_tinh_ngay,
       true
-    )}\n• 🏪 Căn tin: Thu ${formatVND(daily.can_tin.doanh_thu_can_tin)} · Nhập ${formatVND(
+    )}\n• Căn tin: Thu ${formatVND(daily.can_tin.doanh_thu_can_tin)} · Nhập ${formatVND(
       daily.can_tin.chi_nhap_hang_ngay
-    )}\n• 💰 Tiền thực có: ${formatVND(totalWallet)}\n• 📕 Mình nợ: ${formatVND(
+    )}\n• Tiền thực có: ${formatVND(totalWallet)}\n• Mình nợ: ${formatVND(
       debt.tong_minh_no
-    )} · 📗 Người ta nợ: ${formatVND(debt.tong_nguoi_ta_no)}`,
+    )} · Người ta nợ: ${formatVND(debt.tong_nguoi_ta_no)}`,
   };
 }
 
@@ -1314,9 +1314,9 @@ export function parseVietnameseCommandLocal(
             : {
                 cau_hoi_lam_ro: 'Khoản này trả bằng ví nào ạ?',
                 lua_chon_lam_ro: [
-                  { id: 'tm', label: '💵 Tiền mặt', patch: { vi: 'tien_mat' } },
-                  { id: 'nhan', label: '🏦 TK Chị Nhàn', patch: { vi: 'tk_chi_nhan' } },
-                  { id: 'diep', label: '🏦 TK Mợ Diệp', patch: { vi: 'tk_mo_diep' } },
+                  { id: 'tm', label: 'Tiền mặt', patch: { vi: 'tien_mat' } },
+                  { id: 'nhan', label: 'TK Chị Nhàn', patch: { vi: 'tk_chi_nhan' } },
+                  { id: 'diep', label: 'TK Mợ Diệp', patch: { vi: 'tk_mo_diep' } },
                 ],
               }),
         });
@@ -1367,8 +1367,8 @@ export function parseVietnameseCommandLocal(
           ghi_chu: clause,
           cau_hoi_lam_ro: 'Khoản này dùng cho Bếp ăn hay Căn tin ạ?',
           lua_chon_lam_ro: [
-            { id: 'bep', label: '🍲 Bếp ăn', patch: { mang: 'bep_an' } },
-            { id: 'ct', label: '🏪 Căn tin', patch: { mang: 'can_tin' } },
+            { id: 'bep', label: 'Bếp ăn', patch: { mang: 'bep_an' } },
+            { id: 'ct', label: 'Căn tin', patch: { mang: 'can_tin' } },
           ],
         });
       } else if (hasExplicitPayment) {
@@ -1395,7 +1395,7 @@ export function parseVietnameseCommandLocal(
           lua_chon_lam_ro: [
             {
               id: 'tm',
-              label: '💵 Đã trả Tiền mặt',
+              label: 'Đã trả Tiền mặt',
               patch: {
                 intent: 'chi',
                 vi: 'tien_mat',
@@ -1405,7 +1405,7 @@ export function parseVietnameseCommandLocal(
             },
             {
               id: 'nhan',
-              label: '🏦 Đã CK Chị Nhàn',
+              label: 'Đã CK Chị Nhàn',
               patch: {
                 intent: 'chi',
                 vi: 'tk_chi_nhan',
@@ -1415,7 +1415,7 @@ export function parseVietnameseCommandLocal(
             },
             {
               id: 'diep',
-              label: '🏦 Đã CK Mợ Diệp',
+              label: 'Đã CK Mợ Diệp',
               patch: {
                 intent: 'chi',
                 vi: 'tk_mo_diep',
@@ -1425,7 +1425,7 @@ export function parseVietnameseCommandLocal(
             },
             {
               id: 'no',
-              label: '⏳ Chưa trả – Ghi nợ',
+              label: 'Chưa trả – Ghi nợ',
               patch: {
                 intent: 'chi_no',
                 vi: undefined,

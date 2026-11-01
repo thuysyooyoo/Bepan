@@ -152,7 +152,7 @@ export const MicPermissionGuideModal: React.FC<MicPermissionGuideModalProps> = (
 
         {permStatus === 'blocked' && (
           <div className="rounded-2xl bg-amber-50 border-2 border-amber-500 p-3.5 text-amber-950 font-bold text-base">
-            ⚠️ Điện thoại vẫn đang khóa quyền Micro. Ông/bà làm theo Bước 1 & Bước 2 ở trên rồi bấm
+            Điện thoại vẫn đang khóa quyền Micro. Ông/bà làm theo Bước 1 & Bước 2 ở trên rồi bấm
             thử lại nhé!
           </div>
         )}

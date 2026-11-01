@@ -156,7 +156,7 @@ export function normalizeAsrTranscript(raw: string): string {
 
 /**
  * Làm sạch văn bản trước khi đọc to bằng giọng tiếng Việt (TTS) để điện thoại đọc tự nhiên:
- *  - Xóa emoji và ký tự trang trí (🍲, 🏪, 📕, 💰, •, →...)
+ *  - Xóa emoji và ký tự trang trí (, , , , •, →...)
  *  - Đổi ngày ISO "2026-10-31" -> "ngày 31 tháng 10"
  *  - Đổi kỳ tháng "2026-10" -> "tháng 10"
  *  - Đổi số tiền định dạng "1.500.000 đ" -> "1 triệu 500 nghìn đồng"
@@ -183,7 +183,7 @@ export function prepareTextForVietnameseSpeech(raw: string): string {
     .replace(/→/g, ', ra ')
     // Xóa emoji biểu tượng để Google TTS không đọc tên icon
     .replace(/[\p{Extended_Pictographic}\uFE0F]/gu, ' ')
-    .replace(/[•·✓✕✖]/g, ', ')
+    .replace(/[•·✓✕]/g, ', ')
     .replace(/\s+/g, ' ')
     .trim();
 }

@@ -105,7 +105,7 @@ export const PwaInstallBanner: React.FC = () => {
           </div>
           <div className="min-w-0">
             <div className="text-lg font-extrabold text-teal-950 leading-snug">
-              📲 Đặt &ldquo;Sổ Bếp&rdquo; ra màn hình chính
+              Đặt &ldquo;Sổ Bếp&rdquo; ra màn hình chính
             </div>
             <div className="text-base text-stone-700 leading-snug mt-0.5">
               Bấm mở ngay như ứng dụng thật, chữ to toàn màn hình &amp; dùng được cả khi mất mạng!
@@ -147,7 +147,7 @@ export const PwaInstallBanner: React.FC = () => {
             <span>Trên iPhone / iPad làm 2 chạm:</span>
           </div>
           <div>
-            1. Bấm nút <strong>Chia sẻ (ô vuông có mũi tên lên ⬆️)</strong> ở thanh dưới cùng.
+            1. Bấm nút <strong>Chia sẻ (ô vuông có mũi tên lên )</strong> ở thanh dưới cùng.
           </div>
           <div>
             2. Chọn <strong>&ldquo;Thêm vào MH chính&rdquo; (Add to Home Screen)</strong>.

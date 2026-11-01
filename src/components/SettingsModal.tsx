@@ -63,7 +63,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setExportingBackup(true);
       const payload = await exportFullSystemBackupPayload(dbRepo, session);
       const filename = downloadBackupJsonFile(payload);
-      notify(`📥 Đã tải file sao lưu: ${filename}`);
+      notify(`Đã tải file sao lưu: ${filename}`);
     } catch (err) {
       setErrMsg(err instanceof Error ? err.message : 'Không thể xuất file sao lưu.');
     } finally {
@@ -89,7 +89,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       const summary = await restoreFullSystemBackup(dbRepo, session, payload);
       await onChanged();
       notify(
-        `✅ Khôi phục thành công ${summary.totalTransactions} giao dịch & ${summary.totalCategories} danh mục!`
+        `Khôi phục thành công ${summary.totalTransactions} giao dịch & ${summary.totalCategories} danh mục!`
       );
     } catch (err) {
       setErrMsg(
@@ -180,7 +180,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // --- TAB 5: DANH MỤC (ADMIN) ---
   const [catName, setCatName] = useState('');
-  const [catIcon, setCatIcon] = useState('🛒');
+  const [catIcon, setCatIcon] = useState('');
   const [catMode, setCatMode] = useState<CategoryCalcMode>('theo_ngay');
   const [catMang, setCatMang] = useState<BusinessSegment>('bep_an');
   const [catKeywords, setCatKeywords] = useState('');
@@ -195,7 +195,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         nhom: 'chi',
         kieu_tinh: catMode,
         mang_mac_dinh: catMang,
-        icon: catIcon || '🛒',
+        icon: catIcon || '',
         tu_khoa_ai: catKeywords
           .split(',')
           .map((s) => s.trim().toLowerCase())
@@ -247,12 +247,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!session) return null;
 
   const tabs: Array<{ key: SettingsTab; label: string }> = [
-    { key: 'gia_suat', label: '🍚 Đơn giá suất' },
-    { key: 'tho', label: '👷 Phụ bếp' },
-    { key: 'vi', label: '💰 3 Ví & Số dư' },
-    { key: 'ncc', label: '📕 Mối hàng' },
-    { key: 'danh_muc', label: '🏷️ Danh mục' },
-    { key: 'nhac_pin', label: '🔔 Nhắc & PIN' },
+    { key: 'gia_suat', label: 'Đơn giá suất' },
+    { key: 'tho', label: 'Phụ bếp' },
+    { key: 'vi', label: '3 Ví & Số dư' },
+    { key: 'ncc', label: 'Mối hàng' },
+    { key: 'danh_muc', label: 'Danh mục' },
+    { key: 'nhac_pin', label: 'Nhắc & PIN' },
   ];
 
   return (
@@ -261,7 +261,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Header cài đặt */}
         <div className="bg-stone-900 text-white px-4 py-3.5 flex items-center justify-between sticky top-0 z-20">
           <div>
-            <div className="text-xl font-extrabold">⚙️ Cài đặt — {snapshot.book.ten}</div>
+            <div className="text-xl font-extrabold">Cài đặt — {snapshot.book.ten}</div>
             <div className="text-sm opacity-80">Áp dụng riêng cho cơ sở đang mở</div>
           </div>
           <button
@@ -624,7 +624,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 className="rounded-2xl bg-white border-2 border-stone-300 p-4 space-y-3"
               >
                 <h4 className="text-xl font-extrabold text-stone-900">
-                  🔔 Lịch nhắc việc định kỳ ({snapshot.book.ten})
+                  Lịch nhắc việc định kỳ ({snapshot.book.ten})
                 </h4>
                 <div>
                   <label className="block text-base font-bold text-stone-700 mb-1">
@@ -675,7 +675,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onSubmit={handleChangePin}
                 className="rounded-2xl bg-white border-2 border-stone-300 p-4 space-y-3"
               >
-                <h4 className="text-xl font-extrabold text-stone-900">🔐 Đổi mã PIN 4 số</h4>
+                <h4 className="text-xl font-extrabold text-stone-900">Đổi mã PIN 4 số</h4>
                 {session.vai_tro === 'admin' ? (
                   <div>
                     <label className="block text-base font-bold text-stone-700 mb-1">
@@ -719,7 +719,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="rounded-2xl bg-white border-2 border-sky-400 p-4 space-y-3 text-base text-stone-700">
                 <div className="flex items-center justify-between gap-2">
                   <div className="font-extrabold text-lg text-stone-950">
-                    ☁️ Đám mây Supabase & Realtime
+                    Đám mây Supabase & Realtime
                   </div>
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${

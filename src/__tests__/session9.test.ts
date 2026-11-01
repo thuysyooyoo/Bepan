@@ -23,7 +23,7 @@ const ADMIN_SESSION: AuthSession = {
   ten_hien_thi: 'Con (Quản lý chung)',
   vai_tro: 'admin',
   xung_ho: 'Admin',
-  avatar_emoji: '🛡️',
+  avatar_emoji: '',
   book_id: null,
   created_at: Date.now(),
   expires_at: Date.now() + 90 * 24 * 3600 * 1000,

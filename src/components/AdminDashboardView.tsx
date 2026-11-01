@@ -67,19 +67,19 @@ const CHAT_STATUS_BADGE: Record<
   { label: string; className: string }
 > = {
   da_luu: {
-    label: '✅ Đã lưu',
+    label: 'Đã lưu',
     className: 'bg-emerald-100 text-emerald-900 border-emerald-300',
   },
   da_sua: {
-    label: '✏️ Đã sửa',
+    label: 'Đã sửa',
     className: 'bg-sky-100 text-sky-900 border-sky-300',
   },
   cho_xac_nhan: {
-    label: '⏳ Chưa lưu',
+    label: 'Chưa lưu',
     className: 'bg-amber-100 text-amber-950 border-amber-400',
   },
   huy: {
-    label: '❌ Đã hủy',
+    label: 'Đã hủy',
     className: 'bg-rose-100 text-rose-900 border-rose-300',
   },
 };
@@ -219,7 +219,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         tdSnap,
         selectedMonth
       );
-      showToast(`📥 Đã tải xuống ${filename}`);
+      showToast(`Đã tải xuống ${filename}`);
     } catch (err) {
       showToast(
         err instanceof Error ? `Lỗi xuất Excel: ${err.message}` : 'Không xuất được Excel.'
@@ -245,7 +245,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     }
     try {
       await navigator.clipboard.writeText(text);
-      showToast('✅ Đã chép tóm tắt 2 cơ sở — mở nhóm Zalo gia đình dán gửi ngay!');
+      showToast('Đã chép tóm tắt 2 cơ sở — mở nhóm Zalo gia đình dán gửi ngay!');
     } catch {
       showToast('Không chép tự động được, vui lòng thử lại.');
     }
@@ -255,7 +255,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     if (!session) return;
     await dbRepo.updateChatLogStatus(session, log.book_id, log.id, 'da_sua');
     await loadBothBooks();
-    showToast('✅ Đã đánh dấu câu nói là Đã xử lý / sửa hộ.');
+    showToast('Đã đánh dấu câu nói là Đã xử lý / sửa hộ.');
   };
 
   const handleExportBackup = async () => {
@@ -264,7 +264,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       setExportingBackup(true);
       const payload = await exportFullSystemBackupPayload(dbRepo, session);
       const filename = downloadBackupJsonFile(payload);
-      showToast(`📥 Đã tải file sao lưu: ${filename}`);
+      showToast(`Đã tải file sao lưu: ${filename}`);
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Không thể xuất file sao lưu.');
     } finally {
@@ -290,7 +290,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       const summary = await restoreFullSystemBackup(dbRepo, session, payload);
       await loadBothBooks();
       showToast(
-        `✅ Đã khôi phục thành công ${summary.totalTransactions} giao dịch & ${summary.totalCategories} danh mục!`
+        `Đã khôi phục thành công ${summary.totalTransactions} giao dịch & ${summary.totalCategories} danh mục!`
       );
     } catch (err) {
       showToast(
@@ -412,11 +412,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </div>
           {backupStatus.due ? (
             <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-950 text-xs font-extrabold border border-amber-400">
-              ⚠️ Đã đến kỳ sao lưu
+              Đã đến kỳ sao lưu
             </span>
           ) : (
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-950 text-xs font-extrabold border border-emerald-300">
-              ✅ Tuần này đã an toàn
+              Tuần này đã an toàn
             </span>
           )}
         </div>
@@ -465,7 +465,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       >
         <div className="flex items-center justify-between gap-2">
           <span className="text-base font-bold opacity-90">
-            🏆 Lãi ròng cả 2 cơ sở ({formatVietnameseMonth(selectedMonth)})
+            Lãi ròng cả 2 cơ sở ({formatVietnameseMonth(selectedMonth)})
           </span>
           <button
             type="button"
@@ -481,13 +481,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
         <div className="grid grid-cols-2 gap-2.5 text-sm">
           <div className="rounded-2xl bg-white/10 p-3 space-y-1">
-            <div className="opacity-85">🍲 Tổng Bếp ăn ({tc.tongSuatAn} suất)</div>
+            <div className="opacity-85">Tổng Bếp ăn ({tc.tongSuatAn} suất)</div>
             <div className="text-lg font-extrabold text-teal-300">
               {formatVND(tc.laiBepAn, true)}
             </div>
           </div>
           <div className="rounded-2xl bg-white/10 p-3 space-y-1">
-            <div className="opacity-85">🏪 Tổng Căn tin</div>
+            <div className="opacity-85">Tổng Căn tin</div>
             <div className="text-lg font-extrabold text-amber-300">
               {formatVND(tc.laiCanTin, true)}
             </div>
@@ -520,13 +520,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       {/* BẢNG ĐỐI CHIẾU SONG SONG: HIỆP HÒA (BỐ) vs TIÊN DU (MẸ) */}
       <div className="rounded-3xl bg-white border-2 border-stone-300 p-4 shadow-xs space-y-3">
         <h2 className="text-xl font-extrabold text-stone-900">
-          ⚖️ So sánh Hiệp Hòa &amp; Tiên Du
+          So sánh Hiệp Hòa &amp; Tiên Du
         </h2>
 
         <div className="grid grid-cols-12 gap-1.5 text-xs font-extrabold uppercase tracking-wide pb-2 border-b-2 border-stone-200">
           <div className="col-span-4 text-stone-600">Chỉ tiêu</div>
-          <div className="col-span-4 text-right text-teal-900">👨‍🍳 Hiệp Hòa</div>
-          <div className="col-span-4 text-right text-amber-900">👩‍🍳 Tiên Du</div>
+          <div className="col-span-4 text-right text-teal-900">Hiệp Hòa</div>
+          <div className="col-span-4 text-right text-amber-900">Tiên Du</div>
         </div>
 
         <div className="divide-y divide-stone-200 text-sm">
@@ -665,14 +665,14 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             onClick={() => onOpenFacilityBook('hiep_hoa')}
             className="min-h-[46px] px-3 py-2 rounded-2xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-sm"
           >
-            👨‍🍳 Mở sổ Hiệp Hòa →
+            Mở sổ Hiệp Hòa →
           </button>
           <button
             type="button"
             onClick={() => onOpenFacilityBook('tien_du')}
             className="min-h-[46px] px-3 py-2 rounded-2xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-sm"
           >
-            👩‍🍳 Mở sổ Tiên Du →
+            Mở sổ Tiên Du →
           </button>
         </div>
       </div>
@@ -736,7 +736,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     }
                     className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm"
                   >
-                    ✍️ Vào sổ {isHh ? 'Bố' : 'Mẹ'} xử lý hộ ({item.card.action_label}) →
+                    Vào sổ {isHh ? 'Bố' : 'Mẹ'} xử lý hộ ({item.card.action_label}) →
                   </button>
                 </div>
               );
@@ -762,8 +762,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           {(
             [
               { key: 'all', label: 'Tất cả' },
-              { key: 'hiep_hoa', label: '👨‍🍳 Hiệp Hòa' },
-              { key: 'tien_du', label: '👩‍🍳 Tiên Du' },
+              { key: 'hiep_hoa', label: 'Hiệp Hòa' },
+              { key: 'tien_du', label: 'Tiên Du' },
             ] as const
           ).map((opt) => (
             <button
@@ -802,7 +802,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 : 'bg-stone-100 text-stone-700 border-stone-300'
             }`}
           >
-            {onlyNeedsReview ? '⚠️ Đang lọc: Chưa lưu/Hủy' : 'Lọc câu chưa lưu'}
+            {onlyNeedsReview ? 'Đang lọc: Chưa lưu/Hủy' : 'Lọc câu chưa lưu'}
           </button>
         </div>
 
@@ -881,7 +881,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                             : 'bg-amber-100 text-amber-950 border-amber-300'
                         }`}
                       >
-                        {isHh ? '👨‍🍳 Bố (Hiệp Hòa)' : '👩‍🍳 Mẹ (Tiên Du)'}
+                        {isHh ? 'Bố (Hiệp Hòa)' : 'Mẹ (Tiên Du)'}
                       </span>
                       <span className="inline-flex items-center gap-0.5 text-stone-600">
                         {log.nguon === 'giong' ? (
@@ -889,7 +889,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                             <Mic className="w-3.5 h-3.5 text-rose-600" /> Giọng nói
                           </>
                         ) : (
-                          '⌨️ Gõ chữ'
+                          'Gõ chữ'
                         )}
                       </span>
                     </div>
@@ -942,7 +942,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                         onClick={() => void handleMarkChatResolved(log)}
                         className="min-h-[40px] px-3 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-emerald-950 font-bold text-xs"
                       >
-                        ✅ Đã xử lý
+                        Đã xử lý
                       </button>
                     )}
                   </div>
@@ -984,7 +984,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               );
             }
             await loadBothBooks();
-            showToast(`✅ Đã thêm từ "${kw}" vào danh mục ${targetCat.ten_danh_muc}!`);
+            showToast(`Đã thêm từ "${kw}" vào danh mục ${targetCat.ten_danh_muc}!`);
             setTeachingLog(null);
             setTeachingCandidate(null);
           }}
@@ -1009,7 +1009,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               );
             }
             await loadBothBooks();
-            showToast(`✅ Đã thêm mối hàng "${name}" vào sổ!`);
+            showToast(`Đã thêm mối hàng "${name}" vào sổ!`);
             setTeachingLog(null);
             setTeachingCandidate(null);
           }}
@@ -1032,7 +1032,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               );
             }
             await loadBothBooks();
-            showToast(`✅ Đã thêm phụ bếp "${name}" vào sổ!`);
+            showToast(`Đã thêm phụ bếp "${name}" vào sổ!`);
             setTeachingLog(null);
             setTeachingCandidate(null);
           }}
@@ -1153,7 +1153,7 @@ const DialectTeachingModal: React.FC<DialectTeachingModalProps> = ({
                   : 'text-stone-700 hover:bg-stone-200'
               }`}
             >
-              🏷️ Danh mục
+              Danh mục
             </button>
             <button
               type="button"
@@ -1164,7 +1164,7 @@ const DialectTeachingModal: React.FC<DialectTeachingModalProps> = ({
                   : 'text-stone-700 hover:bg-stone-200'
               }`}
             >
-              🏪 Mối hàng
+              Mối hàng
             </button>
             <button
               type="button"
@@ -1175,7 +1175,7 @@ const DialectTeachingModal: React.FC<DialectTeachingModalProps> = ({
                   : 'text-stone-700 hover:bg-stone-200'
               }`}
             >
-              👷 Phụ bếp
+              Phụ bếp
             </button>
           </div>
 
@@ -1231,7 +1231,7 @@ const DialectTeachingModal: React.FC<DialectTeachingModalProps> = ({
                       : 'bg-stone-50 text-stone-700 border-stone-300'
                   }`}
                 >
-                  👨‍🍳 Sổ Hiệp Hòa (Bố)
+                  Sổ Hiệp Hòa (Bố)
                 </button>
                 <button
                   type="button"
@@ -1242,7 +1242,7 @@ const DialectTeachingModal: React.FC<DialectTeachingModalProps> = ({
                       : 'bg-stone-50 text-stone-700 border-stone-300'
                   }`}
                 >
-                  👩‍🍳 Sổ Tiên Du (Mẹ)
+                  Sổ Tiên Du (Mẹ)
                 </button>
               </div>
 
@@ -1301,7 +1301,7 @@ const DialectTeachingModal: React.FC<DialectTeachingModalProps> = ({
                       : 'bg-stone-50 text-stone-700 border-stone-300'
                   }`}
                 >
-                  👨‍🍳 Sổ Hiệp Hòa (Bố)
+                  Sổ Hiệp Hòa (Bố)
                 </button>
                 <button
                   type="button"
@@ -1312,7 +1312,7 @@ const DialectTeachingModal: React.FC<DialectTeachingModalProps> = ({
                       : 'bg-stone-50 text-stone-700 border-stone-300'
                   }`}
                 >
-                  👩‍🍳 Sổ Tiên Du (Mẹ)
+                  Sổ Tiên Du (Mẹ)
                 </button>
               </div>
 

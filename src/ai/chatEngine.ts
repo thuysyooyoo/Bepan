@@ -308,9 +308,9 @@ export function buildActionCardFromIntent(
 
     const periods: MealPeriod[] = ['sang', 'trua', 'toi'];
     const pNames: Record<MealPeriod, string> = {
-      sang: '🌅 Bữa sáng',
-      trua: '☀️ Bữa trưa',
-      toi: '🌙 Bữa tối',
+      sang: 'Bữa sáng',
+      trua: 'Bữa trưa',
+      toi: 'Bữa tối',
     };
 
     let tongTr = 0;
@@ -341,10 +341,10 @@ export function buildActionCardFromIntent(
       preview: {
         badge:
           item.intent === 'giong_hom_qua'
-            ? '📋 SUẤT ĂN GIỐNG HÔM TRƯỚC'
+            ? 'SUẤT ĂN GIỐNG HÔM TRƯỚC'
             : item.intent === 'vang_lai'
-            ? '🍚 BÁO KHÁCH VÃNG LAI'
-            : '🍚 BÁO SUẤT ĂN TRONG NGÀY',
+            ? 'BÁO KHÁCH VÃNG LAI'
+            : 'BÁO SUẤT ĂN TRONG NGÀY',
         tone: 'info',
         title: `Suất ăn ${snapshot.book.ten}`,
         headlineAmount: tongTien,
@@ -352,7 +352,7 @@ export function buildActionCardFromIntent(
         dateLabel,
         rows,
         bookImpactNote:
-          '📒 Tính vào Doanh thu Bếp ăn ngày · 📕 Suất trường cộng vào Tiền trường dự kiến cuối tháng.',
+          'Tính vào Doanh thu Bếp ăn ngày · Suất trường cộng vào Tiền trường dự kiến cuối tháng.',
         spokenText: `Ghi suất ăn ngày ${ngay}: ${tongTr} suất trường${
           tongVl > 0 ? ` và ${tongVl} suất vãng lai` : ''
         }, thành tiền ${formatCompactVND(tongTien)}. Đúng không ạ?`,
@@ -410,7 +410,7 @@ export function buildActionCardFromIntent(
     return {
       manualFallbackKind: 'thu_cuoi_ngay',
       preview: {
-        badge: '💵 TỔNG THU CUỐI NGÀY',
+        badge: 'TỔNG THU CUỐI NGÀY',
         tone: 'income',
         title: 'Thu tiền mặt & CK cuối ngày',
         headlineAmount: tong,
@@ -421,9 +421,9 @@ export function buildActionCardFromIntent(
           { label: 'Trừ tiền suất vãng lai hôm nay', value: `-${formatVND(vlMoney)}` },
           { label: '→ Doanh thu Căn tin còn lại', value: formatVND(ctMoney), highlight: true },
         ],
-        bookImpactNote: `💰 Tiền mặt +${formatVND(tm)}, ${ckWallet.ten_vi} +${formatVND(
+        bookImpactNote: `Tiền mặt +${formatVND(tm)}, ${ckWallet.ten_vi} +${formatVND(
           ck
-        )} · 📒 Tự trừ vãng lai ra Doanh thu Căn tin ${formatVND(ctMoney)}.`,
+        )} · Tự trừ vãng lai ra Doanh thu Căn tin ${formatVND(ctMoney)}.`,
         spokenText: `Ghi tổng thu cuối ngày ${formatCompactVND(tong)}, gồm tiền mặt ${formatCompactVND(
           tm
         )} và chuyển khoản ${formatCompactVND(ck)}. Đúng không ạ?`,
@@ -467,7 +467,7 @@ export function buildActionCardFromIntent(
     return {
       manualFallbackKind: 'cham_cong',
       preview: {
-        badge: '👷 CHẤM CÔNG PHỤ BẾP',
+        badge: 'CHẤM CÔNG PHỤ BẾP',
         tone: 'info',
         title: `Chấm công ngày (${tongCong} công)`,
         headlineAmount: tongTien,
@@ -479,7 +479,7 @@ export function buildActionCardFromIntent(
           highlight: x.so_cong > 0,
         })),
         bookImpactNote:
-          '📒 Tính vào chi phí Bếp ăn hôm nay · 📕 Cộng dồn vào Lương thợ phải trả cuối tháng.',
+          'Tính vào chi phí Bếp ăn hôm nay · Cộng dồn vào Lương thợ phải trả cuối tháng.',
         spokenText: `Ghi chấm công hôm nay tổng cộng ${tongCong} công, thành tiền ${formatCompactVND(
           tongTien
         )}. Đúng không ạ?`,
@@ -534,15 +534,15 @@ export function buildActionCardFromIntent(
     const mang = item.mang ?? cat.mang_mac_dinh;
     const mangLabel =
       mang === 'bep_an'
-        ? '🍲 Bếp ăn'
+        ? 'Bếp ăn'
         : mang === 'can_tin'
-        ? '🏪 Căn tin'
-        : '🏠 Chung cả cơ sở';
+        ? 'Căn tin'
+        : 'Chung cả cơ sở';
 
     const wallet = getWalletByKind(snapshot, item.vi);
     const existingSup = snapshot.suppliers.find((s) => s.id === item.supplier_id);
     const supplierLabel = item.ten_ncc_moi
-      ? `🆕 ${item.ten_ncc_moi} (Thêm mới vào danh sách mối hàng)`
+      ? `${item.ten_ncc_moi} (Thêm mới vào danh sách mối hàng)`
       : existingSup?.ten_ncc ?? 'Mối hàng chợ';
 
     return {
@@ -567,10 +567,10 @@ export function buildActionCardFromIntent(
       },
       preview: {
         badge: isCredit
-          ? '📕 MUA CHỊU (GHI NỢ)'
+          ? 'MUA CHỊU (GHI NỢ)'
           : isMonthly
-          ? `⚡ CHI PHÍ THÁNG ${kyThang}`
-          : '🥩 CHI TIỀN TRẢ LUÔN',
+          ? `CHI PHÍ THÁNG ${kyThang}`
+          : 'CHI TIỀN TRẢ LUÔN',
         tone: isCredit ? 'debt' : 'expense',
         title: `${cat.icon} ${cat.ten_danh_muc}`,
         headlineAmount: amount,
@@ -584,10 +584,10 @@ export function buildActionCardFromIntent(
           { label: 'Nội dung gốc', value: item.ghi_chu },
         ],
         bookImpactNote: isCredit
-          ? `📒 Trừ chi phí ${isMonthly ? `tháng ${kyThang}` : 'hôm nay'} · 📕 Tăng Sổ nợ +${formatVND(
+          ? `Trừ chi phí ${isMonthly ? `tháng ${kyThang}` : 'hôm nay'} · Tăng Sổ nợ +${formatVND(
               amount
-            )} · 💰 Tiền trong ví giữ nguyên.`
-          : `📒 Trừ chi phí ${isMonthly ? `tháng ${kyThang}` : 'hôm nay'} · 💰 Trừ ${
+            )} · Tiền trong ví giữ nguyên.`
+          : `Trừ chi phí ${isMonthly ? `tháng ${kyThang}` : 'hôm nay'} · Trừ ${
               wallet.ten_vi
             } -${formatVND(amount)}.`,
         spokenText: `Ghi chi ${cat.ten_danh_muc} ${formatCompactVND(amount)}, ${
@@ -639,7 +639,7 @@ export function buildActionCardFromIntent(
   if (item.intent === 'ban_chiu') {
     const partner = item.doi_tac || 'Khách nợ cơm';
     const mang = item.mang ?? 'bep_an';
-    const mangLabel = mang === 'can_tin' ? '🏪 Căn tin' : '🍲 Bếp ăn';
+    const mangLabel = mang === 'can_tin' ? 'Căn tin' : 'Bếp ăn';
     const catId = mang === 'can_tin' ? 'cat_thu_can_tin' : 'cat_doanh_thu_bep';
 
     return {
@@ -662,7 +662,7 @@ export function buildActionCardFromIntent(
         da_xoa: false,
       },
       preview: {
-        badge: '📗 BÁN CHỊU / GHI NỢ PHẢI THU',
+        badge: 'BÁN CHỊU / GHI NỢ PHẢI THU',
         tone: 'info',
         title: `Khách nợ: ${partner}`,
         headlineAmount: amount,
@@ -672,9 +672,9 @@ export function buildActionCardFromIntent(
           { label: 'Mảng ghi nhận doanh thu', value: mangLabel },
           { label: 'Trạng thái tiền ví', value: 'Chưa thu tiền (Ví không đổi)' },
         ],
-        bookImpactNote: `📒 Tính doanh thu ${mangLabel} hôm nay +${formatVND(
+        bookImpactNote: `Tính doanh thu ${mangLabel} hôm nay +${formatVND(
           amount
-        )} · 📗 Tăng Sổ phải thu · 💰 Tiền trong ví giữ nguyên.`,
+        )} · Tăng Sổ phải thu · Tiền trong ví giữ nguyên.`,
         spokenText: `Ghi nhận ${partner} nợ ${formatCompactVND(amount)}, tính vào doanh thu hôm nay. Đúng không ạ?`,
       },
       commit: async (actor, source) => {
@@ -727,7 +727,7 @@ export function buildActionCardFromIntent(
         da_xoa: false,
       },
       preview: {
-        badge: '💰 THU NỢ KHÁCH (TIỀN VÀO VÍ)',
+        badge: 'THU NỢ KHÁCH (TIỀN VÀO VÍ)',
         tone: 'income',
         title: `Thu nợ: ${partner}`,
         headlineAmount: amount,
@@ -736,9 +736,9 @@ export function buildActionCardFromIntent(
           { label: 'Người trả nợ', value: partner, highlight: true },
           { label: 'Tiền vào ví', value: wallet.ten_vi, highlight: true },
         ],
-        bookImpactNote: `💰 Cộng ${wallet.ten_vi} +${formatVND(
+        bookImpactNote: `Cộng ${wallet.ten_vi} +${formatVND(
           amount
-        )} · 📗 Giảm Sổ phải thu · 📒 Không tính lại doanh thu để tránh trùng.`,
+        )} · Giảm Sổ phải thu · Không tính lại doanh thu để tránh trùng.`,
         spokenText: `Ghi nhận ${partner} trả nợ ${formatCompactVND(amount)} vào ${
           wallet.ten_vi
         }. Đúng không ạ?`,
@@ -778,7 +778,7 @@ export function buildActionCardFromIntent(
     return {
       manualFallbackKind: 'tra_no',
       preview: {
-        badge: '🤝 TRẢ NỢ MỐI HÀNG',
+        badge: 'TRẢ NỢ MỐI HÀNG',
         tone: 'expense',
         title: `Trả nợ: ${supName}`,
         headlineAmount: amount,
@@ -787,9 +787,9 @@ export function buildActionCardFromIntent(
           { label: 'Người nhận', value: supName, highlight: true },
           { label: 'Trả từ ví', value: wallet.ten_vi, highlight: true },
         ],
-        bookImpactNote: `💰 Trừ ${wallet.ten_vi} -${formatVND(
+        bookImpactNote: `Trừ ${wallet.ten_vi} -${formatVND(
           amount
-        )} · 📕 Giảm nợ ${supName} · 📒 Không trừ trùng Lãi lỗ.`,
+        )} · Giảm nợ ${supName} · Không trừ trùng Lãi lỗ.`,
         spokenText: `Ghi trả nợ ${supName} ${formatCompactVND(amount)} từ ${
           wallet.ten_vi
         }. Đúng không ạ?`,
@@ -838,7 +838,7 @@ export function buildActionCardFromIntent(
     return {
       manualFallbackKind: 'truong_chuyen',
       preview: {
-        badge: '🏫 TRƯỜNG CHUYỂN TIỀN ĂN',
+        badge: 'TRƯỜNG CHUYỂN TIỀN ĂN',
         tone: 'income',
         title: `Tiền ăn trường chuyển kỳ ${kyThang}`,
         headlineAmount: amount,
@@ -850,9 +850,9 @@ export function buildActionCardFromIntent(
             value: formatVND(debt.tien_truong_ky_nay.so_tien_du_kien),
           },
         ],
-        bookImpactNote: `💰 Cộng +${formatVND(amount)} vào ${
+        bookImpactNote: `Cộng +${formatVND(amount)} vào ${
           wallet.ten_vi
-        } · 🔔 Đánh dấu trường đã chuyển kỳ ${kyThang}.`,
+        } · Đánh dấu trường đã chuyển kỳ ${kyThang}.`,
         spokenText: `Ghi nhận trường chuyển tiền ăn kỳ ${kyThang} số tiền ${formatCompactVND(
           amount
         )} vào ${wallet.ten_vi}. Đúng không ạ?`,
@@ -891,7 +891,7 @@ export function buildActionCardFromIntent(
     return {
       manualFallbackKind: 'tra_luong',
       preview: {
-        badge: '💰 TRẢ LƯƠNG PHỤ BẾP',
+        badge: 'TRẢ LƯƠNG PHỤ BẾP',
         tone: 'expense',
         title: `Trả/ứng lương: ${labelTarget}`,
         headlineAmount: amount,
@@ -900,9 +900,9 @@ export function buildActionCardFromIntent(
           { label: 'Kỳ lương tháng', value: kyThang, highlight: true },
           { label: 'Chi từ ví', value: wallet.ten_vi, highlight: true },
         ],
-        bookImpactNote: `💰 Trừ ${wallet.ten_vi} -${formatVND(
+        bookImpactNote: `Trừ ${wallet.ten_vi} -${formatVND(
           amount
-        )} · 📕 Giảm lương còn phải trả kỳ ${kyThang}.`,
+        )} · Giảm lương còn phải trả kỳ ${kyThang}.`,
         spokenText: `Ghi trả lương ${labelTarget} số tiền ${formatCompactVND(amount)} từ ${
           wallet.ten_vi
         }. Đúng không ạ?`,
@@ -941,7 +941,7 @@ export function buildActionCardFromIntent(
     return {
       manualFallbackKind: 'chuyen_quy',
       preview: {
-        badge: '🔄 CHUYỂN QUỸ / RÚT TIỀN',
+        badge: 'CHUYỂN QUỸ / RÚT TIỀN',
         tone: 'info',
         title: `${fromW.ten_vi} → ${toW.ten_vi}`,
         headlineAmount: amount,
@@ -950,9 +950,9 @@ export function buildActionCardFromIntent(
           { label: 'Rút ra từ', value: fromW.ten_vi, highlight: true },
           { label: 'Đưa vào', value: toW.ten_vi, highlight: true },
         ],
-        bookImpactNote: `💰 ${fromW.ten_vi} -${formatVND(amount)}, ${toW.ten_vi} +${formatVND(
+        bookImpactNote: `${fromW.ten_vi} -${formatVND(amount)}, ${toW.ten_vi} +${formatVND(
           amount
-        )} · 📒 Lãi lỗ giữ nguyên.`,
+        )} · Lãi lỗ giữ nguyên.`,
         spokenText: `Chuyển ${formatCompactVND(amount)} từ ${fromW.ten_vi} sang ${
           toW.ten_vi
         }. Đúng không ạ?`,

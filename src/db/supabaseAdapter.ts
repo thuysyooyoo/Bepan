@@ -37,7 +37,7 @@ export const FALLBACK_PUBLIC_PROFILES: PublicProfileSummary[] = [
     mo_ta: 'Sổ Bếp & Căn tin Hiệp Hòa',
     vai_tro: 'owner',
     book_id: 'hiep_hoa',
-    avatar_emoji: '👨‍🍳',
+    avatar_emoji: '',
   },
   {
     id: 'me',
@@ -46,7 +46,7 @@ export const FALLBACK_PUBLIC_PROFILES: PublicProfileSummary[] = [
     mo_ta: 'Sổ Bếp & Căn tin Tiên Du',
     vai_tro: 'owner',
     book_id: 'tien_du',
-    avatar_emoji: '👩‍🍳',
+    avatar_emoji: '',
   },
   {
     id: 'admin',
@@ -55,7 +55,7 @@ export const FALLBACK_PUBLIC_PROFILES: PublicProfileSummary[] = [
     mo_ta: 'Xem cả Hiệp Hòa, Tiên Du & Tổng hợp',
     vai_tro: 'admin',
     book_id: null,
-    avatar_emoji: '🛡️',
+    avatar_emoji: '',
   },
 ];
 
@@ -178,7 +178,7 @@ export function normalizeCategoryRow(r: Record<string, unknown>): Category {
     nhom: String(r.nhom) as Category['nhom'],
     kieu_tinh: String(r.kieu_tinh) as Category['kieu_tinh'],
     mang_mac_dinh: String(r.mang_mac_dinh) as Category['mang_mac_dinh'],
-    icon: String(r.icon ?? '📝'),
+    icon: String(r.icon ?? ''),
     tu_khoa_ai: Array.isArray(rawKeywords) ? rawKeywords.map(String) : [],
     thu_tu: Number(r.thu_tu ?? 100),
   };
@@ -416,7 +416,7 @@ export class SupabaseAdapter implements DataRepository {
       mo_ta: String(p.mo_ta ?? ''),
       vai_tro: String(p.vai_tro) as PublicProfileSummary['vai_tro'],
       book_id: p.book_id ? (String(p.book_id) as BookId) : null,
-      avatar_emoji: String(p.avatar_emoji ?? '👤'),
+      avatar_emoji: '',
     }));
   }
 
@@ -454,7 +454,7 @@ export class SupabaseAdapter implements DataRepository {
       xung_ho: String(r.xung_ho ?? ''),
       vai_tro: String(r.vai_tro) as AuthSession['vai_tro'],
       book_id: r.book_id ? (String(r.book_id) as BookId) : null,
-      avatar_emoji: String(r.avatar_emoji ?? '👤'),
+      avatar_emoji: '',
       created_at: now,
       expires_at: now + NINETY_DAYS_MS,
     };

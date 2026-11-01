@@ -69,7 +69,7 @@ export const GhiSoTab: React.FC<GhiSoTabProps> = ({
         }}
       />
 
-      {/* Thẻ nhắc việc thông minh 🔔 (tự bật đúng lịch & tự tắt ngay khi nhập đủ) */}
+      {/* Thẻ nhắc việc thông minh (tự bật đúng lịch & tự tắt ngay khi nhập đủ) */}
       <ReminderBannerList
         bookId={snapshot.book.id}
         cards={activeReminders}
@@ -91,7 +91,7 @@ export const GhiSoTab: React.FC<GhiSoTabProps> = ({
       {/* 4 việc hằng ngày bấm 1 chạm chữ to (Tự nhập dự phòng song song Chat AI) */}
       <div className="rounded-3xl bg-white border-2 border-stone-200 p-4 shadow-xs space-y-3">
         <div className="text-lg font-extrabold text-stone-800">
-          ✍️ Hoặc bấm chọn tự nhập nhanh:
+          Hoặc bấm chọn tự nhập nhanh:
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
@@ -100,7 +100,7 @@ export const GhiSoTab: React.FC<GhiSoTabProps> = ({
             onClick={() => onOpenForm('suat_an')}
             className="p-3.5 rounded-2xl bg-teal-50 hover:bg-teal-100 border-2 border-teal-600 text-left space-y-1 active:scale-[0.99]"
           >
-            <div className="text-2xl">🍚</div>
+            <div className="text-2xl"></div>
             <div className="text-lg font-extrabold text-teal-950 leading-snug">
               Báo suất ăn
             </div>
@@ -112,7 +112,7 @@ export const GhiSoTab: React.FC<GhiSoTabProps> = ({
             onClick={() => onOpenForm('chi')}
             className="p-3.5 rounded-2xl bg-orange-50 hover:bg-orange-100 border-2 border-orange-500 text-left space-y-1 active:scale-[0.99]"
           >
-            <div className="text-2xl">🥩</div>
+            <div className="text-2xl"></div>
             <div className="text-lg font-extrabold text-orange-950 leading-snug">
               Chi đi chợ / Nhập hàng
             </div>
@@ -124,7 +124,7 @@ export const GhiSoTab: React.FC<GhiSoTabProps> = ({
             onClick={() => onOpenForm('thu_cuoi_ngay')}
             className="p-3.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-600 text-left space-y-1 active:scale-[0.99]"
           >
-            <div className="text-2xl">💵</div>
+            <div className="text-2xl"></div>
             <div className="text-lg font-extrabold text-emerald-950 leading-snug">
               Thu cuối ngày
             </div>
@@ -136,7 +136,7 @@ export const GhiSoTab: React.FC<GhiSoTabProps> = ({
             onClick={() => onOpenForm('cham_cong')}
             className="p-3.5 rounded-2xl bg-sky-50 hover:bg-sky-100 border-2 border-sky-500 text-left space-y-1 active:scale-[0.99]"
           >
-            <div className="text-2xl">👷</div>
+            <div className="text-2xl"></div>
             <div className="text-lg font-extrabold text-sky-950 leading-snug">
               Chấm công thợ
             </div>
@@ -165,35 +165,35 @@ export const GhiSoTab: React.FC<GhiSoTabProps> = ({
               onClick={() => onOpenForm('tra_no')}
               className="p-3 rounded-xl bg-rose-50 border border-rose-400 font-bold text-base text-rose-950 text-left"
             >
-              🤝 Trả nợ mối hàng
+              Trả nợ mối hàng
             </button>
             <button
               type="button"
               onClick={() => onOpenForm('truong_chuyen')}
               className="p-3 rounded-xl bg-sky-50 border border-sky-400 font-bold text-base text-sky-950 text-left"
             >
-              🏫 Trường chuyển tiền
+              Trường chuyển tiền
             </button>
             <button
               type="button"
               onClick={() => onOpenForm('tra_luong')}
               className="p-3 rounded-xl bg-amber-50 border border-amber-400 font-bold text-base text-amber-950 text-left"
             >
-              💰 Trả lương thợ
+              Trả lương thợ
             </button>
             <button
               type="button"
               onClick={() => onOpenForm('chi_phi_thang')}
               className="p-3 rounded-xl bg-purple-50 border border-purple-400 font-bold text-base text-purple-950 text-left"
             >
-              ⚡ Điện, Nước, Gas, Gia vị
+              Điện, Nước, Gas, Gia vị
             </button>
             <button
               type="button"
               onClick={() => onOpenForm('chuyen_quy')}
               className="col-span-2 p-3 rounded-xl bg-stone-100 border border-stone-400 font-bold text-base text-stone-900 text-center"
             >
-              🔄 Chuyển tiền giữa các ví / Rút tiền mặt
+              Chuyển tiền giữa các ví / Rút tiền mặt
             </button>
           </div>
         )}

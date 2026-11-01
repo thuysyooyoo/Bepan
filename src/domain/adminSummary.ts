@@ -97,7 +97,7 @@ export function computeFacilitySummary(
   const tongTienThucCo = wallets.reduce((s, w) => s + w.so_du_hien_tai, 0);
 
   const ownerLabel =
-    bookId === 'hiep_hoa' ? '👨‍🍳 Hiệp Hòa (Bố)' : '👩‍🍳 Tiên Du (Mẹ)';
+    bookId === 'hiep_hoa' ? 'Hiệp Hòa (Bố)' : 'Tiên Du (Mẹ)';
 
   return {
     bookId,
@@ -236,10 +236,10 @@ export function extractChatLogAiPreview(log: ChatLog): string {
     const obj = raw as Record<string, unknown>;
 
     if (typeof obj.clarification_question === 'string' && obj.clarification_question) {
-      return `❓ AI hỏi lại: ${obj.clarification_question}`;
+      return `AI hỏi lại: ${obj.clarification_question}`;
     }
     if (typeof obj.assistant_reply === 'string' && obj.assistant_reply) {
-      return `🤖 ${obj.assistant_reply}`;
+      return `${obj.assistant_reply}`;
     }
     if (Array.isArray(obj.cards) && obj.cards.length > 0) {
       const titles = obj.cards
@@ -249,7 +249,7 @@ export function extractChatLogAiPreview(log: ChatLog): string {
         })
         .filter(Boolean);
       if (titles.length > 0) {
-        return `🤖 Hiểu ${obj.cards.length} mục: ${titles.join(' · ')}`;
+        return `Hiểu ${obj.cards.length} mục: ${titles.join(' · ')}`;
       }
     }
   } catch {
@@ -274,17 +274,17 @@ export function buildZaloDailySummaryText(
   const tongVi = wallets.reduce((s, w) => s + w.so_du_hien_tai, 0);
 
   return [
-    `📋 TÓM TẮT CUỐI NGÀY — ${snapshot.book.ten.toUpperCase()}`,
-    `📅 ${formatVietnameseDate(ngay)}`,
+    `TÓM TẮT CUỐI NGÀY — ${snapshot.book.ten.toUpperCase()}`,
+    `${formatVietnameseDate(ngay)}`,
     `────────────────────`,
-    `🍲 BẾP ĂN (${d.bep_an.tong_suat} suất):`,
+    `BẾP ĂN (${d.bep_an.tong_suat} suất):`,
     `• Tổng thu: ${formatVND(d.bep_an.tong_doanh_thu)} (Trường: ${d.bep_an.suat_truong}s · Vãng lai: ${d.bep_an.suat_vang_lai}s)`,
     `• Chi chợ & công thợ: -${formatVND(d.bep_an.tong_chi_ngay)}`,
     `• Lãi ước tính ngày: ${formatVND(d.bep_an.lai_uoc_tinh_ngay, true)}`,
-    `🏪 CĂN TIN:`,
+    `CĂN TIN:`,
     `• Doanh thu thuần: ${formatVND(d.can_tin.doanh_thu_can_tin)}`,
     `• Chi nhập hàng: -${formatVND(d.can_tin.chi_nhap_hang_ngay)}`,
-    `💰 TIỀN THỰC CÓ TRONG 3 VÍ: ${formatVND(tongVi)}`,
+    `TIỀN THỰC CÓ TRONG 3 VÍ: ${formatVND(tongVi)}`,
   ].join('\n');
 }
 
@@ -298,15 +298,15 @@ export function buildZaloAdminMonthlySummaryText(
   const { hiepHoa: hh, tienDu: td, tongCong: tc } = combined;
 
   return [
-    `👑 BÁO CÁO TỔNG HỢP SỔ BẾP NHÀ MÌNH — ${mLabel.toUpperCase()}`,
+    `BÁO CÁO TỔNG HỢP SỔ BẾP NHÀ MÌNH — ${mLabel.toUpperCase()}`,
     `────────────────────`,
-    `🏆 LÃI RÒNG CẢ 2 CƠ SỞ: ${formatVND(tc.laiRong, true)}`,
-    `• 👨‍🍳 Hiệp Hòa (Bố): ${formatVND(hh.monthly.lai_rong_toan_co_so, true)} (${hh.monthly.bep_an.tong_suat} suất)`,
-    `• 👩‍🍳 Tiên Du (Mẹ): ${formatVND(td.monthly.lai_rong_toan_co_so, true)} (${td.monthly.bep_an.tong_suat} suất)`,
+    `LÃI RÒNG CẢ 2 CƠ SỞ: ${formatVND(tc.laiRong, true)}`,
+    `• Hiệp Hòa (Bố): ${formatVND(hh.monthly.lai_rong_toan_co_so, true)} (${hh.monthly.bep_an.tong_suat} suất)`,
+    `• Tiên Du (Mẹ): ${formatVND(td.monthly.lai_rong_toan_co_so, true)} (${td.monthly.bep_an.tong_suat} suất)`,
     `────────────────────`,
-    `💰 TỔNG TIỀN THỰC CÓ (6 VÍ): ${formatVND(tc.tongTienThucCo6Vi)}`,
+    `TỔNG TIỀN THỰC CÓ (6 VÍ): ${formatVND(tc.tongTienThucCo6Vi)}`,
     `• Hiệp Hòa: ${formatVND(hh.tongTienThucCo)} | Tiên Du: ${formatVND(td.tongTienThucCo)}`,
-    `📕 CÔNG NỢ & DỰ KIẾN:`,
+    `CÔNG NỢ & DỰ KIẾN:`,
     `• Đang nợ nhà cung cấp: ${formatVND(tc.tongNoNhaCungCap)}`,
     `• Lương thợ chờ trả: ${formatVND(tc.tongLuongThoChoTra)}`,
     `• Tiền trường chờ về TK Mợ Diệp: ${formatVND(tc.tongTienTruongChoVe)}`,
