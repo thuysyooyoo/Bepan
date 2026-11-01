@@ -216,6 +216,7 @@ interface TabContentProps {
   selectedDate?: string;
   onSelectDate?: (isoDate: string) => void;
   onJumpToForm?: (kind: ManualFormKind) => void;
+  onOpenManualForm?: (kind: ManualFormKind, editTx?: Transaction) => void;
   onDataChanged?: () => Promise<void>;
   focusedSupplierId?: string | null;
   onClearFocusSupplier?: () => void;
@@ -226,6 +227,8 @@ export const HomNayTab: React.FC<TabContentProps> = ({
   selectedDate,
   onSelectDate,
   onJumpToForm,
+  onOpenManualForm,
+  onDataChanged,
 }) => {
   return (
     <ProfitReportView
@@ -233,6 +236,8 @@ export const HomNayTab: React.FC<TabContentProps> = ({
       selectedDate={selectedDate || getTodayISO()}
       onSelectDate={onSelectDate}
       onJumpToForm={onJumpToForm}
+      onOpenManualForm={onOpenManualForm}
+      onDataChanged={onDataChanged}
     />
   );
 };
@@ -241,12 +246,14 @@ export const DongTienTab: React.FC<TabContentProps> = ({
   snapshot,
   selectedDate,
   onDataChanged,
+  onOpenManualForm,
 }) => {
   return (
     <CashflowView
       snapshot={snapshot}
       selectedDate={selectedDate || getTodayISO()}
       onDataChanged={onDataChanged || (async () => {})}
+      onOpenManualForm={onOpenManualForm}
     />
   );
 };
@@ -257,6 +264,7 @@ export const SoNoTab: React.FC<TabContentProps> = ({
   focusedSupplierId,
   onClearFocusSupplier,
   onDataChanged,
+  onOpenManualForm,
 }) => {
   return (
     <DebtLedgerView
@@ -265,6 +273,7 @@ export const SoNoTab: React.FC<TabContentProps> = ({
       focusedSupplierId={focusedSupplierId}
       onClearFocusSupplier={onClearFocusSupplier}
       onDataChanged={onDataChanged || (async () => {})}
+      onOpenManualForm={onOpenManualForm}
     />
   );
 };

@@ -27,6 +27,20 @@ import type {
 import type { AIParseResult, ParsedIntentItem } from './intentSchema';
 import { answerReportQuestion, parseVietnameseCommandLocal, stripAccents } from './localVnNlu';
 import { normalizeAsrTranscript } from './voiceEngine';
+import { callCloudAi } from './cloudAiClient';
+import { parseVietnameseMoney } from './vnNumberDateParser';
+import type { AiSettings } from '../types/aiSettings';
+
+export interface ChatHistoryEntry {
+  userText: string;
+  items?: ParsedIntentItem[];
+  status?: 'pending' | 'saved' | 'cancelled';
+}
+
+export interface ParseUtteranceOptions {
+  history?: ChatHistoryEntry[];
+  aiSettings?: AiSettings;
+}
 
 function buildContextPayload(snapshot: BookSnapshot, referenceDate: string) {
   return {
@@ -85,12 +99,252 @@ export function shouldDelegateToCloudGemini(
   return false;
 }
 
+export function resolveBestSupplierForCategory(
+  snapshot: BookSnapshot,
+  categoryId?: string
+): Supplier | null {
+  const bookSuppliers = snapshot.suppliers.filter(
+    (s) => s.book_id === snapshot.book.id && s.dang_giao_dich
+  );
+  if (bookSuppliers.length === 0) return null;
+  if (!categoryId) return bookSuppliers[0];
+
+  const cat = snapshot.categories.find((c) => c.id === categoryId);
+  const catNameNoAcc = stripAccents(cat?.ten_danh_muc ?? '').toLowerCase();
+
+  const matched = bookSuppliers.find((s) => {
+    const matHangNoAcc = stripAccents(s.mat_hang_chinh).toLowerCase();
+    const tenNccNoAcc = stripAccents(s.ten_ncc).toLowerCase();
+    return (
+      (catNameNoAcc.includes('thit') && (matHangNoAcc.includes('thit') || tenNccNoAcc.includes('thit'))) ||
+      (catNameNoAcc.includes('rau') && (matHangNoAcc.includes('rau') || tenNccNoAcc.includes('rau'))) ||
+      (catNameNoAcc.includes('gao') && (matHangNoAcc.includes('gao') || tenNccNoAcc.includes('gao'))) ||
+      (catNameNoAcc.includes('gas') && (matHangNoAcc.includes('gas') || tenNccNoAcc.includes('gas'))) ||
+      (catNameNoAcc.includes('nuoc') && (matHangNoAcc.includes('nuoc') || tenNccNoAcc.includes('nuoc'))) ||
+      (catNameNoAcc.includes('banh') && (matHangNoAcc.includes('banh') || tenNccNoAcc.includes('banh')))
+    );
+  });
+
+  return matched ?? bookSuppliers[0];
+}
+
+/**
+ * Xử lý ngữ cảnh câu nói nối tiếp / điều chỉnh lượt trước (Multi-turn Local Comprehension)
+ */
+export function resolveFollowUpUtterance(
+  cleanedText: string,
+  history: ChatHistoryEntry[],
+  snapshot: BookSnapshot,
+  referenceDate: string
+): ParsedIntentItem[] | null {
+  if (!history || history.length === 0) return null;
+
+  // Lấy lượt trước gần nhất có action card hợp lệ
+  const lastTurn = [...history].reverse().find(
+    (h) =>
+      h.items &&
+      h.items.length > 0 &&
+      h.items.some((it) => it.intent !== 'hoi' && it.intent !== 'khong_ro')
+  );
+  if (!lastTurn || !lastTurn.items || lastTurn.items.length === 0) return null;
+
+  const lastItem = lastTurn.items[lastTurn.items.length - 1];
+  const lower = stripAccents(cleanedText.toLowerCase()).trim();
+
+  // 1. CÂU HỎI BÁO CÁO NỐI TIẾP
+  if (
+    /^(the|vay)?\s*(hom nay|nay)?\s*(lai|lo|loi|tien|no|ai no|thu|chi)/i.test(lower) ||
+    lower.includes('lai bao nhieu') ||
+    lower.includes('con bao nhieu tien')
+  ) {
+    return [answerReportQuestion(cleanedText, snapshot, referenceDate)];
+  }
+
+  // 2. THEO DÕI MUA CHỊU / GHI SỔ NỢ / CHƯA TRẢ TIỀN
+  const isCreditCue =
+    /(chua tra|chua tra tien|ghi no|cho vao so no|cho vao no|no nhe|tra sau|no moi|no nha cung cap|no dai ly)/i.test(
+      lower
+    );
+  if (isCreditCue) {
+    if (lastItem.intent === 'chi') {
+      const sup = resolveBestSupplierForCategory(snapshot, lastItem.category_id);
+      return [
+        {
+          ...lastItem,
+          intent: 'chi_no',
+          supplier_id: lastItem.supplier_id || sup?.id,
+          da_thanh_toan: false,
+          ghi_chu: lastItem.ghi_chu.includes('(Ghi nợ)')
+            ? lastItem.ghi_chu
+            : `${lastItem.ghi_chu} (Ghi nợ/Chưa trả tiền)`,
+          cau_hoi_lam_ro: undefined,
+          lua_chon_lam_ro: undefined,
+        },
+      ];
+    }
+    if (lastItem.intent === 'thu') {
+      return [
+        {
+          ...lastItem,
+          intent: 'ban_chiu',
+          da_thanh_toan: false,
+          ghi_chu: `${lastItem.ghi_chu} (Khách nợ/Chưa trả tiền)`,
+          cau_hoi_lam_ro: undefined,
+          lua_chon_lam_ro: undefined,
+        },
+      ];
+    }
+  }
+
+  // 3. ĐỔI MẢNG: CĂN TIN HAY BẾP ĂN
+  if (/(cho can tin|cua can tin|tinh cho can tin|vao can tin|can tin nhe)/i.test(lower)) {
+    return [
+      {
+        ...lastItem,
+        mang: 'can_tin',
+        ghi_chu: `${lastItem.ghi_chu.replace(/\s*\(Căn tin\)|\s*\(Bếp ăn\)/g, '')} (Căn tin)`,
+        cau_hoi_lam_ro: undefined,
+        lua_chon_lam_ro: undefined,
+      },
+    ];
+  }
+  if (/(cho bep an|cua bep an|tinh cho bep an|vao bep an|bep an nhe)/i.test(lower)) {
+    return [
+      {
+        ...lastItem,
+        mang: 'bep_an',
+        ghi_chu: `${lastItem.ghi_chu.replace(/\s*\(Căn tin\)|\s*\(Bếp ăn\)/g, '')} (Bếp ăn)`,
+        cau_hoi_lam_ro: undefined,
+        lua_chon_lam_ro: undefined,
+      },
+    ];
+  }
+
+  // 4. ĐỔI VÍ THANH TOÁN
+  if (/(tien mat|bang tien mat|tra tien mat|vi tien mat)/i.test(lower)) {
+    return [
+      {
+        ...lastItem,
+        vi: 'tien_mat',
+        cau_hoi_lam_ro: undefined,
+        lua_chon_lam_ro: undefined,
+      },
+    ];
+  }
+  if (/(mo diep|tk mo diep|chuyen khoan mo diep)/i.test(lower)) {
+    return [
+      {
+        ...lastItem,
+        vi: 'tk_mo_diep',
+        cau_hoi_lam_ro: undefined,
+        lua_chon_lam_ro: undefined,
+      },
+    ];
+  }
+  if (/(chi nhan|tk chi nhan|chuyen khoan chi nhan)/i.test(lower)) {
+    return [
+      {
+        ...lastItem,
+        vi: 'tk_chi_nhan',
+        cau_hoi_lam_ro: undefined,
+        lua_chon_lam_ro: undefined,
+      },
+    ];
+  }
+
+  // 5. ĐỔI SỐ TIỀN ("sửa lại 500 nghìn", "sửa thành 500k", "là 480 nghìn cơ")
+  if (/(sua lai|chinh lai|sua thanh|doi thanh|thanh|la|thuc ra la)\s+/i.test(lower)) {
+    const newAmount = parseVietnameseMoney(cleanedText);
+    if (newAmount && newAmount > 0) {
+      return [
+        {
+          ...lastItem,
+          so_tien: newAmount,
+          ghi_chu: `${lastItem.ghi_chu.replace(/\d[\d.,]*\s*(đ|dong|k|nghin)?/gi, '').trim()} ${formatCompactVND(newAmount)}`.trim(),
+          cau_hoi_lam_ro: undefined,
+          lua_chon_lam_ro: undefined,
+        },
+      ];
+    }
+  }
+
+  return null;
+}
+
 export async function parseUserUtterance(
   text: string,
   snapshot: BookSnapshot,
-  referenceDate: string
+  referenceDate: string,
+  options?: ParseUtteranceOptions
 ): Promise<AIParseResult> {
   const cleanedText = normalizeAsrTranscript(text);
+
+  // 1. Phân tích ngữ cảnh đa lượt: câu điều chỉnh / bổ sung cho lượt trước (Multi-turn Local)
+  if (options?.history && options.history.length > 0) {
+    const followUpItems = resolveFollowUpUtterance(
+      cleanedText,
+      options.history,
+      snapshot,
+      referenceDate
+    );
+    if (followUpItems && followUpItems.length > 0) {
+      return {
+        engine: 'local_vn',
+        raw_text: cleanedText,
+        items: followUpItems,
+      };
+    }
+  }
+
+  // 2. Nếu có cấu hình AI đám mây (Gemini, DeepSeek, OpenAI) từ Settings và đang bật
+  if (
+    options?.aiSettings &&
+    options.aiSettings.enabled &&
+    options.aiSettings.provider !== 'local' &&
+    options.aiSettings.api_key.trim()
+  ) {
+    try {
+      const historyForCloud: Array<{ role: 'user' | 'assistant'; text: string }> = [];
+      if (options.history) {
+        for (const h of options.history.slice(-3)) {
+          historyForCloud.push({ role: 'user', text: h.userText });
+          if (h.items && h.items.length > 0) {
+            const summary = h.items.map((it) => it.ghi_chu || it.intent).join('; ');
+            historyForCloud.push({ role: 'assistant', text: `Đã ghi nhận: ${summary}` });
+          }
+        }
+      }
+
+      const cloudItems = await callCloudAi(cleanedText, {
+        settings: options.aiSettings,
+        snapshot,
+        dateStr: referenceDate,
+        history: historyForCloud,
+      });
+
+      if (cloudItems && cloudItems.length > 0) {
+        const enriched = cloudItems.map((it) =>
+          it.intent === 'hoi'
+            ? answerReportQuestion(cleanedText, snapshot, referenceDate)
+            : it
+        );
+        const engineType =
+          options.aiSettings.provider === 'deepseek'
+            ? 'deepseek'
+            : options.aiSettings.provider === 'openai'
+            ? 'openai'
+            : 'gemini';
+        return {
+          engine: engineType,
+          raw_text: cleanedText,
+          items: enriched,
+        };
+      }
+    } catch {
+      // Rơi êm xuống Local NLU nếu lỗi mạng hoặc hết token
+    }
+  }
+
   const localResult = parseVietnameseCommandLocal(cleanedText, snapshot, referenceDate);
 
   const forceAlwaysGemini = import.meta.env?.VITE_GEMINI_ALWAYS === 'true';
@@ -260,35 +514,6 @@ function getWalletByKind(snapshot: BookSnapshot, kind?: WalletKind) {
     snapshot.wallets.find((w) => w.loai_vi === 'tien_mat') ??
     snapshot.wallets[0]
   );
-}
-
-function resolveBestSupplierForCategory(
-  snapshot: BookSnapshot,
-  categoryId?: string
-): Supplier | null {
-  const bookSuppliers = snapshot.suppliers.filter(
-    (s) => s.book_id === snapshot.book.id && s.dang_giao_dich
-  );
-  if (bookSuppliers.length === 0) return null;
-  if (!categoryId) return bookSuppliers[0];
-
-  const cat = snapshot.categories.find((c) => c.id === categoryId);
-  const catNameNoAcc = stripAccents(cat?.ten_danh_muc ?? '').toLowerCase();
-
-  const matched = bookSuppliers.find((s) => {
-    const matHangNoAcc = stripAccents(s.mat_hang_chinh).toLowerCase();
-    const tenNccNoAcc = stripAccents(s.ten_ncc).toLowerCase();
-    return (
-      (catNameNoAcc.includes('thit') && (matHangNoAcc.includes('thit') || tenNccNoAcc.includes('thit'))) ||
-      (catNameNoAcc.includes('rau') && (matHangNoAcc.includes('rau') || tenNccNoAcc.includes('rau'))) ||
-      (catNameNoAcc.includes('gao') && (matHangNoAcc.includes('gao') || tenNccNoAcc.includes('gao'))) ||
-      (catNameNoAcc.includes('gas') && (matHangNoAcc.includes('gas') || tenNccNoAcc.includes('gas'))) ||
-      (catNameNoAcc.includes('nuoc') && (matHangNoAcc.includes('nuoc') || tenNccNoAcc.includes('nuoc'))) ||
-      (catNameNoAcc.includes('banh') && (matHangNoAcc.includes('banh') || tenNccNoAcc.includes('banh')))
-    );
-  });
-
-  return matched ?? bookSuppliers[0];
 }
 
 /**

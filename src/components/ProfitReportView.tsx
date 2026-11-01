@@ -7,11 +7,15 @@ import {
   ChevronLeft,
   ChevronRight,
   FileSpreadsheet,
+  Pencil,
   PieChart,
   Share2,
+  Trash2,
   TrendingUp,
   Volume2,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { dbRepo } from '../db';
 import {
   buildSpokenDailyReport,
   buildSpokenMonthlyReport,
@@ -34,8 +38,8 @@ import {
   getYearMonth,
   shiftDateISO,
 } from '../domain/format';
-import type { BookSnapshot, BusinessSegment, MealPeriod } from '../types/models';
-import { speakVietnameseText, stopVietnameseSpeech } from './ConfirmationCard';
+import type { BookSnapshot, BusinessSegment, MealPeriod, Transaction } from '../types/models';
+import { speakVietnameseText, stopVietnameseSpeech, UndoBanner, type UndoState } from './ConfirmationCard';
 import type { ManualFormKind } from './ManualEntryForms';
 
 export interface ProfitReportViewProps {
@@ -43,6 +47,19 @@ export interface ProfitReportViewProps {
   selectedDate: string;
   onSelectDate?: (isoDate: string) => void;
   onJumpToForm?: (kind: ManualFormKind) => void;
+  onOpenManualForm?: (kind: ManualFormKind, editTx?: Transaction) => void;
+  onDataChanged?: (undo?: UndoState) => Promise<void>;
+}
+
+function mapTransactionToFormKind(tx: Transaction, snapshot: BookSnapshot): ManualFormKind {
+  if (tx.loai === 'thu_cuoi_ngay') return 'thu_cuoi_ngay';
+  if (tx.loai === 'tra_no') return 'tra_no';
+  if (tx.loai === 'truong_chuyen') return 'truong_chuyen';
+  if (tx.loai === 'tra_luong') return 'tra_luong';
+  if (tx.loai === 'chuyen_quy') return 'chuyen_quy';
+  const cat = snapshot.categories.find((c) => c.id === tx.category_id);
+  if (cat?.kieu_tinh === 'theo_thang') return 'chi_phi_thang';
+  return 'chi';
 }
 
 type ReportMode = 'ngay' | 'thang';
@@ -76,7 +93,12 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
   selectedDate,
   onSelectDate,
   onJumpToForm,
+  onOpenManualForm,
+  onDataChanged,
 }) => {
+  const { session } = useAuth();
+  const [undoState, setUndoState] = useState<UndoState | null>(null);
+
   const todayISO = getTodayISO();
   const currentYearMonth = getYearMonth(todayISO);
 
@@ -87,6 +109,23 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
   );
   const [exportingExcel, setExportingExcel] = useState(false);
   const [reportNotice, setReportNotice] = useState<string | null>(null);
+
+  const dayTransactions = snapshot.transactions.filter(
+    (t) => t.book_id === snapshot.book.id && t.ngay === localDate && !t.da_xoa
+  );
+
+  const handleDeleteTx = async (tx: Transaction) => {
+    if (!session) return;
+    await dbRepo.softDeleteTransaction(session, snapshot.book.id, tx.id);
+    const undo: UndoState = {
+      message: `Đã xóa: ${tx.ghi_chu || 'giao dịch'} (${formatVND(tx.so_tien)})`,
+      undoFn: async () => {
+        await dbRepo.restoreTransaction(session, snapshot.book.id, tx.id);
+      },
+    };
+    setUndoState(undo);
+    await onDataChanged?.(undo);
+  };
 
   const showNotice = (msg: string) => {
     setReportNotice(msg);
@@ -229,24 +268,32 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Thanh chuyển đổi Báo cáo Ngày / Báo cáo Tháng chữ lớn + nút Nghe đọc báo cáo */}
-      <div className="rounded-3xl bg-white border-2 border-stone-300 p-2.5 shadow-xs space-y-2.5">
-        <div className="grid grid-cols-2 gap-2 bg-stone-100 p-1.5 rounded-2xl">
+    <div className="space-y-3">
+      <UndoBanner
+        undoState={undoState}
+        onDismiss={() => setUndoState(null)}
+        onUndone={async () => {
+          setUndoState(null);
+          await onDataChanged?.();
+        }}
+      />
+
+      {/* Thanh chuyển đổi Báo cáo Ngày / Báo cáo Tháng + nút Nghe đọc báo cáo */}
+      <div className="rounded-2xl bg-white border border-stone-200 p-2 shadow-xs space-y-2">
+        <div className="grid grid-cols-2 gap-1.5 bg-stone-100 p-1 rounded-xl">
           <button
             type="button"
             onClick={() => {
               stopVietnameseSpeech();
               setMode('ngay');
             }}
-            className={`min-h-[52px] rounded-xl font-extrabold text-lg transition flex items-center justify-center gap-1.5 ${
+            className={`min-h-[38px] rounded-lg font-bold text-xs transition flex items-center justify-center gap-1 ${
               mode === 'ngay'
                 ? 'bg-teal-800 text-white shadow-xs'
                 : 'text-stone-700 hover:bg-stone-200'
             }`}
           >
-            <span></span>
-            <span>Theo Ngày</span>
+            Theo Ngày
           </button>
           <button
             type="button"
@@ -254,33 +301,32 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
               stopVietnameseSpeech();
               setMode('thang');
             }}
-            className={`min-h-[52px] rounded-xl font-extrabold text-lg transition flex items-center justify-center gap-1.5 ${
+            className={`min-h-[38px] rounded-lg font-bold text-xs transition flex items-center justify-center gap-1 ${
               mode === 'thang'
                 ? 'bg-teal-800 text-white shadow-xs'
                 : 'text-stone-700 hover:bg-stone-200'
             }`}
           >
-            <span></span>
-            <span>Theo Tháng</span>
+            Theo Tháng
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           <button
             type="button"
             onClick={handleSpeakReport}
-            className="py-2.5 px-3 rounded-2xl bg-sky-50 hover:bg-sky-100 border-2 border-sky-400 text-sky-950 font-bold text-sm flex items-center justify-center gap-1.5 active:scale-[0.99]"
+            className="py-1.5 px-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-950 font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.99]"
           >
-            <Volume2 className="w-5 h-5 text-sky-700 shrink-0" />
+            <Volume2 className="w-3.5 h-3.5 text-sky-700 shrink-0" />
             <span>Nghe đọc báo cáo</span>
           </button>
 
           <button
             type="button"
             onClick={handleShareZalo}
-            className="py-2.5 px-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-400 text-emerald-950 font-bold text-sm flex items-center justify-center gap-1.5 active:scale-[0.99]"
+            className="py-1.5 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-950 font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.99]"
           >
-            <Share2 className="w-4 h-4 text-emerald-700 shrink-0" />
+            <Share2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
             <span>Gửi tóm tắt Zalo</span>
           </button>
         </div>
@@ -313,33 +359,33 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
       {/* CHẾ ĐỘ 1: BÁO CÁO NGÀY + BIỂU ĐỒ 7 NGÀY                           */}
       {/* ================================================================= */}
       {mode === 'ngay' && (
-        <div className="space-y-4">
-          {/* Bộ chọn ngày to, rõ, có nút Hôm trước / Hôm sau / Về Hôm nay */}
-          <div className="rounded-3xl bg-white border-2 border-stone-300 p-3.5 shadow-xs space-y-2.5">
-            <div className="flex items-center justify-between gap-2">
+        <div className="space-y-3">
+          {/* Bộ chọn ngày gọn gàng */}
+          <div className="rounded-2xl bg-white border border-stone-200 p-2.5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between gap-1.5">
               <button
                 type="button"
                 onClick={() => handleChangeDate(shiftDateISO(localDate, -1))}
                 aria-label="Xem ngày hôm trước"
-                className="min-h-[48px] px-3 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 font-bold text-base text-stone-800 inline-flex items-center gap-1 shrink-0"
+                className="min-h-[38px] px-2.5 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-300 font-bold text-xs text-stone-800 inline-flex items-center gap-1 shrink-0"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-4 h-4" />
                 Hôm trước
               </button>
 
               <div className="text-center min-w-0 flex-1">
-                <div className="text-base font-extrabold text-stone-900 leading-snug">
+                <div className="text-xs font-bold text-stone-900 leading-snug">
                   {formatVietnameseDate(localDate)}
                 </div>
                 {localDate === todayISO ? (
-                  <span className="inline-block mt-0.5 px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-900 text-sm font-bold">
+                  <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full bg-teal-100 text-teal-900 text-[11px] font-bold">
                     Hôm nay
                   </span>
                 ) : (
                   <button
                     type="button"
                     onClick={() => handleChangeDate(todayISO)}
-                    className="mt-1 px-3 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-950 text-sm font-bold border border-amber-400"
+                    className="mt-0.5 px-2 py-0.2 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-950 text-[11px] font-bold border border-amber-300"
                   >
                     Về hôm nay
                   </button>
@@ -350,16 +396,16 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                 type="button"
                 onClick={() => handleChangeDate(shiftDateISO(localDate, 1))}
                 aria-label="Xem ngày hôm sau"
-                className="min-h-[48px] px-3 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 font-bold text-base text-stone-800 inline-flex items-center gap-1 shrink-0"
+                className="min-h-[38px] px-2.5 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-300 font-bold text-xs text-stone-800 inline-flex items-center gap-1 shrink-0"
               >
                 Hôm sau
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex items-center gap-2 pt-1 border-t border-stone-200">
-              <Calendar className="w-5 h-5 text-stone-600 shrink-0" />
-              <label htmlFor="profit-date-picker" className="text-base font-semibold text-stone-700">
+            <div className="flex items-center gap-2 pt-1.5 border-t border-stone-100 text-xs">
+              <Calendar className="w-4 h-4 text-stone-500 shrink-0" />
+              <label htmlFor="profit-date-picker" className="font-semibold text-stone-600">
                 Chọn ngày khác:
               </label>
               <input
@@ -367,32 +413,46 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                 type="date"
                 value={localDate}
                 onChange={(e) => handleChangeDate(e.target.value)}
-                className="ml-auto px-3 py-1.5 rounded-xl border-2 border-stone-300 font-bold text-base text-stone-900 bg-stone-50"
+                className="ml-auto px-2 py-1 rounded-lg border border-stone-300 font-bold text-xs text-stone-900 bg-stone-50"
               />
             </div>
           </div>
 
           {/* THẺ 1: BẾP ĂN — LÃI ƯỚC TÍNH NGÀY & GIÁ VỐN / SUẤT */}
-          <div className="rounded-3xl bg-white border-2 border-teal-700 p-4 shadow-xs space-y-3.5">
+          <div className="rounded-2xl bg-white border border-teal-600 p-3 shadow-xs space-y-2.5">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-xl font-extrabold text-teal-950">Bếp ăn trong ngày</h2>
-              <span className="px-3 py-1 rounded-full bg-teal-100 border border-teal-300 text-base font-extrabold text-teal-900">
-                {daily.bep_an.tong_suat} suất
-              </span>
+              <h2 className="text-xs font-bold text-teal-950 uppercase tracking-wide">
+                Bếp ăn trong ngày
+              </h2>
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-full bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900">
+                  {daily.bep_an.tong_suat} suất
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onOpenManualForm ? onOpenManualForm('suat_an') : onJumpToForm?.('suat_an')
+                  }
+                  className="px-2 py-0.5 rounded-lg bg-teal-50 hover:bg-teal-100 border border-teal-300 text-[11px] font-bold text-teal-800 inline-flex items-center gap-0.5"
+                >
+                  <Pencil className="w-3 h-3" />
+                  Sửa suất
+                </button>
+              </div>
             </div>
 
             <div
-              className={`p-4 rounded-2xl border-2 ${
+              className={`p-2.5 rounded-xl border ${
                 daily.bep_an.lai_uoc_tinh_ngay >= 0
-                  ? 'bg-teal-50 border-teal-500'
-                  : 'bg-rose-50 border-rose-500'
+                  ? 'bg-teal-50/70 border-teal-300'
+                  : 'bg-rose-50/70 border-rose-300'
               }`}
             >
-              <div className="text-lg font-bold text-stone-800">
+              <div className="text-xs font-bold text-stone-700">
                 Lãi ước tính trong ngày
               </div>
               <div
-                className={`text-3xl font-extrabold mt-0.5 ${
+                className={`text-lg font-black mt-0.5 ${
                   daily.bep_an.lai_uoc_tinh_ngay >= 0
                     ? 'text-teal-900'
                     : 'text-rose-800'
@@ -400,29 +460,29 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
               >
                 {formatVND(daily.bep_an.lai_uoc_tinh_ngay, true)}
               </div>
-              <div className="text-base text-stone-700 mt-1">
+              <div className="text-[11px] text-stone-500 mt-0.5">
                 * Chưa trừ điện, nước, gas, gia vị cuối tháng (xem ở mục Theo Tháng)
               </div>
             </div>
 
             {/* Chỉ số trên 1 suất ăn trong ngày */}
             {daily.bep_an.tong_suat > 0 && (
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="p-2.5 rounded-xl bg-stone-100 border border-stone-200">
-                  <div className="text-sm font-semibold text-stone-600">Thu / suất</div>
-                  <div className="text-base font-extrabold text-stone-900 mt-0.5">
+              <div className="grid grid-cols-3 gap-1.5 text-center">
+                <div className="p-2 rounded-xl bg-stone-50 border border-stone-200">
+                  <div className="text-[11px] font-medium text-stone-600">Thu / suất</div>
+                  <div className="text-xs font-black text-stone-900 mt-0.5">
                     {formatVND(daily.bep_an.doanh_thu_binh_quan_suat)}
                   </div>
                 </div>
-                <div className="p-2.5 rounded-xl bg-orange-50 border border-orange-200">
-                  <div className="text-sm font-semibold text-orange-900">Vốn ngày / suất</div>
-                  <div className="text-base font-extrabold text-orange-950 mt-0.5">
+                <div className="p-2 rounded-xl bg-orange-50/70 border border-orange-200">
+                  <div className="text-[11px] font-medium text-orange-900">Vốn ngày / suất</div>
+                  <div className="text-xs font-black text-orange-950 mt-0.5">
                     {formatVND(daily.bep_an.gia_von_ngay_moi_suat)}
                   </div>
                 </div>
-                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
-                  <div className="text-sm font-semibold text-emerald-900">Lãi / suất</div>
-                  <div className="text-base font-extrabold text-emerald-950 mt-0.5">
+                <div className="p-2 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                  <div className="text-[11px] font-medium text-emerald-900">Lãi / suất</div>
+                  <div className="text-xs font-black text-emerald-950 mt-0.5">
                     {formatVND(daily.bep_an.lai_ngay_moi_suat, true)}
                   </div>
                 </div>
@@ -430,15 +490,15 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
             )}
 
             {/* Bóc tách phép tính Thu - Chi của Bếp ăn */}
-            <div className="space-y-2.5 pt-1">
-              <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-1.5">
-                <div className="flex items-center justify-between text-lg font-extrabold text-emerald-950">
+            <div className="space-y-2 pt-0.5">
+              <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1">
+                <div className="flex items-center justify-between text-xs font-bold text-emerald-950">
                   <span>1. Tổng thu Bếp ăn</span>
-                  <span>+{formatVND(daily.bep_an.tong_doanh_thu)}</span>
+                  <span className="text-xs font-black">+{formatVND(daily.bep_an.tong_doanh_thu)}</span>
                 </div>
 
                 {activeMealLines.length > 0 ? (
-                  <div className="space-y-1 text-base text-stone-800 pt-1 border-t border-emerald-200/80">
+                  <div className="space-y-1 text-xs text-stone-800 pt-1 border-t border-emerald-200/80">
                     {activeMealLines.map((line) => (
                       <div key={line.label} className="flex justify-between gap-2">
                         <span>
@@ -456,29 +516,29 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                   </div>
                 ) : (
                   <div className="pt-1 flex items-center justify-between gap-2">
-                    <span className="text-base text-stone-600">
+                    <span className="text-xs text-stone-600">
                       Chưa ghi suất ăn ngày này
                     </span>
-                    {onJumpToForm && (
-                      <button
-                        type="button"
-                        onClick={() => onJumpToForm('suat_an')}
-                        className="px-3 py-1.5 rounded-xl bg-teal-700 text-white font-bold text-base shrink-0"
-                      >
-                        Báo suất ăn
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onOpenManualForm ? onOpenManualForm('suat_an') : onJumpToForm?.('suat_an')
+                      }
+                      className="px-2.5 py-1 rounded-lg bg-teal-700 text-white font-bold text-xs shrink-0"
+                    >
+                      Báo suất ăn
+                    </button>
                   </div>
                 )}
               </div>
 
-              <div className="p-3 rounded-2xl bg-rose-50/70 border border-rose-200 space-y-1.5">
-                <div className="flex items-center justify-between text-lg font-extrabold text-rose-950">
+              <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200 space-y-1">
+                <div className="flex items-center justify-between text-xs font-bold text-rose-950">
                   <span>2. Chi chợ & công thợ</span>
-                  <span>-{formatVND(daily.bep_an.tong_chi_ngay)}</span>
+                  <span className="text-xs font-black">-{formatVND(daily.bep_an.tong_chi_ngay)}</span>
                 </div>
 
-                <div className="space-y-1 text-base text-stone-800 pt-1 border-t border-rose-200/80">
+                <div className="space-y-1 text-xs text-stone-800 pt-1 border-t border-rose-200/80">
                   <div className="flex justify-between gap-2">
                     <span>• Đi chợ nguyên liệu ngày</span>
                     <span className="font-bold">
@@ -486,80 +546,105 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                     </span>
                   </div>
                   {daily.bep_an.chi_cho_mua_chiu > 0 && (
-                    <div className="text-sm text-stone-600 pl-3">
+                    <div className="text-[11px] text-stone-600 pl-2">
                       (Trả ngay: {formatVND(daily.bep_an.chi_cho_tra_ngay)} · Mua chịu ghi sổ:{' '}
                       {formatVND(daily.bep_an.chi_cho_mua_chiu)})
                     </div>
                   )}
-                  <div className="flex justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <span>
                       • Công thợ phụ bếp ({daily.bep_an.tong_so_cong_ngay} công)
                     </span>
-                    <span className="font-bold">
-                      {formatVND(daily.bep_an.chi_cong_tho_ngay)}
-                    </span>
+                    <div className="inline-flex items-center gap-1.5">
+                      <span className="font-bold">
+                        {formatVND(daily.bep_an.chi_cong_tho_ngay)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onOpenManualForm ? onOpenManualForm('cham_cong') : onJumpToForm?.('cham_cong')
+                        }
+                        className="px-1.5 py-0.5 rounded-md bg-white hover:bg-stone-100 border border-stone-300 text-[10px] font-bold text-stone-700 inline-flex items-center gap-0.5"
+                      >
+                        <Pencil className="w-2.5 h-2.5" />
+                        Sửa
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* THẺ 2: CĂN TIN — CHỈ HIỆN THU & CHI NHẬP HÀNG TRONG NGÀY */}
-          <div className="rounded-3xl bg-white border-2 border-amber-500 p-4 shadow-xs space-y-3">
-            <div>
-              <h2 className="text-xl font-extrabold text-amber-950">
-                Căn tin — Thu & Chi trong ngày
-              </h2>
-              <p className="text-base text-stone-600 mt-0.5">
-                Không tính lãi ngày Căn tin (lãi Căn tin được chốt theo tháng)
-              </p>
+          {/* THẺ 2: CĂN TIN — THU & CHI TRONG NGÀY */}
+          <div className="rounded-2xl bg-white border border-amber-400 p-3 shadow-xs space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-xs font-bold text-amber-950 uppercase tracking-wide">
+                  Căn tin — Thu & Chi trong ngày
+                </h2>
+                <p className="text-[11px] text-stone-500">
+                  Lãi Căn tin được chốt theo tháng
+                </p>
+              </div>
+              {daily.can_tin.tong_thu_quay_cuoi_ngay > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onOpenManualForm ? onOpenManualForm('thu_cuoi_ngay') : onJumpToForm?.('thu_cuoi_ngay')
+                  }
+                  className="px-2 py-0.5 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-300 text-[11px] font-bold text-amber-900 inline-flex items-center gap-0.5 shrink-0"
+                >
+                  <Pencil className="w-3 h-3" />
+                  Sửa thu
+                </button>
+              )}
             </div>
 
             {daily.can_tin.canh_bao_lech_vang_lai && (
-              <div className="p-3 rounded-2xl bg-rose-50 border-2 border-rose-400 text-rose-950 flex items-start gap-2.5">
-                <AlertTriangle className="w-6 h-6 text-rose-700 shrink-0 mt-0.5" />
-                <div className="text-base font-semibold leading-snug">
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
+                <div className="text-xs font-semibold leading-snug">
                   Tổng thu cuối ngày ({formatVND(daily.can_tin.tong_thu_quay_cuoi_ngay)}) đang nhỏ
-                  hơn tiền suất ăn vãng lai ({formatVND(daily.bep_an.doanh_thu_vang_lai)}). Ông/bà
-                  kiểm tra lại mục Thu cuối ngày nhé!
+                  hơn tiền suất vãng lai ({formatVND(daily.bep_an.doanh_thu_vang_lai)}).
                 </div>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 text-lg">
-              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300">
-                <div className="text-amber-950 text-base font-semibold">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200">
+                <div className="text-amber-950 text-[11px] font-semibold">
                   Doanh thu Căn tin
                 </div>
-                <div className="font-extrabold text-xl text-amber-950 mt-0.5">
+                <div className="font-black text-sm text-amber-950 mt-0.5">
                   {formatVND(daily.can_tin.doanh_thu_can_tin)}
                 </div>
               </div>
-              <div className="p-3.5 rounded-2xl bg-stone-100 border border-stone-300">
-                <div className="text-stone-700 text-base font-semibold">
+              <div className="p-2.5 rounded-xl bg-stone-50 border border-stone-200">
+                <div className="text-stone-700 text-[11px] font-semibold">
                   Chi nhập hàng
                 </div>
-                <div className="font-extrabold text-xl text-rose-800 mt-0.5">
+                <div className="font-black text-sm text-rose-800 mt-0.5">
                   {formatVND(daily.can_tin.chi_nhap_hang_ngay)}
                 </div>
               </div>
             </div>
 
             {daily.can_tin.tong_thu_quay_cuoi_ngay > 0 ? (
-              <div className="p-3 rounded-2xl bg-stone-50 border border-stone-200 space-y-1 text-base text-stone-700">
+              <div className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 space-y-1 text-xs text-stone-700">
                 <div className="flex justify-between">
                   <span>• Tổng thu quầy cuối ngày:</span>
                   <strong className="text-stone-900">
                     {formatVND(daily.can_tin.tong_thu_quay_cuoi_ngay)}
                   </strong>
                 </div>
-                <div className="text-sm text-stone-600 pl-3">
+                <div className="text-[11px] text-stone-500 pl-2">
                   (Tiền mặt: {formatVND(daily.can_tin.thu_tien_mat_cuoi_ngay)} · CK Chị Nhàn:{' '}
                   {formatVND(daily.can_tin.thu_chuyen_khoan_cuoi_ngay)})
                 </div>
                 {daily.can_tin.tru_tien_vang_lai > 0 && (
                   <div className="flex justify-between text-teal-900">
-                    <span>• Tự tách tiền vãng lai sang Bếp ăn:</span>
+                    <span>• Tự tách vãng lai sang Bếp ăn:</span>
                     <strong>-{formatVND(daily.can_tin.tru_tien_vang_lai)}</strong>
                   </div>
                 )}
@@ -571,33 +656,127 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                 )}
               </div>
             ) : (
-              onJumpToForm && (
-                <button
-                  type="button"
-                  onClick={() => onJumpToForm('thu_cuoi_ngay')}
-                  className="w-full py-2.5 px-4 rounded-2xl bg-amber-100 hover:bg-amber-200 border border-amber-400 text-amber-950 font-bold text-base"
-                >
-                  Nhập tổng thu cuối ngày (TM + CK Chị Nhàn)
-                </button>
-              )
+              <button
+                type="button"
+                onClick={() =>
+                  onOpenManualForm ? onOpenManualForm('thu_cuoi_ngay') : onJumpToForm?.('thu_cuoi_ngay')
+                }
+                className="w-full py-2 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-950 font-bold text-xs"
+              >
+                Nhập tổng thu cuối ngày (TM + CK Chị Nhàn)
+              </button>
             )}
           </div>
 
-          {/* THẺ 3: BIỂU ĐỒ 7 NGÀY GẦN NHẤT (BẤM VÀO CỘT ĐỂ XEM NGÀY ĐÓ) */}
-          <div className="rounded-3xl bg-white border-2 border-stone-300 p-4 shadow-xs space-y-3">
+          {/* THẺ MỚI: DANH SÁCH THU CHI TRONG NGÀY (CÓ NÚT SỬA TAY SỐ LIỆU CHO ADMIN) */}
+          <div className="rounded-2xl bg-white border border-stone-200 p-3 shadow-xs space-y-2.5">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-6 h-6 text-teal-800 shrink-0" />
-                <h2 className="text-xl font-extrabold text-stone-900">
+              <div className="flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 text-stone-700 shrink-0" />
+                <h2 className="text-xs font-bold text-stone-900 uppercase tracking-wide">
+                  Các khoản thu chi ngày ({dayTransactions.length} mục)
+                </h2>
+              </div>
+              <span className="text-[11px] text-stone-500 font-semibold">
+                {formatVietnameseDate(localDate)}
+              </span>
+            </div>
+
+            {dayTransactions.length === 0 ? (
+              <div className="py-3 text-center text-xs text-stone-500 italic">
+                Chưa có giao dịch chi tiêu hoặc thu tiền nào được ghi trong ngày này.
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {dayTransactions.map((tx) => {
+                  const cat = snapshot.categories.find((c) => c.id === tx.category_id);
+                  const isIncome =
+                    tx.loai === 'thu' ||
+                    tx.loai === 'thu_cuoi_ngay' ||
+                    tx.loai === 'truong_chuyen' ||
+                    tx.loai === 'thu_no';
+                  const isDebt = tx.loai === 'chi_no' || tx.loai === 'ban_chiu';
+                  const wallet = snapshot.wallets.find((w) => w.id === tx.wallet_id);
+                  const sup = snapshot.suppliers.find((s) => s.id === tx.supplier_id);
+                  const title = tx.ghi_chu || cat?.ten_danh_muc || 'Giao dịch';
+
+                  return (
+                    <div
+                      key={tx.id}
+                      className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 space-y-1.5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-stone-900 leading-snug">
+                            {title}
+                          </div>
+                          <div className="text-[11px] font-medium text-stone-500 mt-0.5">
+                            {cat?.ten_danh_muc ?? ''}
+                            {sup ? ` · ${sup.ten_ncc}` : ''}
+                            {wallet ? ` · ${wallet.ten_vi}` : ''}
+                            {isDebt ? ' · (Mua chịu ghi nợ)' : ''}
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <div
+                            className={`text-xs font-black ${
+                              isIncome
+                                ? 'text-emerald-700'
+                                : isDebt
+                                ? 'text-amber-800'
+                                : 'text-rose-700'
+                            }`}
+                          >
+                            {isIncome ? `+${formatVND(tx.so_tien)}` : `-${formatVND(tx.so_tien)}`}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-stone-200/60">
+                        {onOpenManualForm && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onOpenManualForm(mapTransactionToFormKind(tx, snapshot), tx)
+                            }
+                            className="px-2 py-0.5 rounded-lg bg-white hover:bg-stone-100 border border-stone-300 text-[11px] font-bold text-stone-700 inline-flex items-center gap-1"
+                          >
+                            <Pencil className="w-3 h-3 text-stone-600" />
+                            Sửa
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTx(tx)}
+                          className="px-2 py-0.5 rounded-lg bg-white hover:bg-rose-50 border border-stone-300 text-[11px] font-bold text-stone-600 hover:text-rose-700 inline-flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3 h-3 text-rose-600" />
+                          Xóa
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* THẺ 3: BIỂU ĐỒ 7 NGÀY GẦN NHẤT */}
+          <div className="rounded-2xl bg-white border border-stone-200 p-3 shadow-xs space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-teal-800 shrink-0" />
+                <h2 className="text-xs font-bold text-stone-900 uppercase tracking-wide">
                   Biểu đồ Lãi Bếp 7 ngày
                 </h2>
               </div>
-              <span className="text-sm font-bold text-stone-600">
+              <span className="text-[11px] font-semibold text-stone-500">
                 Chạm cột để xem
               </span>
             </div>
 
-            <div className="grid grid-cols-7 gap-1.5 pt-2 items-end">
+            <div className="grid grid-cols-7 gap-1 pt-1.5 items-end">
               {sevenDays.diem_ngay.map((pt) => {
                 const isSelected = pt.ngay === localDate;
                 const { thuNgan, ngayThang } = formatShortWeekdayDate(pt.ngay);
@@ -606,8 +785,8 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                   Math.abs(pt.bep_lai_ngay) / maxAbsSevenDayProfit
                 );
                 const barHeightPx = pt.co_ghi_chep
-                  ? Math.max(16, Math.round(ratio * 92))
-                  : 8;
+                  ? Math.max(12, Math.round(ratio * 68))
+                  : 6;
 
                 const barColor = !pt.co_ghi_chep
                   ? 'bg-stone-300'
@@ -632,14 +811,14 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                     type="button"
                     onClick={() => handleChangeDate(pt.ngay)}
                     aria-label={`Xem ngày ${pt.ngay}`}
-                    className={`p-1.5 rounded-2xl flex flex-col items-center justify-end transition ${
+                    className={`p-1 rounded-xl flex flex-col items-center justify-end transition ${
                       isSelected
                         ? 'bg-teal-50 ring-2 ring-teal-700'
                         : 'hover:bg-stone-100'
                     }`}
                   >
                     <div
-                      className={`text-[11px] font-extrabold leading-tight mb-1 truncate max-w-full ${
+                      className={`text-[10px] font-bold leading-tight mb-0.5 truncate max-w-full ${
                         !pt.co_ghi_chep
                           ? 'text-stone-400'
                           : pt.bep_lai_ngay >= 0
@@ -650,24 +829,24 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                       {shortVal}
                     </div>
 
-                    <div className="h-[96px] w-full flex items-end justify-center">
+                    <div className="h-[72px] w-full flex items-end justify-center">
                       <div
                         style={{ height: `${barHeightPx}px` }}
-                        className={`w-full max-w-[28px] rounded-t-lg transition-all ${barColor}`}
+                        className={`w-full max-w-[20px] rounded-t-md transition-all ${barColor}`}
                       />
                     </div>
 
                     <div
-                      className={`mt-1.5 text-sm font-extrabold leading-none ${
+                      className={`mt-1 text-xs font-bold leading-none ${
                         isSelected ? 'text-teal-950' : 'text-stone-800'
                       }`}
                     >
                       {thuNgan}
                     </div>
-                    <div className="text-[11px] font-semibold text-stone-600 mt-0.5">
+                    <div className="text-[10px] font-medium text-stone-500 mt-0.5">
                       {ngayThang}
                     </div>
-                    <div className="text-[11px] font-bold text-stone-500">
+                    <div className="text-[10px] font-bold text-stone-400">
                       {pt.bep_tong_suat > 0 ? `${pt.bep_tong_suat}s` : '·'}
                     </div>
                   </button>
@@ -675,30 +854,30 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
               })}
             </div>
 
-            <div className="p-3 rounded-2xl bg-stone-100 border border-stone-200 flex flex-wrap items-center justify-between gap-2 text-base">
-              <span className="text-stone-700 font-semibold">
-                7 ngày ({sevenDays.so_ngay_co_ghi_chep}/7 ngày ghi sổ ·{' '}
+            <div className="p-2 rounded-xl bg-stone-100 border border-stone-200 flex flex-wrap items-center justify-between gap-1 text-xs">
+              <span className="text-stone-700 font-medium">
+                7 ngày ({sevenDays.so_ngay_co_ghi_chep}/7 ngày ·{' '}
                 <strong>{sevenDays.tong_suat_7_ngay} suất</strong>)
               </span>
               <span
-                className={`font-extrabold ${
+                className={`font-black ${
                   sevenDays.tong_lai_bep_7_ngay >= 0
                     ? 'text-teal-900'
                     : 'text-rose-800'
                 }`}
               >
-                Tổng lãi Bếp: {formatVND(sevenDays.tong_lai_bep_7_ngay, true)}
+                Tổng lãi: {formatVND(sevenDays.tong_lai_bep_7_ngay, true)}
               </span>
             </div>
           </div>
 
           {/* THẺ 4: ĐƠN GIÁ ÁP DỤNG */}
-          <div className="rounded-3xl bg-white border border-stone-300 p-4">
-            <div className="flex items-center gap-2 font-bold text-lg text-stone-800 mb-2">
-              <BookOpen className="w-5 h-5 text-teal-700" />
-              Đơn giá áp dụng ngày {localDate.split('-').reverse().join('/')}
+          <div className="rounded-2xl bg-white border border-stone-200 p-3 space-y-1.5">
+            <div className="flex items-center gap-1.5 font-bold text-xs text-stone-800 uppercase tracking-wide">
+              <BookOpen className="w-3.5 h-3.5 text-teal-700" />
+              Đơn giá áp dụng ({localDate.split('-').reverse().join('/')})
             </div>
-            <div className="grid grid-cols-2 gap-2 text-base text-stone-700">
+            <div className="grid grid-cols-2 gap-1 text-xs text-stone-700">
               <div>
                 • Sáng (trường): <strong>{formatVND(giaSangTr)}</strong>
               </div>
@@ -720,32 +899,32 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
       {/* CHẾ ĐỘ 2: BÁO CÁO THÁNG (LÃI RÒNG, CHI PHÍ THÁNG, CƠ CẤU DANH MỤC) */}
       {/* ================================================================= */}
       {mode === 'thang' && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Bộ chọn kỳ tháng */}
-          <div className="rounded-3xl bg-white border-2 border-stone-300 p-3.5 shadow-xs">
-            <div className="flex items-center justify-between gap-2">
+          <div className="rounded-2xl bg-white border border-stone-200 p-2.5 shadow-xs">
+            <div className="flex items-center justify-between gap-1.5">
               <button
                 type="button"
                 onClick={() => setSelectedMonth(getPreviousYearMonth(selectedMonth))}
                 aria-label="Tháng trước"
-                className="min-h-[48px] px-3 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 font-bold text-base text-stone-800 inline-flex items-center gap-1 shrink-0"
+                className="min-h-[38px] px-2.5 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-300 font-bold text-xs text-stone-800 inline-flex items-center gap-1 shrink-0"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-4 h-4" />
                 Tháng trước
               </button>
 
               <div className="text-center min-w-0 flex-1">
-                <div className="text-xl font-extrabold text-stone-900">
+                <div className="text-xs font-bold text-stone-900">
                   {formatVietnameseMonth(selectedMonth)}
                 </div>
-                <div className="text-sm font-semibold text-stone-600 mt-0.5">
+                <div className="text-[11px] font-medium text-stone-500 mt-0.5">
                   {monthly.so_ngay_hoat_dong} ngày có ghi sổ
                 </div>
                 {selectedMonth !== currentYearMonth && (
                   <button
                     type="button"
                     onClick={() => setSelectedMonth(currentYearMonth)}
-                    className="mt-1 px-3 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-950 text-sm font-bold border border-amber-400"
+                    className="mt-0.5 px-2 py-0.2 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-950 text-[11px] font-bold border border-amber-300"
                   >
                     Về tháng này
                   </button>
@@ -756,30 +935,30 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                 type="button"
                 onClick={() => setSelectedMonth(getNextYearMonth(selectedMonth))}
                 aria-label="Tháng sau"
-                className="min-h-[48px] px-3 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 font-bold text-base text-stone-800 inline-flex items-center gap-1 shrink-0"
+                className="min-h-[38px] px-2.5 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-300 font-bold text-xs text-stone-800 inline-flex items-center gap-1 shrink-0"
               >
                 Tháng sau
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
 
           {/* THẺ HERO: LÃI RÒNG TOÀN CƠ SỞ */}
           <div
-            className={`rounded-3xl p-5 border-2 shadow-sm space-y-3 ${
+            className={`rounded-2xl p-3 border shadow-xs space-y-2 ${
               monthly.lai_rong_toan_co_so >= 0
                 ? 'bg-teal-900 text-white border-teal-950'
                 : 'bg-rose-900 text-white border-rose-950'
             }`}
           >
-            <div className="text-lg font-bold opacity-95">
+            <div className="text-xs font-bold opacity-90">
               Lãi ròng toàn cơ sở ({formatVietnameseMonth(selectedMonth)})
             </div>
-            <div className="text-3xl font-extrabold">
+            <div className="text-lg font-black">
               {formatVND(monthly.lai_rong_toan_co_so, true)}
             </div>
 
-            <div className="rounded-2xl bg-black/20 p-3.5 space-y-1.5 text-base">
+            <div className="rounded-xl bg-black/20 p-2.5 space-y-1 text-xs">
               <div className="flex justify-between">
                 <span>+ Lãi Bếp ăn cả tháng:</span>
                 <strong>{formatVND(monthly.bep_an.lai_bep_an, true)}</strong>
@@ -789,7 +968,7 @@ export const ProfitReportView: React.FC<ProfitReportViewProps> = ({
                 <strong>{formatVND(monthly.can_tin.lai_can_tin, true)}</strong>
               </div>
               <div className="flex justify-between">
-                <span>− Chi chung cuối tháng (điện, nước, vệ sinh):</span>
+                <span>− Chi chung cuối tháng:</span>
                 <strong>-{formatVND(monthly.chi_cuoi_thang_chung)}</strong>
               </div>
             </div>

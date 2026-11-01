@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { generateId } from '../domain/format';
+import type { AiSettings } from '../types/aiSettings';
+import { DEFAULT_AI_SETTINGS } from '../types/aiSettings';
 import type {
   Attendance,
   AuthSession,
@@ -1418,5 +1420,103 @@ export class SupabaseAdapter implements DataRepository {
       pushedCounts,
       totalRows,
     };
+  }
+
+  async getAiSettings(_actor?: AuthSession | null): Promise<AiSettings> {
+    if (this.client) {
+      try {
+        const { data, error } = await this.client
+          .from('ai_settings')
+          .select('*')
+          .eq('id', 'default')
+          .maybeSingle();
+
+        if (!error && data) {
+          const settings: AiSettings = {
+            id: data.id || 'default',
+            provider: data.provider || 'gemini',
+            api_key: data.api_key || '',
+            model: data.model || 'gemini-3.8-flash',
+            endpoint: data.endpoint || '',
+            temperature: typeof data.temperature === 'number' ? data.temperature : 0.1,
+            enabled: data.enabled ?? true,
+            updated_at: data.updated_at,
+          };
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('sobep_ai_settings_v1', JSON.stringify(settings));
+          }
+          return settings;
+        }
+      } catch {
+        // Table chưa tạo hoặc lỗi mạng -> rơi xuống cache máy
+      }
+    }
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const cached = localStorage.getItem('sobep_ai_settings_v1');
+        if (cached) {
+          return { ...DEFAULT_AI_SETTINGS, ...JSON.parse(cached) };
+        }
+      }
+    } catch {
+      // Ignore
+    }
+    return { ...DEFAULT_AI_SETTINGS };
+  }
+
+  async saveAiSettings(
+    actorOrSettings: AuthSession | null | AiSettings,
+    maybeSettings?: AiSettings
+  ): Promise<AiSettings> {
+    const actor =
+      actorOrSettings && typeof actorOrSettings === 'object' && 'vai_tro' in actorOrSettings
+        ? (actorOrSettings as AuthSession)
+        : null;
+    const settings =
+      maybeSettings ??
+      (actorOrSettings && typeof actorOrSettings === 'object' && 'provider' in actorOrSettings
+        ? (actorOrSettings as AiSettings)
+        : DEFAULT_AI_SETTINGS);
+
+    const toSave: AiSettings = {
+      ...settings,
+      id: 'default',
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('sobep_ai_settings_v1', JSON.stringify(toSave));
+      }
+    } catch {
+      // Ignore
+    }
+
+    if (this.client) {
+      try {
+        const { error } = await this.client.from('ai_settings').upsert(
+          {
+            id: 'default',
+            provider: toSave.provider,
+            api_key: toSave.api_key,
+            model: toSave.model,
+            endpoint: toSave.endpoint || '',
+            temperature: toSave.temperature ?? 0.1,
+            enabled: toSave.enabled,
+            updated_at: toSave.updated_at,
+            updated_by: actor?.profile_id || 'admin',
+          },
+          { onConflict: 'id' }
+        );
+        if (error) {
+          console.warn('Lưu ai_settings lên Supabase:', error.message);
+        }
+      } catch (err) {
+        console.warn('Lỗi mạng khi lưu ai_settings lên Supabase:', err);
+      }
+    }
+
+    return toSave;
   }
 }

@@ -123,18 +123,18 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
       </div>
 
       <div>
-        <div className="text-base font-bold text-stone-900 leading-snug">{data.title}</div>
-        <div className="text-xs font-medium text-stone-500 mt-0.5">{data.dateLabel}</div>
+        <div className="text-sm font-bold text-stone-900 leading-snug">{data.title}</div>
+        <div className="text-[11px] font-medium text-stone-500 mt-0.5">{data.dateLabel}</div>
       </div>
 
       {/* Ô số tiền gọn gàng, rõ ràng, không nuốt màn hình */}
-      <div className={`rounded-xl p-2.5 border border-stone-200/80 ${style.boxBg}`}>
+      <div className={`rounded-xl p-2 border border-stone-200/80 ${style.boxBg}`}>
         {data.headlineAmount !== null ? (
           <>
-            <div className={`text-2xl font-black tracking-tight ${style.amountText}`}>
+            <div className={`text-lg font-black tracking-tight ${style.amountText}`}>
               {formatVND(data.headlineAmount)}
             </div>
-            <div className="text-xs font-semibold text-stone-600 mt-0.5">
+            <div className="text-[11px] font-semibold text-stone-600 mt-0.5">
               (Gọn: {formatCompactVND(data.headlineAmount)})
             </div>
           </>
@@ -230,14 +230,14 @@ export const UndoBanner: React.FC<{
   return (
     <div
       role="status"
-      className="rounded-2xl bg-emerald-900 text-white p-4 shadow-md flex flex-col gap-2.5 border-2 border-emerald-400"
+      className="rounded-xl bg-emerald-900 text-white p-2.5 shadow-md flex flex-col gap-2 border border-emerald-400"
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="text-lg font-bold">✓ {undoState.message}</div>
+        <div className="text-xs font-bold">✓ {undoState.message}</div>
         <button
           type="button"
           onClick={onDismiss}
-          className="text-sm underline opacity-80 hover:opacity-100 shrink-0"
+          className="text-xs underline opacity-80 hover:opacity-100 shrink-0"
         >
           Đóng
         </button>
@@ -246,7 +246,7 @@ export const UndoBanner: React.FC<{
         type="button"
         disabled={busy}
         onClick={handleUndo}
-        className="w-full py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-lg inline-flex items-center justify-center gap-2"
+        className="w-full py-1.5 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs inline-flex items-center justify-center gap-1.5"
       >
         <RotateCcw className="w-5 h-5" />
         {busy ? 'Đang hoàn tác...' : 'Vừa ghi nhầm, xóa đi'}

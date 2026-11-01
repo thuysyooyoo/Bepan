@@ -94,28 +94,28 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
     dayActiveTxs.length === 0;
 
   return (
-    <div className="space-y-3">
-      {/* Thanh chuyển ngày to rõ */}
-      <div className="rounded-2xl bg-white border-2 border-stone-300 p-3 shadow-xs space-y-2">
+    <div className="space-y-2.5">
+      {/* Thanh chuyển ngày gọn gàng */}
+      <div className="rounded-xl bg-white border border-stone-200 p-2.5 shadow-xs space-y-2">
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => onSelectDate(shiftDateISO(selectedDate, -1))}
             aria-label="Hôm trước"
-            className="p-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-900"
+            className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
 
           <div className="text-center flex-1">
-            <div className="text-lg font-extrabold text-stone-900">
+            <div className="text-xs font-bold text-stone-900">
               Sổ ngày: {formatVietnameseDate(selectedDate)}
             </div>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => e.target.value && onSelectDate(e.target.value)}
-              className="mt-1 text-base font-semibold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-200"
+              className="mt-0.5 text-xs font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200"
             />
           </div>
 
@@ -123,9 +123,9 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
             type="button"
             onClick={() => onSelectDate(shiftDateISO(selectedDate, 1))}
             aria-label="Hôm sau"
-            className="p-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-900"
+            className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700"
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
@@ -133,7 +133,7 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
           <button
             type="button"
             onClick={() => onSelectDate(today)}
-            className="w-full py-2 rounded-xl bg-teal-700 text-white font-bold text-base"
+            className="w-full py-1.5 rounded-lg bg-teal-700 text-white font-bold text-xs"
           >
             Quay về Hôm nay ({today})
           </button>
@@ -141,24 +141,24 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
       </div>
 
       {hasNothingToday ? (
-        <div className="rounded-2xl bg-white border border-dashed border-stone-400 p-6 text-center text-lg text-stone-600">
+        <div className="rounded-xl bg-white border border-dashed border-stone-300 p-4 text-center text-xs text-stone-500">
           Ngày này chưa có mục ghi chép nào ạ. Ông/bà bấm các nút bên trên để ghi sổ nhé!
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {/* 1. Thẻ suất ăn trong ngày */}
           {(mealRev.suat_truong > 0 || mealRev.suat_vang_lai > 0) && (
-            <div className="rounded-2xl bg-white border-2 border-teal-500 p-4 flex items-center justify-between gap-3">
+            <div className="rounded-xl bg-white border border-teal-200 p-2.5 flex items-center justify-between gap-2">
               <div>
-                <div className="text-lg font-extrabold text-teal-900">
+                <div className="text-xs font-bold text-teal-950">
                   Suất ăn: {mealRev.suat_truong} trường
                   {mealRev.suat_vang_lai > 0 ? ` + ${mealRev.suat_vang_lai} vãng lai` : ''}
                 </div>
-                <div className="text-base text-stone-600 mt-0.5">
+                <div className="text-[11px] text-stone-500 mt-0.5">
                   Sáng {mealRev.chi_tiet_bua.sang.suat_truong} · Trưa{' '}
                   {mealRev.chi_tiet_bua.trua.suat_truong} · Tối{' '}
                   {mealRev.chi_tiet_bua.toi.suat_truong} →{' '}
-                  <strong className="text-teal-800">
+                  <strong className="text-teal-800 font-bold">
                     {formatVND(mealRev.tong_doanh_thu_suat_an)}
                   </strong>
                 </div>
@@ -166,9 +166,9 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
               <button
                 type="button"
                 onClick={() => onOpenManualForm('suat_an')}
-                className="px-3.5 py-2 rounded-xl bg-stone-100 border border-stone-300 font-bold text-base text-stone-800 inline-flex items-center gap-1 shrink-0"
+                className="px-2 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-200 font-semibold text-xs text-stone-700 inline-flex items-center gap-1 shrink-0"
               >
-                <Pencil className="w-4 h-4" />
+                <Pencil className="w-3.5 h-3.5" />
                 Sửa
               </button>
             </div>
@@ -176,22 +176,22 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
 
           {/* 2. Thẻ chấm công trong ngày */}
           {dayAtt.length > 0 && (
-            <div className="rounded-2xl bg-white border-2 border-sky-400 p-4 flex items-center justify-between gap-3">
+            <div className="rounded-xl bg-white border border-sky-200 p-2.5 flex items-center justify-between gap-2">
               <div>
-                <div className="text-lg font-extrabold text-sky-950">
+                <div className="text-xs font-bold text-sky-950">
                   Phụ bếp đi làm: {tongCongNgay} công
                 </div>
-                <div className="text-base text-stone-600 mt-0.5">
+                <div className="text-[11px] text-stone-500 mt-0.5">
                   Chi phí công hôm nay:{' '}
-                  <strong className="text-orange-800">{formatVND(tongTienCongNgay)}</strong>
+                  <strong className="text-orange-800 font-bold">{formatVND(tongTienCongNgay)}</strong>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => onOpenManualForm('cham_cong')}
-                className="px-3.5 py-2 rounded-xl bg-stone-100 border border-stone-300 font-bold text-base text-stone-800 inline-flex items-center gap-1 shrink-0"
+                className="px-2 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-200 font-semibold text-xs text-stone-700 inline-flex items-center gap-1 shrink-0"
               >
-                <Pencil className="w-4 h-4" />
+                <Pencil className="w-3.5 h-3.5" />
                 Sửa
               </button>
             </div>
@@ -207,12 +207,12 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
               tx.loai === 'thu_cuoi_ngay' || tx.loai === 'thu' || tx.loai === 'truong_chuyen';
             const isCreditBuy = tx.loai === 'chi_no';
             const amountColor = isIncome
-              ? 'text-emerald-800'
+              ? 'text-emerald-700'
               : isCreditBuy
               ? 'text-rose-700'
               : tx.loai === 'chuyen_quy'
-              ? 'text-teal-800'
-              : 'text-orange-800';
+              ? 'text-teal-700'
+              : 'text-orange-700';
 
             const subLine = isCreditBuy
               ? `Mua chịu: ${supplier?.ten_ncc ?? 'Mối hàng'}`
@@ -225,22 +225,22 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
             return (
               <div
                 key={tx.id}
-                className="rounded-2xl bg-white border-2 border-stone-200 p-4 shadow-xs space-y-2"
+                className="rounded-xl bg-white border border-stone-200 p-2.5 shadow-xs space-y-1.5"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-lg font-extrabold text-stone-900">
-                      {cat?.icon ?? ''} {tx.ghi_chu || cat?.ten_danh_muc}
+                    <div className="text-xs font-bold text-stone-900 truncate">
+                      {tx.ghi_chu || cat?.ten_danh_muc}
                     </div>
-                    <div className="text-base text-stone-600 mt-0.5">{subLine}</div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">{subLine}</div>
                   </div>
-                  <div className={`text-xl font-black shrink-0 ${amountColor}`}>
+                  <div className={`text-xs font-black shrink-0 ${amountColor}`}>
                     {isIncome ? '+' : tx.loai === 'chuyen_quy' ? '' : '-'}
                     {formatVND(tx.so_tien)}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-1 border-t border-stone-100">
+                <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-stone-100">
                   <button
                     type="button"
                     onClick={() =>
@@ -249,17 +249,17 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
                         tx.loai === 'thu_cuoi_ngay' ? undefined : tx
                       )
                     }
-                    className="px-3.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 font-bold text-base text-stone-800 inline-flex items-center gap-1"
+                    className="px-2 py-0.5 rounded-md bg-stone-100 hover:bg-stone-200 font-semibold text-xs text-stone-700 inline-flex items-center gap-1"
                   >
-                    <Pencil className="w-4 h-4" />
+                    <Pencil className="w-3 h-3" />
                     Sửa
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSoftDelete(tx)}
-                    className="px-3.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 font-bold text-base text-red-800 inline-flex items-center gap-1"
+                    className="px-2 py-0.5 rounded-md bg-red-50 hover:bg-red-100 border border-red-200 font-semibold text-xs text-red-700 inline-flex items-center gap-1"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3 h-3" />
                     Xóa
                   </button>
                 </div>
@@ -271,11 +271,11 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
 
       {/* Khu vực khôi phục giao dịch đã xóa mềm trong ngày */}
       {dayDeletedTxs.length > 0 && (
-        <div className="pt-2">
+        <div className="pt-1">
           <button
             type="button"
             onClick={() => setShowDeleted((v) => !v)}
-            className="text-base font-bold text-stone-600 underline"
+            className="text-xs font-semibold text-stone-500 underline"
           >
             {showDeleted
               ? 'Ẩn các mục đã xóa'
@@ -283,23 +283,23 @@ export const DailyLedgerList: React.FC<DailyLedgerListProps> = ({
           </button>
 
           {showDeleted && (
-            <div className="mt-2 space-y-2">
+            <div className="mt-1.5 space-y-1.5">
               {dayDeletedTxs.map((tx) => (
                 <div
                   key={tx.id}
-                  className="rounded-xl bg-stone-200/70 border border-stone-300 p-3 flex items-center justify-between gap-2"
+                  className="rounded-lg bg-stone-100 border border-stone-200 p-2 flex items-center justify-between gap-2"
                 >
                   <div className="min-w-0">
-                    <div className="text-base font-bold text-stone-700 line-through truncate">
+                    <div className="text-xs font-semibold text-stone-600 line-through truncate">
                       {tx.ghi_chu} — {formatVND(tx.so_tien)}
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleRestore(tx)}
-                    className="px-3 py-1.5 rounded-xl bg-white border border-stone-400 font-bold text-base text-teal-800 inline-flex items-center gap-1 shrink-0"
+                    className="px-2 py-0.5 rounded-md bg-white border border-stone-300 font-semibold text-xs text-teal-700 inline-flex items-center gap-1 shrink-0"
                   >
-                    <RotateCcw className="w-4 h-4" />
+                    <RotateCcw className="w-3 h-3" />
                     Khôi phục
                   </button>
                 </div>

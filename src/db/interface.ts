@@ -15,6 +15,7 @@ import type {
   Wallet,
   Worker,
 } from '../types/models';
+import type { AiSettings } from '../types/aiSettings';
 
 export class PermissionDeniedError extends Error {
   constructor(message = 'Bạn không có quyền truy cập sổ của cơ sở này.') {
@@ -215,4 +216,10 @@ export interface DataRepository {
 
   /** Lắng nghe sự thay đổi trạng thái mạng / hàng đợi Offline */
   subscribeToOfflineStatus?(listener: (status: OfflineQueueStatus) => void): () => void;
+
+  /** Lấy cấu hình AI (Gemini / DeepSeek / OpenAI / Local) */
+  getAiSettings?(actor?: AuthSession | null): Promise<AiSettings>;
+
+  /** Lưu cấu hình AI lên Supabase và localStorage */
+  saveAiSettings?(actor: AuthSession | null, settings: AiSettings): Promise<AiSettings>;
 }

@@ -1,5 +1,20 @@
-import React, { useRef, useState } from 'react';
-import { Check, CloudUpload, Download, FileJson, Plus, RefreshCw, Upload, X } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import {
+  AlertTriangle,
+  Bot,
+  Check,
+  CheckCircle2,
+  CloudUpload,
+  Download,
+  Eye,
+  EyeOff,
+  FileJson,
+  Plus,
+  RefreshCw,
+  Sparkles,
+  Upload,
+  X,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { dbRepo } from '../db';
 import { getEffectiveMealPrice } from '../domain/accounting';
@@ -18,6 +33,9 @@ import type {
   GuestType,
   MealPeriod,
 } from '../types/models';
+import { testAiConnection } from '../ai/cloudAiClient';
+import type { AiProvider, AiSettings, AiTestResult } from '../types/aiSettings';
+import { DEFAULT_AI_SETTINGS } from '../types/aiSettings';
 import { MoneyInput } from './MoneyInput';
 
 interface SettingsModalProps {
@@ -26,7 +44,7 @@ interface SettingsModalProps {
   onChanged: () => Promise<void>;
 }
 
-type SettingsTab = 'gia_suat' | 'tho' | 'vi' | 'ncc' | 'danh_muc' | 'nhac_pin';
+type SettingsTab = 'gia_suat' | 'tho' | 'vi' | 'ncc' | 'danh_muc' | 'nhac_pin' | 'ai_config';
 
 const BUA_NAMES: Record<MealPeriod, string> = {
   sang: 'Bữa sáng',
@@ -46,6 +64,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [syncingCloud, setSyncingCloud] = useState(false);
   const today = getTodayISO();
   const bookId = snapshot.book.id;
+
+  // --- CẤU HÌNH AI ĐÁM MÂY (GEMINI / DEEPSEEK / OPENAI / LOCAL) ---
+  const [aiConfig, setAiConfig] = useState<AiSettings>(DEFAULT_AI_SETTINGS);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [testingAi, setTestingAi] = useState(false);
+  const [testResult, setTestResult] = useState<AiTestResult | null>(null);
+  const [savingAi, setSavingAi] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void dbRepo.getAiSettings?.(session).then((res) => {
+      if (active && res) setAiConfig(res);
+    });
+    return () => {
+      active = false;
+    };
+  }, [session]);
+
+  const handleTestAi = async () => {
+    setTestingAi(true);
+    setTestResult(null);
+    try {
+      const res = await testAiConnection(aiConfig);
+      setTestResult(res);
+    } finally {
+      setTestingAi(false);
+    }
+  };
+
+  const handleSaveAi = async () => {
+    setSavingAi(true);
+    try {
+      await dbRepo.saveAiSettings?.(session, aiConfig);
+      notify('Đã lưu cấu hình AI lên Supabase và bộ nhớ máy!');
+    } catch (err) {
+      setErrMsg(err instanceof Error ? err.message : 'Không thể lưu cấu hình AI.');
+    } finally {
+      setSavingAi(false);
+    }
+  };
 
   const notify = (msg: string) => {
     setErrMsg('');
@@ -247,12 +305,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!session) return null;
 
   const tabs: Array<{ key: SettingsTab; label: string }> = [
-    { key: 'gia_suat', label: 'Đơn giá suất' },
+    { key: 'gia_suat', label: 'Đơn giá' },
     { key: 'tho', label: 'Phụ bếp' },
-    { key: 'vi', label: '3 Ví & Số dư' },
+    { key: 'vi', label: '3 Ví' },
     { key: 'ncc', label: 'Mối hàng' },
     { key: 'danh_muc', label: 'Danh mục' },
-    { key: 'nhac_pin', label: 'Nhắc & PIN' },
+    { key: 'nhac_pin', label: 'Nhắc / PIN' },
+    { key: 'ai_config', label: 'AI (API Key)' },
   ];
 
   return (
@@ -274,8 +333,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        {/* Thanh chọn mục cài đặt */}
-        <div className="bg-white border-b border-stone-300 p-2 grid grid-cols-3 gap-1.5 sticky top-[64px] z-10">
+        {/* Thanh chọn mục cài đặt cuộn ngang mượt mà */}
+        <div className="bg-white border-b border-stone-200 p-1.5 flex gap-1 overflow-x-auto no-scrollbar sticky top-[64px] z-10">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -284,10 +343,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 setTab(t.key);
                 setErrMsg('');
               }}
-              className={`py-2 px-1 rounded-xl font-bold text-xs sm:text-sm text-center leading-tight border transition-colors ${
+              className={`py-1.5 px-3 rounded-lg font-bold text-xs whitespace-nowrap border transition-colors ${
                 tab === t.key
-                  ? 'bg-teal-700 text-white border-teal-700 shadow-sm'
-                  : 'bg-stone-50 text-stone-800 border-stone-200 hover:bg-stone-100'
+                  ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
+                  : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
               }`}
             >
               {t.label}
@@ -857,6 +916,210 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* 7. CẤU HÌNH AI ĐÁM MÂY (GEMINI / DEEPSEEK / OPENAI / LOCAL) */}
+          {tab === 'ai_config' && (
+            <div className="space-y-3">
+              <div className="rounded-2xl bg-white border border-stone-200 p-3.5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-teal-700 shrink-0" />
+                  <div>
+                    <h3 className="text-xs font-bold text-stone-900 uppercase tracking-wide">
+                      Cấu hình Trí tuệ nhân tạo (AI Settings)
+                    </h3>
+                    <p className="text-[11px] text-stone-500 mt-0.5">
+                      Lưu trên Supabase &amp; bộ nhớ máy để cả gia đình dùng chung. Khi hết token, Admin có thể đổi nhà cung cấp ngay trên điện thoại.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bật / Tắt AI Đám mây */}
+                <div className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-stone-800">
+                      Sử dụng AI Đám mây
+                    </div>
+                    <div className="text-[11px] text-stone-500">
+                      {aiConfig.enabled ? 'Đang bật phân tích thông minh' : 'Tắt AI đám mây (Dùng NLU máy 0 token)'}
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={aiConfig.enabled}
+                      onChange={(e) => setAiConfig((prev) => ({ ...prev, enabled: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-700"></div>
+                  </label>
+                </div>
+
+                {/* Nhà cung cấp AI */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-stone-700">
+                    Nhà cung cấp AI (Provider):
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { id: 'gemini', label: 'Google Gemini', desc: 'gemini-3.8-flash' },
+                      { id: 'deepseek', label: 'DeepSeek AI', desc: 'Rẻ, thông minh, mượt' },
+                      { id: 'openai', label: 'OpenAI / Khác', desc: 'GPT-4o mini, OpenRouter' },
+                      { id: 'local', label: 'NLU Cục bộ', desc: '0 token, chạy offline' },
+                    ].map((prov) => (
+                      <button
+                        key={prov.id}
+                        type="button"
+                        onClick={() => {
+                          const nextProvider = prov.id as AiProvider;
+                          const defaultModel =
+                            nextProvider === 'gemini'
+                              ? 'gemini-3.8-flash'
+                              : nextProvider === 'deepseek'
+                              ? 'deepseek-chat'
+                              : nextProvider === 'openai'
+                              ? 'gpt-4o-mini'
+                              : '';
+                          setAiConfig((prev) => ({
+                            ...prev,
+                            provider: nextProvider,
+                            model: defaultModel,
+                          }));
+                          setTestResult(null);
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition ${
+                          aiConfig.provider === prov.id
+                            ? 'bg-teal-50 border-teal-600 text-teal-950 font-bold shadow-xs'
+                            : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100'
+                        }`}
+                      >
+                        <div className="text-xs font-bold">{prov.label}</div>
+                        <div className="text-[10px] text-stone-500 mt-0.5">{prov.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {aiConfig.provider !== 'local' && (
+                  <>
+                    {/* API Key */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-stone-700 flex items-center justify-between">
+                        <span>API Key:</span>
+                        <span className="text-[10px] font-normal text-stone-500">
+                          {aiConfig.provider === 'gemini' ? 'Bắt đầu bằng AIza...' : 'Bắt đầu bằng sk-...'}
+                        </span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showApiKey ? 'text' : 'password'}
+                          value={aiConfig.api_key}
+                          onChange={(e) => setAiConfig((prev) => ({ ...prev, api_key: e.target.value }))}
+                          placeholder="Dán API Key vào đây..."
+                          className="w-full px-3 py-2 pr-10 rounded-xl border border-stone-300 text-xs font-mono text-stone-900 bg-stone-50"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey((v) => !v)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-700"
+                        >
+                          {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Model Name */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-stone-700">
+                        Tên Model:
+                      </label>
+                      <input
+                        type="text"
+                        value={aiConfig.model}
+                        onChange={(e) => setAiConfig((prev) => ({ ...prev, model: e.target.value }))}
+                        placeholder="VD: gemini-3.8-flash, deepseek-chat..."
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-mono text-stone-900 bg-stone-50"
+                      />
+                    </div>
+
+                    {/* Endpoint (Optional) */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-stone-700 flex items-center justify-between">
+                        <span>URL Máy chủ / Endpoint tùy chỉnh (Tùy chọn):</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={aiConfig.endpoint || ''}
+                        onChange={(e) => setAiConfig((prev) => ({ ...prev, endpoint: e.target.value }))}
+                        placeholder="Để trống nếu dùng mặc định của nhà cung cấp"
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs text-stone-900 bg-stone-50"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Nút Kiểm tra kết nối */}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    disabled={testingAi}
+                    onClick={handleTestAi}
+                    className="w-full py-2 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-800 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-[0.99]"
+                  >
+                    {testingAi ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-stone-600" />
+                        <span>Đang kiểm tra kết nối...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 text-teal-700" />
+                        <span>Kiểm tra kết nối AI ngay</span>
+                      </>
+                    )}
+                  </button>
+
+                  {testResult && (
+                    <div
+                      className={`mt-2 p-2.5 rounded-xl border text-xs leading-relaxed ${
+                        testResult.success
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-medium'
+                          : 'bg-rose-50 border-rose-300 text-rose-950 font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold mb-0.5">
+                        {testResult.success ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
+                        )}
+                        <span>{testResult.success ? 'Kết nối thành công!' : 'Kết nối thất bại!'}</span>
+                      </div>
+                      <div>{testResult.message}</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Nút Lưu cấu hình */}
+                <div className="pt-2 border-t border-stone-200">
+                  <button
+                    type="button"
+                    disabled={savingAi}
+                    onClick={handleSaveAi}
+                    className="w-full py-2.5 px-4 rounded-xl bg-teal-800 hover:bg-teal-900 disabled:opacity-50 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 transition active:scale-[0.99] shadow-xs"
+                  >
+                    {savingAi ? (
+                      <span>Đang lưu...</span>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Lưu cấu hình AI</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

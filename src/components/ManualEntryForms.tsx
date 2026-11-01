@@ -829,9 +829,9 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       {/* --- GIAO DIỆN FORM 1: BÁO SUẤT ĂN --- */}
       {kind === 'suat_an' && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h3 className="text-2xl font-extrabold text-teal-900">Báo suất ăn trong ngày</h3>
+            <h3 className="text-xs font-bold text-teal-900 uppercase tracking-wide">Báo suất ăn trong ngày</h3>
             {prevMealHint && (
               <button
                 type="button"
@@ -843,17 +843,17 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                   }));
                   setCopiedFromDate(prevMealHint.ngay);
                 }}
-                className="px-4 py-2.5 rounded-2xl bg-amber-100 border-2 border-amber-500 text-amber-950 font-extrabold text-lg inline-flex items-center gap-2 active:bg-amber-200"
+                className="px-2.5 py-1.5 rounded-lg bg-amber-100 border border-amber-400 text-amber-950 font-bold text-xs inline-flex items-center gap-1.5 active:bg-amber-200"
               >
-                <Copy className="w-5 h-5" />
+                <Copy className="w-3.5 h-3.5" />
                 Giống hôm trước ({prevMealHint.ngay.slice(8, 10)}/{prevMealHint.ngay.slice(5, 7)})
               </button>
             )}
           </div>
 
           {copiedFromDate && (
-            <div className="rounded-xl bg-amber-50 border border-amber-300 px-3.5 py-2 text-base font-semibold text-amber-900">
-              ✓ Đã chép số suất trường từ ngày {copiedFromDate}. Ông/bà chỉnh lại nếu hôm nay tăng/giảm nhé!
+            <div className="rounded-lg bg-amber-50 border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-900">
+              Đã chép số suất trường từ ngày {copiedFromDate}. Ông/bà chỉnh lại nếu hôm nay tăng/giảm nhé!
             </div>
           )}
 
@@ -863,12 +863,12 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
             return (
               <div
                 key={bua}
-                className="rounded-2xl bg-stone-50 border-2 border-stone-200 p-3.5 space-y-2.5"
+                className="rounded-xl bg-stone-50 border border-stone-200 p-2.5 space-y-1.5"
               >
-                <div className="font-extrabold text-xl text-stone-900">{PERIOD_LABELS[bua]}</div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="font-bold text-xs text-stone-900">{PERIOD_LABELS[bua]}</div>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-base font-bold text-stone-700 mb-1">
+                    <label className="block text-[11px] font-semibold text-stone-600 mb-0.5">
                       Suất trường ({formatVND(dgTr)})
                     </label>
                     <input
@@ -883,11 +883,11 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                           [bua]: { ...prev[bua], truong: Math.max(0, Number(e.target.value || 0)) },
                         }))
                       }
-                      className="w-full rounded-xl border-2 border-stone-400 bg-white px-3 py-2.5 text-2xl font-extrabold text-stone-950"
+                      className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-base font-bold text-stone-950"
                     />
                   </div>
                   <div>
-                    <label className="block text-base font-bold text-stone-700 mb-1">
+                    <label className="block text-[11px] font-semibold text-stone-600 mb-0.5">
                       Vãng lai ({formatVND(dgVl)})
                     </label>
                     <input
@@ -905,7 +905,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                           },
                         }))
                       }
-                      className="w-full rounded-xl border-2 border-stone-400 bg-white px-3 py-2.5 text-2xl font-extrabold text-stone-950"
+                      className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-base font-bold text-stone-950"
                     />
                   </div>
                 </div>
@@ -917,12 +917,12 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       {/* --- GIAO DIỆN FORM 2: THU CUỐI NGÀY (CÁCH A) --- */}
       {kind === 'thu_cuoi_ngay' && (
-        <div className="space-y-4">
-          <h3 className="text-2xl font-extrabold text-emerald-900">
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold text-emerald-900 uppercase tracking-wide">
             Thu tiền cuối ngày (Căn tin + Vãng lai)
           </h3>
           {hasExistingCollection && (
-            <div className="rounded-xl bg-amber-50 border border-amber-400 p-3 text-base font-semibold text-amber-950">
+            <div className="rounded-lg bg-amber-50 border border-amber-300 p-2.5 text-xs font-medium text-amber-950">
               Ngày này đã có số thu cuối ngày — bấm Lưu sẽ cập nhật thành số mới (không bị cộng trùng).
             </div>
           )}
@@ -938,16 +938,16 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
             onChange={setThuChuyenKhoan}
           />
 
-          <div className="rounded-2xl bg-emerald-50 border border-emerald-300 p-3.5 space-y-1 text-base">
-            <div className="flex justify-between font-bold text-stone-800">
+          <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 space-y-1 text-xs">
+            <div className="flex justify-between font-semibold text-stone-700">
               <span>Tổng tiền thực thu vào ví:</span>
               <span>{formatVND(thuTienMat + thuChuyenKhoan)}</span>
             </div>
-            <div className="flex justify-between text-stone-700">
+            <div className="flex justify-between text-stone-600">
               <span>Trừ tiền suất vãng lai hôm nay ({dayMealRev.suat_vang_lai} suất):</span>
               <span>-{formatVND(dayMealRev.doanh_thu_vang_lai)}</span>
             </div>
-            <div className="flex justify-between font-extrabold text-emerald-900 text-lg pt-1 border-t border-emerald-200">
+            <div className="flex justify-between font-bold text-emerald-900 text-xs pt-1 border-t border-emerald-200">
               <span>→ Doanh thu Căn tin hôm nay:</span>
               <span>
                 {formatVND(Math.max(0, thuTienMat + thuChuyenKhoan - dayMealRev.doanh_thu_vang_lai))}
@@ -959,8 +959,8 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       {/* --- GIAO DIỆN FORM 3 & 8: CHI HẰNG NGÀY / CHI CUỐI THÁNG --- */}
       {(kind === 'chi' || kind === 'chi_phi_thang') && (
-        <div className="space-y-4">
-          <h3 className="text-2xl font-extrabold text-orange-900">
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold text-orange-900 uppercase tracking-wide">
             {editingTx
               ? 'Sửa khoản chi'
               : kind === 'chi_phi_thang'
@@ -984,7 +984,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
               <button
                 type="button"
                 onClick={() => setMang('can_tin')}
-                className={`py-3 px-3 rounded-2xl border-2 font-extrabold text-lg ${
+                className={`py-2 px-2.5 rounded-lg border font-bold text-xs ${
                   mang === 'can_tin'
                     ? 'border-amber-600 bg-amber-600 text-white'
                     : 'border-stone-300 bg-stone-50 text-stone-800'
@@ -997,7 +997,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
           {kind === 'chi_phi_thang' && (
             <div>
-              <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
+              <label className="block text-xs font-bold text-stone-900 mb-1">
                 Tính vào lợi nhuận tháng nào?
               </label>
               <div className="flex items-center gap-2 flex-wrap">
@@ -1005,12 +1005,12 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                   type="month"
                   value={kyThang}
                   onChange={(e) => setKyThang(e.target.value)}
-                  className="rounded-xl border-2 border-stone-400 px-3 py-2 text-lg font-extrabold"
+                  className="rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-bold"
                 />
                 <button
                   type="button"
                   onClick={() => setKyThang(getPreviousYearMonth(getYearMonth(ngay)))}
-                  className="px-3.5 py-2 rounded-xl bg-stone-200 font-bold text-base text-stone-800"
+                  className="px-2.5 py-1.5 rounded-lg bg-stone-100 font-semibold text-xs text-stone-700"
                 >
                   Chọn tháng trước ({getPreviousYearMonth(getYearMonth(ngay))})
                 </button>
@@ -1019,10 +1019,10 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
           )}
 
           <div>
-            <label className="block text-lg font-extrabold text-stone-900 mb-2">
+            <label className="block text-xs font-bold text-stone-900 mb-1.5">
               Chọn mặt hàng / khoản chi:
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
               {availableCategories.map((c) => {
                 const selected = c.id === categoryId;
                 return (
@@ -1033,13 +1033,12 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                       setCategoryId(c.id);
                       if (kind === 'chi_phi_thang') setMang(c.mang_mac_dinh);
                     }}
-                    className={`p-3 rounded-2xl border-2 text-left flex items-center gap-2 font-bold text-base leading-snug ${
+                    className={`p-2 rounded-lg border text-left flex items-center font-semibold text-xs leading-snug ${
                       selected
-                        ? 'border-teal-700 bg-teal-50 text-teal-950 ring-2 ring-teal-600'
-                        : 'border-stone-300 bg-white text-stone-800'
+                        ? 'border-teal-700 bg-teal-50 text-teal-950 ring-1 ring-teal-600'
+                        : 'border-stone-200 bg-white text-stone-800'
                     }`}
                   >
-                    <span className="text-2xl shrink-0">{c.icon}</span>
                     <span>{c.ten_danh_muc}</span>
                   </button>
                 );
@@ -1051,14 +1050,14 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
           {/* Công tắc Trả tiền luôn vs Mua chịu ghi nợ */}
           <div>
-            <label className="block text-lg font-extrabold text-stone-900 mb-2">
+            <label className="block text-xs font-bold text-stone-900 mb-1">
               Thanh toán thế nào ạ?
             </label>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setHinhThucTra('tra_luon')}
-                className={`py-3 px-3 rounded-2xl border-2 font-extrabold text-lg ${
+                className={`py-2 px-2.5 rounded-lg border font-bold text-xs ${
                   hinhThucTra === 'tra_luon'
                     ? 'border-emerald-700 bg-emerald-700 text-white'
                     : 'border-stone-300 bg-stone-50 text-stone-800'
@@ -1069,7 +1068,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
               <button
                 type="button"
                 onClick={() => setHinhThucTra('ghi_no')}
-                className={`py-3 px-3 rounded-2xl border-2 font-extrabold text-lg ${
+                className={`py-2 px-2.5 rounded-lg border font-bold text-xs ${
                   hinhThucTra === 'ghi_no'
                     ? 'border-rose-700 bg-rose-700 text-white'
                     : 'border-stone-300 bg-stone-50 text-stone-800'
@@ -1082,13 +1081,13 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
           {hinhThucTra === 'tra_luon' ? (
             <div>
-              <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
+              <label className="block text-xs font-bold text-stone-900 mb-1">
                 Lấy tiền từ ví nào?
               </label>
               <select
                 value={walletId}
                 onChange={(e) => setWalletId(e.target.value)}
-                className="w-full rounded-2xl border-2 border-stone-400 bg-white px-3.5 py-3 text-lg font-bold text-stone-900"
+                className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-900"
               >
                 {snapshot.wallets.map((w) => (
                   <option key={w.id} value={w.id}>
@@ -1098,17 +1097,17 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
               </select>
             </div>
           ) : (
-            <div className="rounded-2xl bg-rose-50 border border-rose-300 p-3.5 space-y-2.5">
+            <div className="rounded-xl bg-rose-50 border border-rose-200 p-2.5 space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-lg font-extrabold text-rose-950">
+                <label className="text-xs font-bold text-rose-950">
                   Ghi nợ mối hàng nào?
                 </label>
                 <button
                   type="button"
                   onClick={() => setAddingNewSupplier((v) => !v)}
-                  className="text-base font-bold text-rose-800 underline inline-flex items-center gap-1"
+                  className="text-xs font-semibold text-rose-800 underline inline-flex items-center gap-1"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
                   {addingNewSupplier ? 'Chọn mối có sẵn' : 'Thêm mối mới'}
                 </button>
               </div>
@@ -1119,13 +1118,13 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                   value={newSupplierName}
                   onChange={(e) => setNewSupplierName(e.target.value)}
                   placeholder="Nhập tên người bán (VD: Chị Hạnh bán cá)"
-                  className="w-full rounded-xl border-2 border-rose-400 bg-white px-3.5 py-2.5 text-lg font-bold"
+                  className="w-full rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-semibold"
                 />
               ) : (
                 <select
                   value={supplierId}
                   onChange={(e) => setSupplierId(e.target.value)}
-                  className="w-full rounded-xl border-2 border-rose-400 bg-white px-3.5 py-3 text-lg font-bold text-stone-900"
+                  className="w-full rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-900"
                 >
                   {snapshot.suppliers.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -1138,7 +1137,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
           )}
 
           <div>
-            <label className="block text-base font-bold text-stone-700 mb-1">
+            <label className="block text-xs font-bold text-stone-700 mb-1">
               Ghi chú thêm (không bắt buộc)
             </label>
             <input
@@ -1146,7 +1145,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
               value={ghiChu}
               onChange={(e) => setGhiChu(e.target.value)}
               placeholder="VD: 5 cân thịt ba chỉ..."
-              className="w-full rounded-xl border-2 border-stone-300 px-3.5 py-2.5 text-lg"
+              className="w-full rounded-lg border border-stone-300 px-3 py-1.5 text-xs text-stone-900"
             />
           </div>
         </div>
@@ -1154,9 +1153,9 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       {/* --- GIAO DIỆN FORM 4: CHẤM CÔNG THỢ --- */}
       {kind === 'cham_cong' && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-2xl font-extrabold text-teal-900">Chấm công hôm nay</h3>
+            <h3 className="text-xs font-bold text-teal-900 uppercase tracking-wide">Chấm công hôm nay</h3>
             <button
               type="button"
               onClick={() => {
@@ -1164,27 +1163,27 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                 for (const w of activeWorkers) allFull[w.id] = 1;
                 setCongMap(allFull);
               }}
-              className="px-3.5 py-2 rounded-xl bg-teal-100 text-teal-900 font-bold text-base"
+              className="px-2.5 py-1 rounded-lg bg-teal-100 text-teal-900 font-bold text-xs"
             >
               Tất cả làm đủ
             </button>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {activeWorkers.map((w) => {
               const cur = congMap[w.id] ?? 1;
               return (
                 <div
                   key={w.id}
-                  className="rounded-2xl bg-stone-50 border-2 border-stone-200 p-3.5 space-y-2"
+                  className="rounded-xl bg-stone-50 border border-stone-200 p-2.5 space-y-1.5"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xl font-extrabold text-stone-900">{w.ho_ten}</span>
-                    <span className="text-base font-bold text-stone-600">
+                    <span className="text-xs font-bold text-stone-900">{w.ho_ten}</span>
+                    <span className="text-[11px] font-semibold text-stone-500">
                       {formatVND(w.luong_ngay)}/ngày
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-1.5">
                     {(
                       [
                         { val: 0, label: 'Nghỉ (0)' },
@@ -1198,12 +1197,12 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                         onClick={() =>
                           setCongMap((prev) => ({ ...prev, [w.id]: opt.val }))
                         }
-                        className={`py-2.5 rounded-xl border-2 font-extrabold text-base ${
+                        className={`py-1.5 rounded-lg border font-bold text-xs ${
                           cur === opt.val
                             ? opt.val === 0
                               ? 'border-stone-700 bg-stone-700 text-white'
                               : 'border-teal-700 bg-teal-700 text-white'
-                            : 'border-stone-300 bg-white text-stone-700'
+                            : 'border-stone-200 bg-white text-stone-700'
                         }`}
                       >
                         {opt.label}
@@ -1219,16 +1218,16 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       {/* --- GIAO DIỆN FORM 5: TRẢ NỢ NHÀ CUNG CẤP --- */}
       {kind === 'tra_no' && (
-        <div className="space-y-4">
-          <h3 className="text-2xl font-extrabold text-rose-900">Trả nợ mối hàng</h3>
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold text-rose-900 uppercase tracking-wide">Trả nợ mối hàng</h3>
           <div>
-            <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
+            <label className="block text-xs font-bold text-stone-900 mb-1">
               Chọn mối hàng cần trả:
             </label>
             <select
               value={supplierId}
               onChange={(e) => setSupplierId(e.target.value)}
-              className="w-full rounded-2xl border-2 border-stone-400 bg-white px-3.5 py-3 text-lg font-bold"
+              className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-900"
             >
               {debtSummary.nha_cung_cap.danh_sach.map((d) => (
                 <option key={d.supplier.id} value={d.supplier.id}>
@@ -1246,7 +1245,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
               <button
                 type="button"
                 onClick={() => setSoTien(curSup.con_no)}
-                className="w-full py-2.5 rounded-xl bg-rose-100 border-2 border-rose-500 text-rose-950 font-extrabold text-lg"
+                className="w-full py-1.5 rounded-lg bg-rose-100 border border-rose-400 text-rose-950 font-bold text-xs"
               >
                 Bấm trả hết nợ: {formatVND(curSup.con_no)}
               </button>
@@ -1256,13 +1255,13 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
           <MoneyInput label="Số tiền trả hôm nay" value={soTien} onChange={setSoTien} />
 
           <div>
-            <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
+            <label className="block text-xs font-bold text-stone-900 mb-1">
               Trả từ ví nào?
             </label>
             <select
               value={walletId}
               onChange={(e) => setWalletId(e.target.value)}
-              className="w-full rounded-2xl border-2 border-stone-400 bg-white px-3.5 py-3 text-lg font-bold"
+              className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-900"
             >
               {snapshot.wallets.map((w) => (
                 <option key={w.id} value={w.id}>
@@ -1276,33 +1275,33 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       {/* --- GIAO DIỆN FORM 6: TRƯỜNG CHUYỂN TIỀN ĂN --- */}
       {kind === 'truong_chuyen' && (
-        <div className="space-y-4">
-          <h3 className="text-2xl font-extrabold text-sky-900">
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold text-sky-900 uppercase tracking-wide">
             Nhà trường chuyển tiền ăn
           </h3>
 
           <div>
-            <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
+            <label className="block text-xs font-bold text-stone-900 mb-1">
               Tiền ăn của kỳ tháng nào?
             </label>
             <input
               type="month"
               value={kyThang}
               onChange={(e) => setKyThang(e.target.value)}
-              className="rounded-xl border-2 border-stone-400 px-3.5 py-2 text-lg font-extrabold"
+              className="rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-bold"
             />
           </div>
 
-          <div className="rounded-2xl bg-sky-50 border border-sky-300 p-3.5 space-y-1.5 text-base">
-            <div className="flex justify-between">
+          <div className="rounded-xl bg-sky-50 border border-sky-200 p-2.5 space-y-1 text-xs">
+            <div className="flex justify-between text-stone-700">
               <span>Tổng suất trường đã báo kỳ {kyThang}:</span>
               <strong>{debtSummary.tien_truong_ky_nay.tong_suat_truong} suất</strong>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between text-stone-700">
               <span>Số tiền dự kiến:</span>
               <strong>{formatVND(debtSummary.tien_truong_ky_nay.so_tien_du_kien)}</strong>
             </div>
-            <div className="flex justify-between text-sky-950 font-extrabold text-lg pt-1 border-t border-sky-200">
+            <div className="flex justify-between text-sky-950 font-bold text-xs pt-1 border-t border-sky-200">
               <span>Còn chờ trường chuyển:</span>
               <span>{formatVND(debtSummary.tien_truong_ky_nay.con_cho_chuyen)}</span>
             </div>
@@ -1310,7 +1309,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
               <button
                 type="button"
                 onClick={() => setSoTien(debtSummary.tien_truong_ky_nay.con_cho_chuyen)}
-                className="w-full mt-2 py-2 rounded-xl bg-sky-700 text-white font-bold text-base"
+                className="w-full mt-1.5 py-1.5 rounded-lg bg-sky-700 text-white font-bold text-xs"
               >
                 Điền đúng bằng số dự kiến ({formatVND(debtSummary.tien_truong_ky_nay.con_cho_chuyen)})
               </button>
@@ -1320,13 +1319,13 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
           <MoneyInput label="Số tiền trường thực chuyển về" value={soTien} onChange={setSoTien} />
 
           <div>
-            <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
+            <label className="block text-xs font-bold text-stone-900 mb-1">
               Nhận vào tài khoản nào?
             </label>
             <select
               value={walletId}
               onChange={(e) => setWalletId(e.target.value)}
-              className="w-full rounded-2xl border-2 border-stone-400 bg-white px-3.5 py-3 text-lg font-bold"
+              className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-900"
             >
               {snapshot.wallets.map((w) => (
                 <option key={w.id} value={w.id}>
@@ -1340,27 +1339,27 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       {/* --- GIAO DIỆN FORM 7: TRẢ / ỨNG LƯƠNG CÔNG NHÂN --- */}
       {kind === 'tra_luong' && (
-        <div className="space-y-4">
-          <h3 className="text-2xl font-extrabold text-amber-900">Trả / ứng lương phụ bếp</h3>
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold text-amber-900 uppercase tracking-wide">Trả / ứng lương phụ bếp</h3>
           <div>
-            <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
+            <label className="block text-xs font-bold text-stone-900 mb-1">
               Lương của kỳ tháng nào?
             </label>
             <input
               type="month"
               value={kyThang}
               onChange={(e) => setKyThang(e.target.value)}
-              className="rounded-xl border-2 border-stone-400 px-3.5 py-2 text-lg font-extrabold"
+              className="rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs font-bold"
             />
           </div>
 
-          <div className="rounded-2xl bg-amber-50 border border-amber-300 p-3.5 space-y-2 text-base">
+          <div className="rounded-xl bg-amber-50 border border-amber-200 p-2.5 space-y-1.5 text-xs">
             <div className="font-bold text-amber-950">
               Bảng công tạm tính kỳ {kyThang}: Còn phải trả{' '}
               {formatVND(debtSummary.luong_tho_ky_nay.con_phai_tra)}
             </div>
             {debtSummary.luong_tho_ky_nay.chi_tiet_tho.map((item) => (
-              <div key={item.worker.id} className="flex justify-between text-stone-800">
+              <div key={item.worker.id} className="flex justify-between text-stone-700">
                 <span>
                   • {item.worker.ho_ten} ({item.tong_cong} công):
                 </span>
@@ -1374,7 +1373,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                   setWorkerId('');
                   setSoTien(debtSummary.luong_tho_ky_nay.con_phai_tra);
                 }}
-                className="w-full mt-1 py-2 rounded-xl bg-amber-600 text-white font-bold text-base"
+                className="w-full mt-1 py-1.5 rounded-lg bg-amber-600 text-white font-bold text-xs"
               >
                 Điền tổng lương còn lại ({formatVND(debtSummary.luong_tho_ky_nay.con_phai_tra)})
               </button>
@@ -1382,7 +1381,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
           </div>
 
           <div>
-            <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
+            <label className="block text-xs font-bold text-stone-900 mb-1">
               Trả cho ai?
             </label>
             <select
@@ -1395,7 +1394,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
                 );
                 if (found && found.con_lai > 0) setSoTien(found.con_lai);
               }}
-              className="w-full rounded-2xl border-2 border-stone-400 bg-white px-3.5 py-3 text-lg font-bold"
+              className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-900"
             >
               <option value="">Trả gộp cả đội phụ bếp</option>
               {snapshot.workers.map((w) => (
@@ -1409,13 +1408,13 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
           <MoneyInput label="Số tiền thực trả" value={soTien} onChange={setSoTien} />
 
           <div>
-            <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
+            <label className="block text-xs font-bold text-stone-900 mb-1">
               Chi từ ví nào?
             </label>
             <select
               value={walletId}
               onChange={(e) => setWalletId(e.target.value)}
-              className="w-full rounded-2xl border-2 border-stone-400 bg-white px-3.5 py-3 text-lg font-bold"
+              className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-900"
             >
               {snapshot.wallets.map((w) => (
                 <option key={w.id} value={w.id}>
@@ -1429,18 +1428,18 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       {/* --- GIAO DIỆN FORM 9: CHUYỂN QUỸ NỘI BỘ --- */}
       {kind === 'chuyen_quy' && (
-        <div className="space-y-4">
-          <h3 className="text-2xl font-extrabold text-teal-900">
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold text-teal-900 uppercase tracking-wide">
             Chuyển tiền giữa các ví / Rút tiền mặt
           </h3>
           <div>
-            <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
+            <label className="block text-xs font-bold text-stone-900 mb-1">
               Rút ra từ ví:
             </label>
             <select
               value={walletId}
               onChange={(e) => setWalletId(e.target.value)}
-              className="w-full rounded-2xl border-2 border-stone-400 bg-white px-3.5 py-3 text-lg font-bold"
+              className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-900"
             >
               {snapshot.wallets.map((w) => (
                 <option key={w.id} value={w.id}>
@@ -1450,13 +1449,13 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
             </select>
           </div>
           <div>
-            <label className="block text-lg font-extrabold text-stone-900 mb-1.5">
+            <label className="block text-xs font-bold text-stone-900 mb-1">
               Đưa sang ví:
             </label>
             <select
               value={toWalletId}
               onChange={(e) => setToWalletId(e.target.value)}
-              className="w-full rounded-2xl border-2 border-stone-400 bg-white px-3.5 py-3 text-lg font-bold"
+              className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-900"
             >
               {snapshot.wallets.map((w) => (
                 <option key={w.id} value={w.id}>
@@ -1473,7 +1472,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
       {formError && (
         <div
           role="alert"
-          className="rounded-2xl bg-red-100 border-2 border-red-500 p-3.5 text-red-900 font-bold text-lg"
+          className="rounded-lg bg-red-100 border border-red-400 p-2.5 text-red-900 font-semibold text-xs"
         >
           {formError}
         </div>
@@ -1481,7 +1480,7 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
 
       <button
         type="submit"
-        className="w-full min-h-15 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-extrabold text-xl py-3.5 shadow-sm"
+        className="w-full min-h-11 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs py-2.5 shadow-xs"
       >
         Tiếp tục → Xem thẻ kiểm tra
       </button>

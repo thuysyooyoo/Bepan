@@ -527,6 +527,11 @@ export const AppShell: React.FC = () => {
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}
               onJumpToForm={handleJumpToForm}
+              onOpenManualForm={(kind, editTx) => {
+                setDetailDrawer(null);
+                setActiveForm({ kind, editTx: editTx ?? null });
+              }}
+              onDataChanged={reloadSnapshot}
             />
           </RollyDetailDrawer>
 
@@ -539,6 +544,10 @@ export const AppShell: React.FC = () => {
               snapshot={snapshot}
               selectedDate={selectedDate}
               onDataChanged={reloadSnapshot}
+              onOpenManualForm={(kind, editTx) => {
+                setDetailDrawer(null);
+                setActiveForm({ kind, editTx: editTx ?? null });
+              }}
             />
           </RollyDetailDrawer>
 
@@ -553,6 +562,10 @@ export const AppShell: React.FC = () => {
               focusedSupplierId={focusedSupplierId}
               onClearFocusSupplier={clearFocusedSupplier}
               onDataChanged={reloadSnapshot}
+              onOpenManualForm={(kind, editTx) => {
+                setDetailDrawer(null);
+                setActiveForm({ kind, editTx: editTx ?? null });
+              }}
             />
           </RollyDetailDrawer>
         </>

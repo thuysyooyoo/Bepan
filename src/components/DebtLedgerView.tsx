@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ChevronUp,
   Clock,
+  Pencil,
   School,
   Trash2,
   Users,
@@ -31,7 +32,7 @@ import {
   getTodayISO,
   getYearMonth,
 } from '../domain/format';
-import type { BookSnapshot } from '../types/models';
+import type { BookSnapshot, Transaction } from '../types/models';
 import {
   ConfirmationCard,
   UndoBanner,
@@ -40,6 +41,7 @@ import {
   type UndoState,
 } from './ConfirmationCard';
 import { MoneyInput } from './MoneyInput';
+import type { ManualFormKind } from './ManualEntryForms';
 
 interface DebtLedgerViewProps {
   snapshot: BookSnapshot;
@@ -47,6 +49,7 @@ interface DebtLedgerViewProps {
   focusedSupplierId?: string | null;
   onClearFocusSupplier?: () => void;
   onDataChanged: () => Promise<void>;
+  onOpenManualForm?: (kind: ManualFormKind, editTx?: Transaction) => void;
 }
 
 type ActivePayAction =
@@ -61,6 +64,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
   focusedSupplierId,
   onClearFocusSupplier,
   onDataChanged,
+  onOpenManualForm,
 }) => {
   const { session } = useAuth();
   const todayISO = selectedDate || getTodayISO();
@@ -813,23 +817,36 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
                                 </div>
                               </div>
 
-                              {entry.loai_phat_sinh === 'tra_no' && (
-                                <div className="flex justify-end">
+                              <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-stone-200/60">
+                                {onOpenManualForm && (
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      handleDeleteHistoryTx(
-                                        entry.tx.id,
-                                        `Trả nợ ${item.supplier.ten_ncc}`
+                                      onOpenManualForm(
+                                        entry.loai_phat_sinh === 'tra_no' ? 'tra_no' : 'chi',
+                                        entry.tx
                                       )
                                     }
-                                    className="px-2 py-0.5 rounded-lg bg-stone-50 hover:bg-rose-50 border border-stone-300 text-xs font-bold text-stone-600 hover:text-rose-700 inline-flex items-center gap-1"
+                                    className="px-2 py-0.5 rounded-lg bg-white hover:bg-stone-100 border border-stone-300 text-[11px] font-bold text-stone-700 inline-flex items-center gap-1"
                                   >
-                                    <Trash2 className="w-3 h-3" />
-                                    Hoàn tác
+                                    <Pencil className="w-3 h-3 text-stone-600" />
+                                    Sửa
                                   </button>
-                                </div>
-                              )}
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleDeleteHistoryTx(
+                                      entry.tx.id,
+                                      isBorrow ? `Mua chịu ${formatVND(entry.so_tien)}` : `Trả nợ ${item.supplier.ten_ncc}`
+                                    )
+                                  }
+                                  className="px-2 py-0.5 rounded-lg bg-stone-50 hover:bg-rose-50 border border-stone-300 text-[11px] font-bold text-stone-600 hover:text-rose-700 inline-flex items-center gap-1"
+                                >
+                                  <Trash2 className="w-3 h-3 text-rose-600" />
+                                  Xóa
+                                </button>
+                              </div>
                             </div>
                           );
                         })

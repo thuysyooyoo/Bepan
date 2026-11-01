@@ -322,7 +322,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
   if (error || !combined) {
     return (
-      <div className="p-4 rounded-2xl bg-red-100 border-2 border-red-500 text-red-900 font-bold text-lg">
+      <div className="p-3 rounded-xl bg-red-50 border border-red-300 text-red-900 font-semibold text-xs">
         {error || 'Chưa tải được dữ liệu tổng hợp.'}
       </div>
     );
@@ -331,37 +331,37 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const { hiepHoa: hh, tienDu: td, tongCong: tc } = combined;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {toastMsg && (
-        <div className="sticky top-18 z-20 p-3.5 rounded-2xl bg-emerald-900 text-white font-bold text-base shadow-md flex items-center gap-2">
-          <Check className="w-5 h-5 text-emerald-300 shrink-0" />
+        <div className="sticky top-16 z-20 p-2.5 rounded-xl bg-emerald-900 text-white font-semibold text-xs shadow-md flex items-center gap-2">
+          <Check className="w-4 h-4 text-emerald-300 shrink-0" />
           <span>{toastMsg}</span>
         </div>
       )}
 
       {/* BỘ CHỌN KỲ THÁNG + NÚT XUẤT EXCEL TỔNG HỢP & CHIA SẺ ZALO */}
-      <div className="rounded-3xl bg-white border-2 border-indigo-200 p-3.5 shadow-xs space-y-3">
+      <div className="rounded-xl bg-white border border-stone-200 p-2.5 shadow-xs space-y-2">
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => setSelectedMonth(getPreviousYearMonth(selectedMonth))}
             aria-label="Tháng trước"
-            className="min-h-[46px] px-3 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 font-bold text-base text-stone-800 inline-flex items-center gap-1"
+            className="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-200 font-semibold text-xs text-stone-700 inline-flex items-center gap-1"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4" />
             Trước
           </button>
 
           <div className="text-center flex-1 min-w-0">
-            <div className="text-xl font-extrabold text-indigo-950 flex items-center justify-center gap-1.5">
-              <Crown className="w-5 h-5 text-amber-500 shrink-0" />
+            <div className="text-sm font-bold text-indigo-950 flex items-center justify-center gap-1.5">
+              <Crown className="w-4 h-4 text-amber-500 shrink-0" />
               <span>{formatVietnameseMonth(selectedMonth)}</span>
             </div>
             {selectedMonth !== currentYearMonth && (
               <button
                 type="button"
                 onClick={() => setSelectedMonth(currentYearMonth)}
-                className="mt-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-950 text-xs font-extrabold border border-amber-400"
+                className="mt-0.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 text-[11px] font-bold border border-amber-300"
               >
                 Về tháng này
               </button>
@@ -372,10 +372,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             type="button"
             onClick={() => setSelectedMonth(getNextYearMonth(selectedMonth))}
             aria-label="Tháng sau"
-            className="min-h-[46px] px-3 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 font-bold text-base text-stone-800 inline-flex items-center gap-1"
+            className="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-200 font-semibold text-xs text-stone-700 inline-flex items-center gap-1"
           >
             Sau
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
@@ -384,44 +384,44 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             type="button"
             disabled={exportingExcel}
             onClick={handleExportCombinedExcel}
-            className="min-h-[48px] px-3 py-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-extrabold text-sm flex items-center justify-center gap-1.5 shadow-xs"
+            className="py-2 px-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs"
           >
-            <FileSpreadsheet className="w-5 h-5 shrink-0" />
+            <FileSpreadsheet className="w-4 h-4 shrink-0" />
             <span>{exportingExcel ? 'Đang tạo Excel...' : 'Xuất Excel 2 cơ sở'}</span>
           </button>
 
           <button
             type="button"
             onClick={handleShareZaloSummary}
-            className="min-h-[48px] px-3 py-2 rounded-2xl bg-sky-50 hover:bg-sky-100 border-2 border-sky-400 text-sky-950 font-extrabold text-sm flex items-center justify-center gap-1.5"
+            className="py-2 px-2.5 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-950 font-bold text-xs flex items-center justify-center gap-1.5"
           >
-            <Share2 className="w-5 h-5 text-sky-700 shrink-0" />
+            <Share2 className="w-4 h-4 text-sky-700 shrink-0" />
             <span>Gửi tóm tắt Zalo</span>
           </button>
         </div>
       </div>
 
       {/* THẺ SAO LƯU DỮ LIỆU TUẦN (.JSON) - RULE 10 */}
-      <div className="rounded-3xl bg-white border-2 border-indigo-200 p-4 shadow-xs space-y-3">
+      <div className="rounded-xl bg-white border border-stone-200 p-2.5 shadow-xs space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <FileJson className="w-6 h-6 text-indigo-700 shrink-0" />
-            <h2 className="text-xl font-extrabold text-stone-900">
+          <div className="flex items-center gap-1.5">
+            <FileJson className="w-4 h-4 text-indigo-700 shrink-0" />
+            <h2 className="text-xs font-bold text-stone-900">
               Sao lưu dữ liệu tuần (.json)
             </h2>
           </div>
           {backupStatus.due ? (
-            <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-950 text-xs font-extrabold border border-amber-400">
+            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 text-[11px] font-bold border border-amber-300">
               Đã đến kỳ sao lưu
             </span>
           ) : (
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-950 text-xs font-extrabold border border-emerald-300">
-              Tuần này đã an toàn
+            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 text-[11px] font-bold border border-emerald-300">
+              Tuần này an toàn
             </span>
           )}
         </div>
 
-        <p className="text-sm text-stone-600 leading-relaxed">
+        <p className="text-xs text-stone-500 leading-relaxed">
           Tải file sao lưu .json lưu trữ toàn bộ số liệu 2 cơ sở (Hiệp Hòa &amp; Tiên Du). Tuân thủ Rule 10: chỉ dùng file .json, tuyệt đối không tạo bất kỳ file backup .xlsx nào trên ổ đĩa.
         </p>
 
@@ -430,9 +430,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             type="button"
             disabled={exportingBackup}
             onClick={handleExportBackup}
-            className="min-h-[46px] px-3 py-2 rounded-2xl bg-indigo-700 hover:bg-indigo-800 disabled:opacity-60 text-white font-extrabold text-sm flex items-center justify-center gap-1.5 shadow-xs"
+            className="py-1.5 px-2.5 rounded-lg bg-indigo-700 hover:bg-indigo-800 disabled:opacity-60 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-xs"
           >
-            <Download className="w-5 h-5 shrink-0" />
+            <Download className="w-4 h-4 shrink-0" />
             <span>{exportingBackup ? 'Đang tạo .json...' : 'Tải sao lưu (.json)'}</span>
           </button>
 
@@ -440,9 +440,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             type="button"
             disabled={restoringBackup}
             onClick={() => backupFileInputRef.current?.click()}
-            className="min-h-[46px] px-3 py-2 rounded-2xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-900 font-extrabold text-sm flex items-center justify-center gap-1.5"
+            className="py-1.5 px-2.5 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-800 font-semibold text-xs flex items-center justify-center gap-1.5"
           >
-            <Upload className="w-5 h-5 text-stone-700 shrink-0" />
+            <Upload className="w-4 h-4 text-stone-600 shrink-0" />
             <span>{restoringBackup ? 'Đang đọc...' : 'Khôi phục file'}</span>
           </button>
           <input
@@ -457,47 +457,47 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
       {/* THẺ HERO: LÃI RÒNG CẢ 2 CƠ SỞ + DÒNG TIỀN 6 VÍ + CÔNG NỢ */}
       <div
-        className={`rounded-3xl p-5 border-2 shadow-sm space-y-3.5 ${
+        className={`rounded-xl p-3 border shadow-xs space-y-2.5 ${
           tc.laiRong >= 0
             ? 'bg-indigo-950 text-white border-indigo-900'
             : 'bg-rose-950 text-white border-rose-900'
         }`}
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="text-base font-bold opacity-90">
+          <span className="text-xs font-bold opacity-90">
             Lãi ròng cả 2 cơ sở ({formatVietnameseMonth(selectedMonth)})
           </span>
           <button
             type="button"
             onClick={() => void loadBothBooks()}
             title="Làm mới số liệu"
-            className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white"
+            className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        <div className="text-3xl font-extrabold">{formatVND(tc.laiRong, true)}</div>
+        <div className="text-lg font-black">{formatVND(tc.laiRong, true)}</div>
 
-        <div className="grid grid-cols-2 gap-2.5 text-sm">
-          <div className="rounded-2xl bg-white/10 p-3 space-y-1">
-            <div className="opacity-85">Tổng Bếp ăn ({tc.tongSuatAn} suất)</div>
-            <div className="text-lg font-extrabold text-teal-300">
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-lg bg-white/10 p-2 space-y-0.5">
+            <div className="opacity-85 text-[11px]">Tổng Bếp ({tc.tongSuatAn} suất)</div>
+            <div className="text-sm font-bold text-teal-300">
               {formatVND(tc.laiBepAn, true)}
             </div>
           </div>
-          <div className="rounded-2xl bg-white/10 p-3 space-y-1">
-            <div className="opacity-85">Tổng Căn tin</div>
-            <div className="text-lg font-extrabold text-amber-300">
+          <div className="rounded-lg bg-white/10 p-2 space-y-0.5">
+            <div className="opacity-85 text-[11px]">Tổng Căn tin</div>
+            <div className="text-sm font-bold text-amber-300">
               {formatVND(tc.laiCanTin, true)}
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl bg-black/25 p-3.5 space-y-1.5 text-sm">
-          <div className="flex items-center justify-between font-bold text-emerald-300 text-base">
+        <div className="rounded-lg bg-black/25 p-2.5 space-y-1 text-xs">
+          <div className="flex items-center justify-between font-bold text-emerald-300">
             <span className="inline-flex items-center gap-1.5">
-              <Wallet className="w-4 h-4" />
+              <Wallet className="w-3.5 h-3.5" />
               Tiền thực có (6 ví):
             </span>
             <span>{formatVND(tc.tongTienThucCo6Vi)}</span>
@@ -518,19 +518,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       </div>
 
       {/* BẢNG ĐỐI CHIẾU SONG SONG: HIỆP HÒA (BỐ) vs TIÊN DU (MẸ) */}
-      <div className="rounded-3xl bg-white border-2 border-stone-300 p-4 shadow-xs space-y-3">
-        <h2 className="text-xl font-extrabold text-stone-900">
+      <div className="rounded-xl bg-white border border-stone-200 p-2.5 shadow-xs space-y-2">
+        <h2 className="text-xs font-bold text-stone-900 uppercase tracking-wide">
           So sánh Hiệp Hòa &amp; Tiên Du
         </h2>
 
-        <div className="grid grid-cols-12 gap-1.5 text-xs font-extrabold uppercase tracking-wide pb-2 border-b-2 border-stone-200">
-          <div className="col-span-4 text-stone-600">Chỉ tiêu</div>
+        <div className="grid grid-cols-12 gap-1 text-[11px] font-bold uppercase tracking-wide pb-1.5 border-b border-stone-200">
+          <div className="col-span-4 text-stone-500">Chỉ tiêu</div>
           <div className="col-span-4 text-right text-teal-900">Hiệp Hòa</div>
           <div className="col-span-4 text-right text-amber-900">Tiên Du</div>
         </div>
 
-        <div className="divide-y divide-stone-200 text-sm">
-          <div className="grid grid-cols-12 gap-1.5 py-2.5 items-center bg-emerald-50/70 px-1.5 rounded-lg font-extrabold">
+        <div className="divide-y divide-stone-100 text-xs">
+          <div className="grid grid-cols-12 gap-1 py-1.5 items-center bg-emerald-50/70 px-1 rounded-md font-bold">
             <div className="col-span-4 text-stone-900">Lãi ròng tháng</div>
             <div
               className={`col-span-4 text-right ${
@@ -548,8 +548,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-1.5 py-2 items-center">
-            <div className="col-span-4 font-semibold text-stone-700">Tổng suất ăn</div>
+          <div className="grid grid-cols-12 gap-1 py-1.5 items-center">
+            <div className="col-span-4 font-semibold text-stone-600">Tổng suất ăn</div>
             <div className="col-span-4 text-right font-bold text-stone-900">
               {hh.monthly.bep_an.tong_suat.toLocaleString('vi-VN')} suất
             </div>
@@ -558,8 +558,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-1.5 py-2 items-center">
-            <div className="col-span-4 font-semibold text-stone-700">Lãi Bếp ăn</div>
+          <div className="grid grid-cols-12 gap-1 py-1.5 items-center">
+            <div className="col-span-4 font-semibold text-stone-600">Lãi Bếp ăn</div>
             <div className="col-span-4 text-right font-bold text-teal-900">
               {formatCompactVND(hh.monthly.bep_an.lai_bep_an)}
             </div>
@@ -568,8 +568,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-1.5 py-2 items-center">
-            <div className="col-span-4 font-semibold text-stone-700">Giá vốn Bếp/suất</div>
+          <div className="grid grid-cols-12 gap-1 py-1.5 items-center">
+            <div className="col-span-4 font-semibold text-stone-600">Giá vốn Bếp/suất</div>
             <div className="col-span-4 text-right font-bold text-stone-800">
               {hh.monthly.bep_an.tong_suat > 0
                 ? formatVND(hh.monthly.bep_an.gia_von_bep_day_du_moi_suat)
@@ -582,12 +582,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-1.5 py-2 items-center">
-            <div className="col-span-4 font-semibold text-stone-700">Lãi Căn tin</div>
+          <div className="grid grid-cols-12 gap-1 py-1.5 items-center">
+            <div className="col-span-4 font-semibold text-stone-600">Lãi Căn tin</div>
             <div className="col-span-4 text-right font-bold text-teal-900">
               {formatCompactVND(hh.monthly.can_tin.lai_can_tin)}
               {hh.monthly.can_tin.doanh_thu > 0 && (
-                <div className="text-[11px] text-stone-500">
+                <div className="text-[10px] text-stone-500">
                   ({hh.monthly.can_tin.ty_suat_lai_phan_tram}%)
                 </div>
               )}
@@ -595,41 +595,41 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <div className="col-span-4 text-right font-bold text-amber-950">
               {formatCompactVND(td.monthly.can_tin.lai_can_tin)}
               {td.monthly.can_tin.doanh_thu > 0 && (
-                <div className="text-[11px] text-stone-500">
+                <div className="text-[10px] text-stone-500">
                   ({td.monthly.can_tin.ty_suat_lai_phan_tram}%)
                 </div>
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-1.5 py-2 items-center">
-            <div className="col-span-4 font-semibold text-stone-700">Chi cuối tháng</div>
+          <div className="grid grid-cols-12 gap-1 py-1.5 items-center">
+            <div className="col-span-4 font-semibold text-stone-600">Chi cuối tháng</div>
             <div className="col-span-4 text-right font-bold text-stone-800">
               {formatCompactVND(hh.monthly.tong_chi_cuoi_thang_ap_dung)}
               {hh.monthly.la_uoc_tinh_tu_thang_truoc && (
-                <div className="text-[11px] text-amber-700">Tạm tính</div>
+                <div className="text-[10px] text-amber-700">Tạm tính</div>
               )}
             </div>
             <div className="col-span-4 text-right font-bold text-stone-800">
               {formatCompactVND(td.monthly.tong_chi_cuoi_thang_ap_dung)}
               {td.monthly.la_uoc_tinh_tu_thang_truoc && (
-                <div className="text-[11px] text-amber-700">Tạm tính</div>
+                <div className="text-[10px] text-amber-700">Tạm tính</div>
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-1.5 py-2 items-center bg-stone-50 px-1.5 rounded-lg">
-            <div className="col-span-4 font-extrabold text-stone-800">Tiền thực 3 ví</div>
-            <div className="col-span-4 text-right font-extrabold text-emerald-800">
+          <div className="grid grid-cols-12 gap-1 py-1.5 items-center bg-stone-50 px-1 rounded-md">
+            <div className="col-span-4 font-bold text-stone-800">Tiền thực 3 ví</div>
+            <div className="col-span-4 text-right font-bold text-emerald-800">
               {formatCompactVND(hh.tongTienThucCo)}
             </div>
-            <div className="col-span-4 text-right font-extrabold text-emerald-800">
+            <div className="col-span-4 text-right font-bold text-emerald-800">
               {formatCompactVND(td.tongTienThucCo)}
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-1.5 py-2 items-center">
-            <div className="col-span-4 font-semibold text-stone-700">Đang nợ NCC</div>
+          <div className="grid grid-cols-12 gap-1 py-1.5 items-center">
+            <div className="col-span-4 font-semibold text-stone-600">Đang nợ NCC</div>
             <div className="col-span-4 text-right font-bold text-rose-800">
               {formatCompactVND(hh.debt.nha_cung_cap.tong_no_ncc)}
             </div>
@@ -638,8 +638,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-1.5 py-2 items-center">
-            <div className="col-span-4 font-semibold text-stone-700">Lương chờ trả</div>
+          <div className="grid grid-cols-12 gap-1 py-1.5 items-center">
+            <div className="col-span-4 font-semibold text-stone-600">Lương chờ trả</div>
             <div className="col-span-4 text-right font-bold text-stone-800">
               {formatCompactVND(hh.debt.luong_tho_ky_nay.con_phai_tra)}
             </div>
@@ -648,8 +648,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-1.5 py-2 items-center">
-            <div className="col-span-4 font-semibold text-stone-700">Trường chờ về</div>
+          <div className="grid grid-cols-12 gap-1 py-1.5 items-center">
+            <div className="col-span-4 font-semibold text-stone-600">Trường chờ về</div>
             <div className="col-span-4 text-right font-bold text-sky-900">
               {formatCompactVND(hh.debt.tien_truong_ky_nay.con_cho_chuyen)}
             </div>
@@ -659,18 +659,18 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 pt-2">
+        <div className="grid grid-cols-2 gap-2 pt-1">
           <button
             type="button"
             onClick={() => onOpenFacilityBook('hiep_hoa')}
-            className="min-h-[46px] px-3 py-2 rounded-2xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-sm"
+            className="py-1.5 px-2.5 rounded-lg bg-teal-800 hover:bg-teal-900 text-white font-semibold text-xs"
           >
             Mở sổ Hiệp Hòa →
           </button>
           <button
             type="button"
             onClick={() => onOpenFacilityBook('tien_du')}
-            className="min-h-[46px] px-3 py-2 rounded-2xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-sm"
+            className="py-1.5 px-2.5 rounded-lg bg-amber-800 hover:bg-amber-900 text-white font-semibold text-xs"
           >
             Mở sổ Tiên Du →
           </button>
@@ -678,36 +678,36 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       </div>
 
       {/* CÁC NHẮC VIỆC ĐANG TREO Ở CẢ 2 CƠ SỞ */}
-      <div className="rounded-3xl bg-white border-2 border-amber-400 p-4 shadow-xs space-y-3">
+      <div className="rounded-xl bg-white border border-amber-300 p-2.5 shadow-xs space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-xl font-extrabold text-stone-900 flex items-center gap-2">
-            <BellRing className="w-6 h-6 text-amber-600 shrink-0" />
+          <h2 className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+            <BellRing className="w-4 h-4 text-amber-600 shrink-0" />
             <span>Nhắc việc đang treo</span>
           </h2>
-          <span className="px-3 py-0.5 rounded-full bg-amber-100 border border-amber-400 text-amber-950 font-extrabold text-sm">
+          <span className="px-2 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-950 font-bold text-[11px]">
             {combined.combinedReminders.length} mục
           </span>
         </div>
 
         {combined.combinedReminders.length === 0 ? (
-          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 font-semibold text-base flex items-center gap-2.5">
-            <CheckCircle2 className="w-6 h-6 text-emerald-700 shrink-0" />
+          <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-950 font-medium text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
             <span>
               Tuyệt vời! Cả Bố và Mẹ đều đã nhập đủ sổ, không có việc nào đang treo.
             </span>
           </div>
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {combined.combinedReminders.map((item) => {
               const isHh = item.bookId === 'hiep_hoa';
               return (
                 <div
                   key={item.card.key}
-                  className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-300 space-y-2"
+                  className="p-2.5 rounded-lg bg-amber-50/70 border border-amber-200 space-y-1.5"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
                         isHh
                           ? 'bg-teal-100 text-teal-950 border-teal-300'
                           : 'bg-amber-200 text-amber-950 border-amber-400'
@@ -716,16 +716,16 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       {item.ownerLabel}
                     </span>
                     {item.card.so_tien_du_kien !== undefined && (
-                      <span className="text-sm font-extrabold text-rose-900">
+                      <span className="text-xs font-bold text-rose-900">
                         {formatVND(item.card.so_tien_du_kien)}
                       </span>
                     )}
                   </div>
 
-                  <div className="text-base font-extrabold text-stone-900">
-                    {item.card.icon} {item.card.tieu_de}
+                  <div className="text-xs font-bold text-stone-900">
+                    {item.card.tieu_de}
                   </div>
-                  <div className="text-sm text-stone-700 leading-snug">
+                  <div className="text-xs text-stone-700 leading-snug">
                     {item.card.noi_dung}
                   </div>
 
@@ -734,7 +734,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     onClick={() =>
                       onActOnFacilityReminder(item.bookId, item.card.action_target)
                     }
-                    className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm"
+                    className="w-full py-1.5 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
                   >
                     Vào sổ {isHh ? 'Bố' : 'Mẹ'} xử lý hộ ({item.card.action_label}) →
                   </button>
@@ -746,19 +746,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       </div>
 
       {/* LỊCH SỬ HỘI THOẠI AI (CHAT_LOGS) ĐỂ RÀ SOÁT & SỬA HỘ ÔNG BÀ */}
-      <div className="rounded-3xl bg-white border-2 border-stone-300 p-4 shadow-xs space-y-3">
+      <div className="rounded-xl bg-white border border-stone-200 p-2.5 shadow-xs space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-xl font-extrabold text-stone-900 flex items-center gap-2">
-            <MessageSquareText className="w-6 h-6 text-indigo-700 shrink-0" />
+          <h2 className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+            <MessageSquareText className="w-4 h-4 text-indigo-700 shrink-0" />
             <span>Lịch sử chat để sửa hộ</span>
           </h2>
-          <span className="text-sm font-bold text-stone-600">
+          <span className="text-xs font-semibold text-stone-500">
             {filteredChatLogs.length} câu
           </span>
         </div>
 
         {/* Bộ lọc theo cơ sở & trạng thái */}
-        <div className="grid grid-cols-3 gap-1.5 bg-stone-100 p-1 rounded-2xl text-sm font-bold">
+        <div className="grid grid-cols-3 gap-1 bg-stone-100 p-0.5 rounded-lg text-xs font-semibold">
           {(
             [
               { key: 'all', label: 'Tất cả' },
@@ -770,7 +770,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               key={opt.key}
               type="button"
               onClick={() => setChatBookFilter(opt.key)}
-              className={`py-2 px-2 rounded-xl transition ${
+              className={`py-1.5 px-2 rounded-md transition ${
                 chatBookFilter === opt.key
                   ? 'bg-indigo-900 text-white shadow-xs'
                   : 'text-stone-700 hover:bg-stone-200'
@@ -782,27 +782,27 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="relative flex-1 min-w-[160px]">
+            <Search className="w-3.5 h-3.5 text-stone-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={chatQuery}
               onChange={(e) => setChatQuery(e.target.value)}
-              placeholder="Tìm câu nói, tên món, mối hàng..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-300 bg-stone-50 text-sm font-semibold text-stone-900"
+              placeholder="Tìm câu nói, tên món..."
+              className="w-full pl-8 pr-2.5 py-1.5 rounded-lg border border-stone-300 bg-stone-50 text-xs font-medium text-stone-900"
             />
           </div>
 
           <button
             type="button"
             onClick={() => setOnlyNeedsReview((v) => !v)}
-            className={`px-3 py-2 rounded-xl border text-xs font-extrabold transition ${
+            className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition ${
               onlyNeedsReview
                 ? 'bg-amber-500 text-stone-950 border-amber-600'
                 : 'bg-stone-100 text-stone-700 border-stone-300'
             }`}
           >
-            {onlyNeedsReview ? 'Đang lọc: Chưa lưu/Hủy' : 'Lọc câu chưa lưu'}
+            {onlyNeedsReview ? 'Chưa lưu/Hủy' : 'Lọc câu chưa lưu'}
           </button>
         </div>
 

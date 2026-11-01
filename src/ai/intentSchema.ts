@@ -92,7 +92,7 @@ export interface ParsedIntentItem {
 }
 
 export interface AIParseResult {
-  engine: 'gemini' | 'local_vn';
+  engine: 'gemini' | 'deepseek' | 'openai' | 'local_vn';
   raw_text: string;
   items: ParsedIntentItem[];
 }

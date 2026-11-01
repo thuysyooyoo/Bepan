@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
   CheckCircle2,
+  Pencil,
   Scale,
   Trash2,
   Wallet as WalletIcon,
@@ -23,7 +24,7 @@ import {
   getTodayISO,
   getYearMonth,
 } from '../domain/format';
-import type { BookSnapshot } from '../types/models';
+import type { BookSnapshot, Transaction } from '../types/models';
 import {
   ConfirmationCard,
   UndoBanner,
@@ -31,11 +32,24 @@ import {
   type UndoState,
 } from './ConfirmationCard';
 import { MoneyInput } from './MoneyInput';
+import type { ManualFormKind } from './ManualEntryForms';
 
 interface CashflowViewProps {
   snapshot: BookSnapshot;
   selectedDate: string;
   onDataChanged: () => Promise<void>;
+  onOpenManualForm?: (kind: ManualFormKind, editTx?: Transaction) => void;
+}
+
+function mapTransactionToFormKind(tx: Transaction, snapshot: BookSnapshot): ManualFormKind {
+  if (tx.loai === 'thu_cuoi_ngay') return 'thu_cuoi_ngay';
+  if (tx.loai === 'tra_no') return 'tra_no';
+  if (tx.loai === 'truong_chuyen') return 'truong_chuyen';
+  if (tx.loai === 'tra_luong') return 'tra_luong';
+  if (tx.loai === 'chuyen_quy') return 'chuyen_quy';
+  const cat = snapshot.categories.find((c) => c.id === tx.category_id);
+  if (cat?.kieu_tinh === 'theo_thang') return 'chi_phi_thang';
+  return 'chi';
 }
 
 type ActiveTool =
@@ -47,6 +61,7 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
   snapshot,
   selectedDate,
   onDataChanged,
+  onOpenManualForm,
 }) => {
   const { session } = useAuth();
   const todayISO = selectedDate || getTodayISO();
@@ -308,12 +323,12 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
       />
 
       {/* THẺ TỔNG TIỀN THỰC TẾ TOÀN CƠ SỞ */}
-      <div className="rounded-3xl bg-teal-900 text-white p-5 shadow-sm space-y-1.5">
-        <div className="text-lg font-bold opacity-95">
+      <div className="rounded-2xl bg-teal-900 text-white p-3.5 shadow-xs space-y-1">
+        <div className="text-xs font-bold opacity-90 uppercase tracking-wide">
           Tổng tiền thực có ({snapshot.book.ten})
         </div>
-        <div className="text-3xl font-extrabold">{formatVND(tongTienThucTe)}</div>
-        <div className="text-base opacity-90">
+        <div className="text-lg font-black">{formatVND(tongTienThucTe)}</div>
+        <div className="text-[11px] opacity-80">
           100% thực thu thực chi (không cộng tiền trường chưa về, không trừ mua chịu)
         </div>
       </div>
@@ -685,7 +700,7 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
             Chưa có giao dịch tiền vào / ra nào theo bộ lọc này.
           </div>
         ) : (
-          <div className="space-y-2.5 pt-1">
+          <div className="space-y-1.5 pt-0.5">
             {timeline.map((entry) => {
               const amountColor =
                 entry.huong === 'vao'
@@ -702,44 +717,53 @@ export const CashflowView: React.FC<CashflowViewProps> = ({
               return (
                 <div
                   key={entry.tx.id}
-                  className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 space-y-1.5"
+                  className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 space-y-1"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="text-lg font-extrabold text-stone-900 leading-snug">
-                        {entry.icon} {entry.tieu_de}
+                      <div className="text-xs font-bold text-stone-900 leading-snug">
+                        {entry.tieu_de}
                       </div>
-                      <div className="text-sm font-semibold text-stone-600 mt-0.5">
+                      <div className="text-[11px] font-medium text-stone-500 mt-0.5">
                         {entry.tx.ngay.split('-').reverse().join('/')} ·{' '}
                         {entry.ten_vi_hien_thi}
                       </div>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <div className={`text-lg font-extrabold ${amountColor}`}>
+                      <div className={`text-xs font-black ${amountColor}`}>
                         {amountText}
                       </div>
-                      <div className="text-xs font-bold text-stone-500">
+                      <div className="text-[10px] font-bold text-stone-400">
                         Dư sau GD: {formatVND(entry.so_du_sau_gd)}
                       </div>
                     </div>
                   </div>
 
-                  {(entry.tx.loai === 'dieu_chinh_vi' ||
-                    entry.tx.loai === 'chuyen_quy') && (
-                    <div className="flex justify-end pt-1">
+                  <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-stone-200/60">
+                    {onOpenManualForm && (
                       <button
                         type="button"
                         onClick={() =>
-                          handleDeleteTimelineTx(entry.tx.id, entry.tieu_de)
+                          onOpenManualForm(mapTransactionToFormKind(entry.tx, snapshot), entry.tx)
                         }
-                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-rose-50 border border-stone-300 text-xs font-bold text-stone-600 hover:text-rose-700 inline-flex items-center gap-1"
+                        className="px-2 py-0.5 rounded-lg bg-white hover:bg-stone-100 border border-stone-300 text-[11px] font-bold text-stone-700 inline-flex items-center gap-1"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Hoàn tác dòng này
+                        <Pencil className="w-3 h-3 text-stone-600" />
+                        Sửa
                       </button>
-                    </div>
-                  )}
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleDeleteTimelineTx(entry.tx.id, entry.tieu_de)
+                      }
+                      className="px-2 py-0.5 rounded-lg bg-white hover:bg-rose-50 border border-stone-300 text-[11px] font-bold text-stone-600 hover:text-rose-700 inline-flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3 text-rose-600" />
+                      Xóa
+                    </button>
+                  </div>
                 </div>
               );
             })}

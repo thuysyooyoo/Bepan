@@ -31,6 +31,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { dbRepo } from '../db';
 import type { BookSnapshot, EntrySource, Transaction } from '../types/models';
+import type { AiSettings } from '../types/aiSettings';
 import {
   ConfirmationCard,
   speakVietnameseText,
@@ -93,6 +94,17 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
   const [voiceFeedbackMsg, setVoiceFeedbackMsg] = useState<string | null>(null);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [showMicGuide, setShowMicGuide] = useState(false);
+  const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void dbRepo.getAiSettings?.(session).then((res) => {
+      if (active && res) setAiSettings(res);
+    });
+    return () => {
+      active = false;
+    };
+  }, [session]);
 
   const speechSessionRef = useRef<ActiveSpeechSession | null>(null);
   const fallbackRecorderRef = useRef<ActiveAudioFallbackRecorder | null>(null);
@@ -181,7 +193,39 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
     }
 
     try {
-      const parsed = await parseUserUtterance(clean, snapshot, selectedDate);
+      const historySummary = turns.map((t) => ({
+        userText: t.userText,
+        items: t.cards.map((c) => c.item),
+        status: t.cards[0]?.status,
+      }));
+
+      const parsed = await parseUserUtterance(clean, snapshot, selectedDate, {
+        history: historySummary,
+        aiSettings: aiSettings ?? undefined,
+      });
+
+      // Nếu câu nói mới là câu điều chỉnh cho thẻ pending của lượt trước -> hủy thẻ pending cũ để tránh lưu trùng
+      const isAdjustment = parsed.items.some(
+        (it) => it.intent === 'chi_no' || it.intent === 'ban_chiu'
+      );
+      if (isAdjustment) {
+        setTurns((prev) =>
+          prev.map((t, idx) => {
+            if (idx === prev.length - 1) {
+              return {
+                ...t,
+                cards: t.cards.map((c) =>
+                  c.status === 'pending'
+                    ? { ...c, status: 'cancelled', savedSummary: 'Đã thay bằng thẻ điều chỉnh mới' }
+                    : c
+                ),
+              };
+            }
+            return t;
+          })
+        );
+      }
+
       await appendParsedTurn(parsed.raw_text || clean, parsed, source);
     } finally {
       setBusy(false);

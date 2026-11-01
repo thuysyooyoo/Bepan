@@ -1,4 +1,6 @@
 import { generateId, hashPinWithSalt } from '../domain/format';
+import type { AiSettings } from '../types/aiSettings';
+import { DEFAULT_AI_SETTINGS } from '../types/aiSettings';
 import type {
   Attendance,
   AuthSession,
@@ -646,5 +648,51 @@ export class LocalDexieAdapter implements DataRepository {
   async debugGetRawProfiles(actor: AuthSession) {
     assertAdmin(actor);
     return this.db.profiles.toArray();
+  }
+
+  private inMemoryAiSettings: AiSettings | null = null;
+
+  async getAiSettings(_actor?: AuthSession | null): Promise<AiSettings> {
+    if (this.inMemoryAiSettings) {
+      return { ...this.inMemoryAiSettings };
+    }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem('sobep_ai_settings_v1');
+        if (raw) {
+          const parsed = { ...DEFAULT_AI_SETTINGS, ...JSON.parse(raw) };
+          this.inMemoryAiSettings = parsed;
+          return parsed;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+    return { ...DEFAULT_AI_SETTINGS };
+  }
+
+  async saveAiSettings(
+    actorOrSettings: AuthSession | null | AiSettings,
+    maybeSettings?: AiSettings
+  ): Promise<AiSettings> {
+    const settings =
+      maybeSettings ??
+      (actorOrSettings && typeof actorOrSettings === 'object' && 'provider' in actorOrSettings
+        ? (actorOrSettings as AiSettings)
+        : DEFAULT_AI_SETTINGS);
+    const toSave: AiSettings = {
+      ...settings,
+      id: 'default',
+      updated_at: new Date().toISOString(),
+    };
+    this.inMemoryAiSettings = toSave;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('sobep_ai_settings_v1', JSON.stringify(toSave));
+      }
+    } catch {
+      // Ignore
+    }
+    return toSave;
   }
 }

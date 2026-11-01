@@ -1,4 +1,5 @@
 import { generateId } from '../domain/format';
+import type { AiSettings } from '../types/aiSettings';
 import type {
   Attendance,
   AuthSession,
@@ -953,6 +954,29 @@ export class SmartDataRepository implements DataRepository {
       }
       return this.local.listChatLogs(actor, bookId, limit);
     }
+  }
+
+  async getAiSettings(actor?: AuthSession | null): Promise<AiSettings> {
+    if (this.useCloud && this.isNetworkOnline()) {
+      try {
+        return await this.cloud.getAiSettings(actor);
+      } catch {
+        // Fallback to local
+      }
+    }
+    return this.local.getAiSettings(actor);
+  }
+
+  async saveAiSettings(actor: AuthSession | null, settings: AiSettings): Promise<AiSettings> {
+    const savedLocal = await this.local.saveAiSettings(actor, settings);
+    if (this.useCloud && this.isNetworkOnline()) {
+      try {
+        await this.cloud.saveAiSettings(actor, savedLocal);
+      } catch {
+        // Fallback saved locally
+      }
+    }
+    return savedLocal;
   }
 }
 
