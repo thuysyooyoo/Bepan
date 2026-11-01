@@ -24,6 +24,8 @@ const SEGMENT_LABELS: Record<BusinessSegment, string> = {
 const TX_TYPE_LABELS: Record<TransactionType, string> = {
   thu_cuoi_ngay: 'Thu cuối ngày (TM/CK)',
   thu: 'Thu trực tiếp',
+  ban_chiu: 'Bán chịu / nợ cơm',
+  thu_no: 'Thu nợ khách',
   chi: 'Chi trả ngay',
   chi_no: 'Mua chịu (ghi nợ NCC)',
   tra_no: 'Trả nợ nhà cung cấp',

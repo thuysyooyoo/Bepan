@@ -437,12 +437,12 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
         }}
       />
 
-      {/* HEADER TỔNG QUAN 3 SỔ NỢ & PHẢI TRẢ + NÚT NGHE ĐỌC TO */}
+      {/* HEADER TỔNG QUAN 2 CHIỀU: KHOẢN MÌNH NỢ & KHOẢN NGƯỜI TA NỢ MINH */}
       <div className="rounded-3xl bg-stone-900 text-white p-4 shadow-sm space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xl font-extrabold">
             <BookMarked className="w-6 h-6 text-amber-400 shrink-0" />
-            <span>Sổ Nợ & Đối Soát ({snapshot.book.ten})</span>
+            <span>Sổ Nợ & Khoản Phải Thu ({snapshot.book.ten})</span>
           </div>
           <button
             type="button"
@@ -455,23 +455,23 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="p-2.5 rounded-2xl bg-rose-950/80 border border-rose-500/50">
-            <div className="text-xs font-bold text-rose-200">Nợ mối hàng</div>
-            <div className="text-lg font-extrabold text-rose-300 mt-0.5">
-              {formatCompactVND(debt.nha_cung_cap.tong_no_ncc)}
+        <div className="grid grid-cols-2 gap-2 text-center">
+          <div className="p-3 rounded-2xl bg-rose-950/80 border border-rose-500/50">
+            <div className="text-sm font-bold text-rose-200">📕 Khoản mình nợ (Phải trả)</div>
+            <div className="text-2xl font-black text-rose-300 mt-1">
+              {formatVND(debt.tong_minh_no)}
+            </div>
+            <div className="text-xs text-rose-300/80 mt-1">
+              NCC: {formatCompactVND(debt.nha_cung_cap.tong_no_ncc)} · Lương: {formatCompactVND(debt.luong_tho_ky_nay.con_phai_tra)}
             </div>
           </div>
-          <div className="p-2.5 rounded-2xl bg-amber-950/80 border border-amber-500/50">
-            <div className="text-xs font-bold text-amber-200">Lương chờ trả</div>
-            <div className="text-lg font-extrabold text-amber-300 mt-0.5">
-              {formatCompactVND(debt.luong_tho_ky_nay.con_phai_tra)}
+          <div className="p-3 rounded-2xl bg-emerald-950/80 border border-emerald-500/50">
+            <div className="text-sm font-bold text-emerald-200">📗 Người ta nợ mình (Phải thu)</div>
+            <div className="text-2xl font-black text-emerald-300 mt-1">
+              {formatVND(debt.tong_nguoi_ta_no)}
             </div>
-          </div>
-          <div className="p-2.5 rounded-2xl bg-sky-950/80 border border-sky-500/50">
-            <div className="text-xs font-bold text-sky-200">Chờ trường CK</div>
-            <div className="text-lg font-extrabold text-sky-300 mt-0.5">
-              {formatCompactVND(debt.tien_truong_ky_nay.con_cho_chuyen)}
+            <div className="text-xs text-emerald-300/80 mt-1">
+              Trường: {formatCompactVND(debt.tien_truong_ky_nay.con_cho_chuyen)} · Khách: {formatCompactVND(debt.phai_thu_khach.tong_phai_thu_khach)}
             </div>
           </div>
         </div>
@@ -985,6 +985,52 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
         ) : (
           <div className="text-base text-stone-500 italic">
             Chưa có suất ăn trường nào được ghi trong {formatVietnameseMonth(kyThang)}.
+          </div>
+        )}
+      </section>
+
+      {/* 4. KHOẢN PHẢI THU (Khách & Giáo viên ăn chịu, đặt cỗ chưa thanh toán) */}
+      <section className="rounded-3xl bg-white border-2 border-emerald-500 p-4 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-extrabold text-emerald-950 flex items-center gap-2">
+              <Users className="w-6 h-6 text-emerald-700 shrink-0" />
+              <span>4. Khách / Giáo viên nợ tiền cơm (Phải thu)</span>
+            </h2>
+            <div className="text-3xl font-extrabold text-emerald-800 mt-0.5">
+              {formatVND(debt.phai_thu_khach.tong_phai_thu_khach)}
+            </div>
+          </div>
+        </div>
+
+        {debt.phai_thu_khach.danh_sach.length === 0 ? (
+          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 font-bold text-base flex items-center gap-2">
+            <CheckCircle2 className="w-6 h-6 text-emerald-700 shrink-0" />
+            <span>Hiện không có ai nợ tiền cơm / cỗ / căn tin ạ!</span>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {debt.phai_thu_khach.danh_sach.map((khach) => (
+              <div
+                key={khach.doi_tac}
+                className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-300 flex items-center justify-between gap-3"
+              >
+                <div>
+                  <div className="text-lg font-extrabold text-emerald-950">
+                    👤 {khach.doi_tac}
+                  </div>
+                  <div className="text-sm text-stone-600">
+                    Đã nợ {formatVND(khach.tong_ban_chiu)} · Đã trả {formatVND(khach.tong_da_thu)}
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <div className="text-xl font-black text-rose-700">
+                    {formatVND(khach.con_phai_thu)}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </section>

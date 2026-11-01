@@ -67,7 +67,10 @@ export function shouldDelegateToCloudGemini(
 
   for (const it of localResult.items) {
     if (it.intent === 'khong_ro') return true;
-    if (it.cau_hoi_lam_ro) return true;
+    if (it.cau_hoi_lam_ro) {
+      if (it.cau_hoi_lam_ro.includes('Bếp ăn hay Căn tin')) return true;
+      if (!it.lua_chon_lam_ro || it.lua_chon_lam_ro.length === 0) return true;
+    }
     if (
       (it.intent === 'chi' || it.intent === 'chi_no') &&
       it.category_id === 'cat_do_kho_bep' &&
@@ -624,6 +627,139 @@ export function buildActionCardFromIntent(
 
         return {
           message: `Đã lưu ${cat.ten_danh_muc} ${formatVND(amount)}`,
+          undoFn: async () => {
+            await repo.softDeleteTransaction(actor, bookId, saved.id);
+          },
+        };
+      },
+    };
+  }
+
+  // 4b. BÁN CHỊU / GHI NỢ PHẢI THU (Khách/giáo viên nợ tiền cơm, cỗ, căn tin)
+  if (item.intent === 'ban_chiu') {
+    const partner = item.doi_tac || 'Khách nợ cơm';
+    const mang = item.mang ?? 'bep_an';
+    const mangLabel = mang === 'can_tin' ? '🏪 Căn tin' : '🍲 Bếp ăn';
+    const catId = mang === 'can_tin' ? 'cat_thu_can_tin' : 'cat_doanh_thu_bep';
+
+    return {
+      manualFallbackKind: 'thu_cuoi_ngay',
+      draftTx: {
+        id: '',
+        book_id: bookId,
+        ngay,
+        timestamp: '',
+        mang,
+        loai: 'ban_chiu',
+        category_id: catId,
+        so_tien: amount,
+        wallet_id: null,
+        doi_tac: partner,
+        ghi_chu: item.ghi_chu || `Bán chịu / nợ cơm: ${partner}`,
+        cau_noi_goc: rawSentence,
+        nguon: 'chat',
+        nguoi_tao: '',
+        da_xoa: false,
+      },
+      preview: {
+        badge: '📗 BÁN CHỊU / GHI NỢ PHẢI THU',
+        tone: 'info',
+        title: `Khách nợ: ${partner}`,
+        headlineAmount: amount,
+        dateLabel,
+        rows: [
+          { label: 'Người nợ (Đối tác)', value: partner, highlight: true },
+          { label: 'Mảng ghi nhận doanh thu', value: mangLabel },
+          { label: 'Trạng thái tiền ví', value: 'Chưa thu tiền (Ví không đổi)' },
+        ],
+        bookImpactNote: `📒 Tính doanh thu ${mangLabel} hôm nay +${formatVND(
+          amount
+        )} · 📗 Tăng Sổ phải thu · 💰 Tiền trong ví giữ nguyên.`,
+        spokenText: `Ghi nhận ${partner} nợ ${formatCompactVND(amount)}, tính vào doanh thu hôm nay. Đúng không ạ?`,
+      },
+      commit: async (actor, source) => {
+        const saved = await repo.addTransaction(actor, {
+          book_id: bookId,
+          ngay,
+          mang,
+          loai: 'ban_chiu',
+          category_id: catId,
+          so_tien: amount,
+          wallet_id: null,
+          doi_tac: partner,
+          ghi_chu: item.ghi_chu || `Bán chịu: ${partner}`,
+          cau_noi_goc: rawSentence,
+          nguon: source,
+          nguoi_tao: actor.profile_id,
+        });
+        return {
+          message: `Đã ghi ${partner} nợ ${formatVND(amount)}`,
+          undoFn: async () => {
+            await repo.softDeleteTransaction(actor, bookId, saved.id);
+          },
+        };
+      },
+    };
+  }
+
+  // 4c. THU NỢ KHÁCH (Khách / giáo viên trả nợ tiền cơm cũ -> tiền vào ví)
+  if (item.intent === 'thu_no') {
+    const wallet = getWalletByKind(snapshot, item.vi);
+    const partner = item.doi_tac || 'Khách trả nợ';
+
+    return {
+      manualFallbackKind: 'thu_cuoi_ngay',
+      draftTx: {
+        id: '',
+        book_id: bookId,
+        ngay,
+        timestamp: '',
+        mang: 'bep_an',
+        loai: 'thu_no',
+        category_id: 'cat_thu_khac_bep',
+        so_tien: amount,
+        wallet_id: wallet.id,
+        doi_tac: partner,
+        ghi_chu: item.ghi_chu || `Thu nợ: ${partner}`,
+        cau_noi_goc: rawSentence,
+        nguon: 'chat',
+        nguoi_tao: '',
+        da_xoa: false,
+      },
+      preview: {
+        badge: '💰 THU NỢ KHÁCH (TIỀN VÀO VÍ)',
+        tone: 'income',
+        title: `Thu nợ: ${partner}`,
+        headlineAmount: amount,
+        dateLabel,
+        rows: [
+          { label: 'Người trả nợ', value: partner, highlight: true },
+          { label: 'Tiền vào ví', value: wallet.ten_vi, highlight: true },
+        ],
+        bookImpactNote: `💰 Cộng ${wallet.ten_vi} +${formatVND(
+          amount
+        )} · 📗 Giảm Sổ phải thu · 📒 Không tính lại doanh thu để tránh trùng.`,
+        spokenText: `Ghi nhận ${partner} trả nợ ${formatCompactVND(amount)} vào ${
+          wallet.ten_vi
+        }. Đúng không ạ?`,
+      },
+      commit: async (actor, source) => {
+        const saved = await repo.addTransaction(actor, {
+          book_id: bookId,
+          ngay,
+          mang: 'bep_an',
+          loai: 'thu_no',
+          category_id: 'cat_thu_khac_bep',
+          so_tien: amount,
+          wallet_id: wallet.id,
+          doi_tac: partner,
+          ghi_chu: item.ghi_chu || `Thu nợ: ${partner}`,
+          cau_noi_goc: rawSentence,
+          nguon: source,
+          nguoi_tao: actor.profile_id,
+        });
+        return {
+          message: `Đã thu nợ ${partner} ${formatVND(amount)}`,
           undoFn: async () => {
             await repo.softDeleteTransaction(actor, bookId, saved.id);
           },

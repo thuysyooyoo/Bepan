@@ -275,7 +275,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Thanh chọn mục cài đặt */}
-        <div className="bg-white border-b border-stone-300 px-3 py-2.5 flex gap-2 overflow-x-auto sticky top-[64px] z-10">
+        <div className="bg-white border-b border-stone-300 p-2 grid grid-cols-3 gap-1.5 sticky top-[64px] z-10">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -284,10 +284,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 setTab(t.key);
                 setErrMsg('');
               }}
-              className={`px-3.5 py-2 rounded-xl font-bold text-base whitespace-nowrap border ${
+              className={`py-2 px-1 rounded-xl font-bold text-xs sm:text-sm text-center leading-tight border transition-colors ${
                 tab === t.key
-                  ? 'bg-teal-700 text-white border-teal-700'
-                  : 'bg-stone-100 text-stone-800 border-stone-300'
+                  ? 'bg-teal-700 text-white border-teal-700 shadow-sm'
+                  : 'bg-stone-50 text-stone-800 border-stone-200 hover:bg-stone-100'
               }`}
             >
               {t.label}

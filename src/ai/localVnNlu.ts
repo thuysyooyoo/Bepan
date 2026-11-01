@@ -4,6 +4,7 @@ import {
   computeMonthlyReport,
   computeWalletBalances,
   findPreviousMealDay,
+  getEffectiveMealPrice,
 } from '../domain/accounting';
 import { formatVND } from '../domain/format';
 import type {
@@ -127,7 +128,8 @@ function resolveSupplierFromClause(
     }
   }
 
-  return suppliers[0] ? { supplier_id: suppliers[0].id } : { ten_ncc_moi: 'Mối hàng chợ' };
+  // Nếu không khớp tên hoặc mặt hàng nào, trả về rỗng để hệ thống hỏi lại thay vì tự ý gán bừa
+  return {};
 }
 
 const BUILTIN_DIALECT_SYNONYMS: Array<{ regex: RegExp; categoryId: string; boost: number }> = [
@@ -241,24 +243,50 @@ export function answerReportQuestion(
   const targetDate = parseVietnameseDate(clause, referenceDate);
   const targetMonth = parseVietnameseMonth(clause, referenceDate);
 
-  // 1. Hỏi về nợ mối hàng ("đang nợ những ai", "nợ bao nhiêu")
-  if (/\b(no nhung ai|dang no|con no|so no|no tien hang|no cho|no bao nhieu|no ai)\b/.test(noAcc)) {
+  // 1. Hỏi người ta nợ mình / khoản phải thu ("ai đang nợ mình", "có ai nợ không", "khách nợ bao nhiêu")
+  if (/\b(ai dang no|ai no minh|nguoi ta no|khach no|co ai no|phai thu|khoan phai thu)\b/.test(noAcc)) {
+    const debt = computeDebtAndPayables(snapshot, targetMonth);
+    const khach = debt.phai_thu_khach.danh_sach.filter((d) => d.con_phai_thu > 0);
+    const khachLines =
+      khach.length === 0
+        ? '• Hiện không có khách/giáo viên nào nợ tiền cơm'
+        : khach.map((k) => `• ${k.doi_tac}: ${formatVND(k.con_phai_thu)}`).join('\n');
+    const truongLine = `• Tiền trường chờ chuyển (kỳ ${targetMonth}): ${formatVND(
+      debt.tien_truong_ky_nay.con_cho_chuyen
+    )}`;
+    return {
+      intent: 'hoi',
+      ngay: targetDate,
+      ky_thang: targetMonth,
+      chu_de_hoi: 'ai_no_minh',
+      ghi_chu: 'Hỏi người ta nợ mình (khoản phải thu)',
+      cau_tra_loi: `📗 Người ta nợ mình (${snapshot.book.ten}): ${formatVND(
+        debt.tong_nguoi_ta_no
+      )}\n${truongLine}\n${khachLines}`,
+    };
+  }
+
+  // 2. Hỏi về các khoản mình đang nợ ("đang nợ những ai", "mình nợ ai", "nợ bao nhiêu")
+  if (/\b(minh dang no|minh no ai|no nhung ai|dang no|con no|so no|no tien hang|no cho|no bao nhieu|no ai)\b/.test(noAcc)) {
     const debt = computeDebtAndPayables(snapshot, targetMonth);
     const activeDebts = debt.nha_cung_cap.danh_sach.filter((d) => d.con_no > 0);
     const detail =
       activeDebts.length === 0
-        ? 'Hiện tại không nợ tiền hàng nhà cung cấp nào ạ!'
+        ? '• Không nợ tiền hàng nhà cung cấp'
         : activeDebts
             .map((d) => `• ${d.supplier.ten_ncc}: ${formatVND(d.con_no)}`)
             .join('\n');
+    const luongLine = `• Lương thợ kỳ ${targetMonth}: còn phải trả ${formatVND(
+      debt.luong_tho_ky_nay.con_phai_tra
+    )}`;
     return {
       intent: 'hoi',
       ngay: targetDate,
       chu_de_hoi: 'so_no_ncc',
-      ghi_chu: 'Hỏi sổ nợ nhà cung cấp',
-      cau_tra_loi: `📕 Tổng nợ mua chịu tại ${snapshot.book.ten}: ${formatVND(
-        debt.nha_cung_cap.tong_no_ncc
-      )}\n${detail}`,
+      ghi_chu: 'Hỏi các khoản mình đang nợ',
+      cau_tra_loi: `📕 Tổng khoản mình nợ (${snapshot.book.ten}): ${formatVND(
+        debt.tong_minh_no
+      )}\n${detail}\n${luongLine}`,
     };
   }
 
@@ -347,21 +375,27 @@ export function answerReportQuestion(
     };
   }
 
-  // 6. Mặc định: Hỏi lãi hôm nay / ngày cụ thể
+  // 6. Mặc định: Hỏi lãi hôm nay / tổng kết ngày cụ thể
   const daily = computeDailyReport(snapshot, targetDate);
+  const debt = computeDebtAndPayables(snapshot, targetMonth);
+  const balances = computeWalletBalances(snapshot.wallets, snapshot.transactions, snapshot.book.id);
+  const totalWallet = balances.reduce((s, b) => s + b.so_du_hien_tai, 0);
+
   return {
     intent: 'hoi',
     ngay: targetDate,
     chu_de_hoi: 'lai_hom_nay',
-    ghi_chu: `Hỏi kết quả ngày ${targetDate}`,
+    ghi_chu: `Tổng kết ngày ${targetDate}`,
     cau_tra_loi: `📊 Ngày ${targetDate} (${snapshot.book.ten}):\n• 🍲 Bếp ăn: Thu ${formatVND(
       daily.bep_an.tong_doanh_thu
     )} − Chi ${formatVND(daily.bep_an.tong_chi_ngay)} = Lãi ước tính ${formatVND(
       daily.bep_an.lai_uoc_tinh_ngay,
       true
-    )}\n• 🏪 Căn tin: Thu ${formatVND(daily.can_tin.doanh_thu_can_tin)} · Nhập hàng ${formatVND(
+    )}\n• 🏪 Căn tin: Thu ${formatVND(daily.can_tin.doanh_thu_can_tin)} · Nhập ${formatVND(
       daily.can_tin.chi_nhap_hang_ngay
-    )}`,
+    )}\n• 💰 Tiền thực có: ${formatVND(totalWallet)}\n• 📕 Mình nợ: ${formatVND(
+      debt.tong_minh_no
+    )} · 📗 Người ta nợ: ${formatVND(debt.tong_nguoi_ta_no)}`,
   };
 }
 
@@ -733,6 +767,84 @@ function tryParseDailyCollection(
 }
 
 /**
+ * Thử bóc tách Bán chịu / Khách nợ tiền cơm / Thu nợ từ khách
+ */
+function tryParseCustomerReceivable(
+  clause: string,
+  snapshot: BookSnapshot,
+  globalDate: string
+): ParsedIntentItem | null {
+  const clauseNoAcc = stripAccents(clause);
+
+  // 1. Khách trả nợ / Thu nợ: "Cô Lan trả nợ 105k", "Cô Lan trả tiền cơm 105k", "Bác Hùng trả nợ", "Thu nợ cô Lan 105k"
+  const isPayDebt =
+    /\b(tra no|tra tien com|tra tien an|tra tien co|thanh toan no com|thu no)\b/.test(clauseNoAcc) &&
+    !/\b(tra luong|tra tien dien|tra tien nuoc|tra tien gas|tra tien ga|tra tien rac)\b/.test(clauseNoAcc);
+
+  if (isPayDebt) {
+    const supRes = resolveSupplierFromClause(clause, snapshot.suppliers);
+    const hasNccMatch = !!supRes.supplier_id && !/\b(tien com|tien an|thu no|an chiu)\b/.test(clauseNoAcc);
+    if (!hasNccMatch) {
+      const amt = parseVietnameseMoney(clause, { allowBareThousands: true });
+      const nameMatch =
+        clause.match(/(?:cô|bác|chị|anh|chú|bà|ông|thầy|cô giáo)\s+[\p{L}]+/iu) ||
+        clause.match(/(?:thu nợ|trả nợ|tiền cơm của)\s+([\p{L}\s]+?)(?:\s+\d|\s+tiền|$)/iu);
+      const partnerName = nameMatch
+        ? nameMatch[0].replace(/^(thu nợ|trả nợ|tiền cơm của)\s+/iu, '').trim()
+        : 'Khách vãng lai';
+      const vi = detectWalletKind(clause, 'tien_mat');
+
+      if (amt !== null && amt > 0) {
+        return {
+          intent: 'thu_no',
+          ngay: globalDate,
+          doi_tac: partnerName,
+          so_tien: amt,
+          vi: vi,
+          ghi_chu: clause,
+        };
+      }
+    }
+  }
+
+  // 2. Bán chịu / Khách nợ: "Cô Lan ăn chịu 3 suất", "Cô Lan nợ tiền cơm 105k", "Bác Hùng nợ tiền cơm 150k", "Bán 20 suất cỗ 1tr5 chưa lấy tiền", "Khách nợ 50k"
+  const isCreditSale =
+    /\b(an chiu|no tien com|no tien an|no tien co|chua lay tien|chua tra tien|no \d+\s*suat|an no)\b/.test(clauseNoAcc) ||
+    (/(?:cô|bác|chị|anh|chú|bà|ông|khách|giao vien)\s+[\p{L}]+\s+(?:nợ|chiu)/iu.test(clauseNoAcc) && !/\b(mua|nhap|lay hang)\b/.test(clauseNoAcc));
+
+  if (isCreditSale) {
+    let amt = parseVietnameseMoney(clause, { allowBareThousands: true });
+    if (amt === null || amt === 0) {
+      const suatMatch =
+        clause.match(/(\d+)\s*(?:suất|xuất|suat|xuat)/iu) ||
+        clauseNoAcc.match(/(\d+)\s*suat/i);
+      if (suatMatch) {
+        const soSuat = parseInt(suatMatch[1], 10);
+        const dg = getEffectiveMealPrice(snapshot.mealPrices, snapshot.book.id, 'trua', 'vang_lai', globalDate);
+        amt = soSuat * (dg > 0 ? dg : 35000);
+      }
+    }
+
+    const nameMatch = clause.match(/(?:cô|bác|chị|anh|chú|bà|ông|thầy|cô giáo|khách|bàn)\s+[\p{L}\d]+/iu);
+    const partnerName = nameMatch ? nameMatch[0].trim() : 'Khách nợ cơm';
+    const isCanTin = /\b(can tin|cantin|cang tin|nuoc|banh|keo)\b/.test(clauseNoAcc);
+
+    if (amt !== null && amt > 0) {
+      return {
+        intent: 'ban_chiu',
+        ngay: globalDate,
+        mang: isCanTin ? 'can_tin' : 'bep_an',
+        doi_tac: partnerName,
+        so_tien: amt,
+        ghi_chu: clause,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
  * BỘ PHÂN TÍCH NGÔN NGỮ TỰ NHIÊN TIẾNG VIỆT (LOCAL NLU ENGINE)
  * Xử lý tức thì cả câu đơn, câu ghép nhiều việc, từ địa phương, viết tắt, thiếu dấu.
  */
@@ -936,6 +1048,16 @@ export function parseVietnameseCommandLocal(
     };
   }
 
+  // 5b. BÁN CHỊU / THU NỢ KHÁCH NGUYÊN CÂU (Ưu tiên trước trả nợ NCC để không nhầm "Cô Lan trả nợ" thành mình trả nợ)
+  const recItem = tryParseCustomerReceivable(trimmed, snapshot, globalDate);
+  if (recItem) {
+    return {
+      engine: 'local_vn',
+      raw_text: trimmed,
+      items: [recItem],
+    };
+  }
+
   // 6. TRẢ NỢ NHÀ CUNG CẤP ("Trả nợ mối thịt 1 triệu", "Trả chị Hoa 1 triệu")
   const startsWithPay =
     /\b(tra no|thanh toan no|tra tien no|tra bot no)\b/.test(noAccFull) ||
@@ -1057,6 +1179,14 @@ export function parseVietnameseCommandLocal(
   };
 
   for (const clause of mergedClauses) {
+    // 9a0. Kiểm tra bán chịu hoặc thu nợ khách trước (tránh nhầm "ăn chịu 3 suất" thành báo suất ăn trường)
+    const subRec = tryParseCustomerReceivable(clause, snapshot, globalDate);
+    if (subRec) {
+      flushPendingMeals();
+      parsedItems.push(subRec);
+      continue;
+    }
+
     // 9a. Kiểm tra mệnh đề suất ăn
     const mealRes = extractMealsFromText(clause);
     if (mealRes.matched) {
@@ -1134,6 +1264,17 @@ export function parseVietnameseCommandLocal(
 
       if (isCredit) {
         const supRes = resolveSupplierFromClause(clause, snapshot.suppliers);
+        const hasSupplierInfo = !!supRes.supplier_id || !!supRes.ten_ncc_moi;
+        const supChoices = snapshot.suppliers.slice(0, 4).map((s) => ({
+          id: s.id,
+          label: s.ten_ncc,
+          patch: {
+            supplier_id: s.id,
+            cau_hoi_lam_ro: undefined,
+            lua_chon_lam_ro: undefined,
+          },
+        }));
+
         parsedItems.push({
           intent: 'chi_no',
           ngay: clauseDate,
@@ -1144,27 +1285,109 @@ export function parseVietnameseCommandLocal(
           supplier_id: supRes.supplier_id,
           ten_ncc_moi: supRes.ten_ncc_moi,
           ghi_chu: clause,
+          ...(!hasSupplierInfo
+            ? {
+                cau_hoi_lam_ro: 'Khoản nợ này của ai ạ?',
+                lua_chon_lam_ro: supChoices,
+              }
+            : {}),
         });
         continue;
       }
 
+      const hasExplicitPayment = /\b(da tra|tra roi|da thanh toan|thanh toan roi|tien mat|tm|chuyen khoan|ck|chi nhan|mo diep)\b/.test(
+        clauseNoAcc
+      );
+
+      if (ambiguousSegment) {
+        parsedItems.push({
+          intent: 'chi',
+          ngay: clauseDate,
+          mang: explicitMang,
+          category_id: category.id,
+          so_tien: amount,
+          vi: walletKind,
+          ghi_chu: clause,
+          cau_hoi_lam_ro: 'Khoản này dùng cho Bếp ăn hay Căn tin ạ?',
+          lua_chon_lam_ro: [
+            { id: 'bep', label: '🍲 Bếp ăn', patch: { mang: 'bep_an' } },
+            { id: 'ct', label: '🏪 Căn tin', patch: { mang: 'can_tin' } },
+          ],
+        });
+      } else if (hasExplicitPayment) {
+        parsedItems.push({
+          intent: 'chi',
+          ngay: clauseDate,
+          mang: explicitMang,
+          category_id: category.id,
+          so_tien: amount,
+          vi: walletKind,
+          ghi_chu: clause,
+        });
+      } else {
+        // Chưa nói rõ đã trả tiền hay chưa -> AI hỏi lại 4 nút thông minh
+        parsedItems.push({
+          intent: 'chi',
+          ngay: clauseDate,
+          mang: explicitMang,
+          category_id: category.id,
+          so_tien: amount,
+          vi: walletKind,
+          ghi_chu: clause,
+          cau_hoi_lam_ro: 'Khoản này đã trả tiền chưa ạ?',
+          lua_chon_lam_ro: [
+            {
+              id: 'tm',
+              label: '💵 Đã trả Tiền mặt',
+              patch: {
+                intent: 'chi',
+                vi: 'tien_mat',
+                cau_hoi_lam_ro: undefined,
+                lua_chon_lam_ro: undefined,
+              },
+            },
+            {
+              id: 'nhan',
+              label: '🏦 Đã CK Chị Nhàn',
+              patch: {
+                intent: 'chi',
+                vi: 'tk_chi_nhan',
+                cau_hoi_lam_ro: undefined,
+                lua_chon_lam_ro: undefined,
+              },
+            },
+            {
+              id: 'diep',
+              label: '🏦 Đã CK Mợ Diệp',
+              patch: {
+                intent: 'chi',
+                vi: 'tk_mo_diep',
+                cau_hoi_lam_ro: undefined,
+                lua_chon_lam_ro: undefined,
+              },
+            },
+            {
+              id: 'no',
+              label: '⏳ Chưa trả – Ghi nợ',
+              patch: {
+                intent: 'chi_no',
+                vi: undefined,
+                cau_hoi_lam_ro: undefined,
+                lua_chon_lam_ro: undefined,
+              },
+            },
+          ],
+        });
+      }
+    } else if (hasExpenseCue && amount === null && !extractMealsFromText(clause).matched) {
+      const { category } = matchCategory(clause, snapshot.categories);
       parsedItems.push({
         intent: 'chi',
-        ngay: clauseDate,
-        mang: explicitMang,
+        ngay: globalDate,
+        mang: category.mang_mac_dinh,
         category_id: category.id,
-        so_tien: amount,
-        vi: walletKind,
         ghi_chu: clause,
-        ...(ambiguousSegment
-          ? {
-              cau_hoi_lam_ro: 'Khoản này dùng cho Bếp ăn hay Căn tin ạ?',
-              lua_chon_lam_ro: [
-                { id: 'bep', label: '🍲 Bếp ăn', patch: { mang: 'bep_an' } },
-                { id: 'ct', label: '🏪 Căn tin', patch: { mang: 'can_tin' } },
-              ],
-            }
-          : {}),
+        cau_hoi_lam_ro: `Hết bao nhiêu tiền ${category.ten_danh_muc.toLowerCase()} ạ?`,
       });
     }
   }

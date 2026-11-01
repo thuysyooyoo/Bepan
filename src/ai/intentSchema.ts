@@ -5,6 +5,9 @@ export type AIIntentType =
   | 'giong_hom_qua'
   | 'vang_lai'
   | 'thu_can_tin'
+  | 'thu'
+  | 'ban_chiu'
+  | 'thu_no'
   | 'chi'
   | 'chi_no'
   | 'tra_no'
@@ -56,6 +59,10 @@ export interface ParsedIntentItem {
   supplier_id?: string;
   ten_ncc_moi?: string;
 
+  // Cho ban_chiu / thu_no / thu (Khách nợ / đối tác / người trả nợ)
+  doi_tac?: string;
+  da_thanh_toan?: boolean;
+
   // Cho cham_cong / tra_luong
   cham_cong?: Array<{
     worker_id: string;
@@ -72,6 +79,8 @@ export interface ParsedIntentItem {
     | 'so_no_ncc'
     | 'tien_truong'
     | 'luong_tho'
+    | 'ai_no_minh'
+    | 'minh_no_ai'
     | 'tong_hop';
   cau_tra_loi?: string;
 
@@ -106,6 +115,9 @@ export const GEMINI_PARSE_JSON_SCHEMA = {
               'giong_hom_qua',
               'vang_lai',
               'thu_can_tin',
+              'thu',
+              'ban_chiu',
+              'thu_no',
               'chi',
               'chi_no',
               'tra_no',
@@ -127,6 +139,7 @@ export const GEMINI_PARSE_JSON_SCHEMA = {
           sang_vi: { type: 'STRING', enum: ['tien_mat', 'tk_mo_diep', 'tk_chi_nhan'] },
           supplier_id: { type: 'STRING' },
           ten_ncc_moi: { type: 'STRING' },
+          doi_tac: { type: 'STRING' },
           worker_id: { type: 'STRING' },
           ghi_chu: { type: 'STRING' },
           cau_hoi_lam_ro: { type: 'STRING' },
@@ -139,6 +152,8 @@ export const GEMINI_PARSE_JSON_SCHEMA = {
               'so_no_ncc',
               'tien_truong',
               'luong_tho',
+              'ai_no_minh',
+              'minh_no_ai',
               'tong_hop',
             ],
           },

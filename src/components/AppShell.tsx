@@ -8,6 +8,7 @@ import {
   HelpCircle,
   LogOut,
   MessageSquareText,
+  MoreVertical,
   RefreshCw,
   Settings,
   Wallet,
@@ -19,10 +20,13 @@ import { evaluateActiveReminders, type ActiveReminderCard } from '../domain/remi
 import { runWeeklyAutoSnapshotIfDue } from '../domain/weeklyBackup';
 import type { BookId, BookSnapshot, Transaction } from '../types/models';
 import { AdminDashboardView } from './AdminDashboardView';
-import type { UndoState } from './ConfirmationCard';
+import { UndoBanner, type UndoState } from './ConfirmationCard';
+import { ChatAssistantBox } from './ChatAssistantBox';
 import { ElderlyGuideModal } from './ElderlyGuideModal';
-import type { ManualFormKind } from './ManualEntryForms';
+import { ManualEntryForms, type ManualFormKind } from './ManualEntryForms';
 import { PwaInstallBanner } from './PwaInstallBanner';
+import { RollyDetailDrawer } from './RollyDetailDrawer';
+import { RollyOverviewBanner } from './RollyOverviewBanner';
 import { SettingsModal } from './SettingsModal';
 import { DongTienTab, GhiSoTab, HomNayTab, SoNoTab } from './TabViews';
 
@@ -48,6 +52,8 @@ export const AppShell: React.FC = () => {
   const [error, setError] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showMainMenu, setShowMainMenu] = useState(false);
+  const [detailDrawer, setDetailDrawer] = useState<'profit' | 'wallets' | 'debts' | null>(null);
   const [activeForm, setActiveForm] = useState<{
     kind: ManualFormKind;
     editTx?: Transaction | null;
@@ -226,50 +232,19 @@ export const AppShell: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            {!isAdminCombinedMode && activeReminders.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveForm(null);
-                  setActiveTab('ghi_so');
-                }}
-                aria-label={`Có ${activeReminders.length} nhắc việc`}
-                title="Xem nhắc việc"
-                className="px-2.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-sm inline-flex items-center gap-1 shadow-xs"
-              >
-                <BellRing className="w-4 h-4" />
-                <span>{activeReminders.length}</span>
-              </button>
-            )}
-
-            {!isAdminCombinedMode && (
-              <button
-                type="button"
-                onClick={() => setShowSettings(true)}
-                aria-label="Mở cài đặt"
-                className="px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-semibold text-base inline-flex items-center gap-1"
-              >
-                <Settings className="w-5 h-5" />
-                Cài đặt
-              </button>
-            )}
+            {/* Duy nhất 1 nút menu 3 chấm tinh gọn chống tràn màn hình (kiểu Rolly) */}
             <button
               type="button"
-              onClick={() => setShowGuide(true)}
-              aria-label="Xem hướng dẫn"
-              title="Xem hướng dẫn 1 trang chữ to"
-              className="px-2.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-semibold text-base inline-flex items-center gap-1"
+              onClick={() => setShowMainMenu(true)}
+              aria-label="Mở menu tùy chọn"
+              className="relative w-11 h-11 rounded-2xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center font-black transition active:scale-95 shrink-0"
             >
-              <HelpCircle className="w-5 h-5" />
-              <span className="hidden sm:inline">Hướng dẫn</span>
-            </button>
-            <button
-              type="button"
-              onClick={logout}
-              className="px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-semibold text-base inline-flex items-center gap-1"
-            >
-              <LogOut className="w-5 h-5" />
-              Thoát
+              <MoreVertical className="w-6 h-6" />
+              {activeReminders.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-amber-400 text-stone-950 text-xs font-black flex items-center justify-center">
+                  {activeReminders.length}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -357,7 +332,9 @@ export const AppShell: React.FC = () => {
 
       {/* Nội dung chính */}
       <main
-        className={`flex-1 px-4 py-4 ${isAdminCombinedMode ? 'pb-8' : 'pb-26'}`}
+        className={`flex-1 px-4 py-4 ${
+          session.vai_tro === 'owner' || isAdminCombinedMode ? 'pb-8' : 'pb-26'
+        }`}
       >
         <PwaInstallBanner />
 
@@ -375,7 +352,61 @@ export const AppShell: React.FC = () => {
           <div className="text-center py-12 text-xl text-stone-600 font-semibold">
             Đang tải dữ liệu sổ...
           </div>
+        ) : activeForm ? (
+          <ManualEntryForms
+            kind={activeForm.kind}
+            selectedDate={selectedDate}
+            snapshot={snapshot}
+            editingTx={activeForm.editTx}
+            onCancel={() => setActiveForm(null)}
+            onSaved={async (undo) => {
+              setActiveForm(null);
+              if (undo) setUndoState(undo);
+              await reloadSnapshot();
+            }}
+          />
+        ) : session.vai_tro === 'owner' ? (
+          /* =========================================================================
+           * GIAO DIỆN ROLLY 1 MÀN HÌNH CHÍNH CHO BỐ & MẸ:
+           * - Khung xem nhanh trên đầu (Lãi hôm nay, Tiền có, Sổ nợ & Phải thu)
+           * - Hội thoại Chat AI ở giữa (Thẻ xác nhận tinh gọn 1 dòng)
+           * - Nút Micro 1 chạm khổng lồ cố định ở đáy
+           * - KHÔNG CÒN 4 TAB DƯỚI ĐÁY, KHÔNG CUỘN NGANG!
+           * ========================================================================= */
+          <div className="space-y-4">
+            <UndoBanner
+              undoState={undoState}
+              onDismiss={() => setUndoState(null)}
+              onUndone={async () => {
+                setUndoState(null);
+                await reloadSnapshot();
+              }}
+            />
+
+            {/* Khối Rolly Overview: Xem nhanh Lãi hôm nay + Tiền có + Nợ & Phải thu */}
+            <RollyOverviewBanner
+              snapshot={snapshot}
+              selectedDate={selectedDate}
+              onOpenProfit={() => setDetailDrawer('profit')}
+              onOpenWallets={() => setDetailDrawer('wallets')}
+              onOpenDebts={() => setDetailDrawer('debts')}
+            />
+
+            {/* Trợ lý Giọng nói AI kiểu Rolly: Nói tự nhiên & Hỏi lại thông minh */}
+            <ChatAssistantBox
+              snapshot={snapshot}
+              selectedDate={selectedDate}
+              onOpenManualForm={(kind, draftTx) =>
+                setActiveForm({ kind, editTx: draftTx ?? null })
+              }
+              onCommitted={async (undo) => {
+                if (undo) setUndoState(undo);
+                await reloadSnapshot();
+              }}
+            />
+          </div>
         ) : (
+          /* Chế độ Admin: Giữ 4 Tab như cũ */
           <>
             {activeTab === 'ghi_so' && (
               <GhiSoTab
@@ -425,10 +456,10 @@ export const AppShell: React.FC = () => {
         )}
       </main>
 
-      {/* 4 Tab dưới đáy kích thước lớn cho người lớn tuổi (ẩn khi Admin đang xem bảng Tổng hợp 2 cơ sở) */}
-      {!isAdminCombinedMode && (
+      {/* 4 Tab dưới đáy chỉ hiển thị cho tài khoản Admin khi xem 1 cơ sở */}
+      {session.vai_tro === 'admin' && !isAdminCombinedMode && (
         <nav
-          aria-label="Thanh điều hướng chính"
+          aria-label="Thanh điều hướng chính Admin"
           className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t-2 border-stone-300 grid grid-cols-4 z-30"
         >
           {tabs.map((tab) => {
@@ -462,6 +493,161 @@ export const AppShell: React.FC = () => {
         </nav>
       )}
 
+      {/* =========================================================================
+       * ROLLY DRAWERS: XEM CHI TIẾT 1 CỘT KHÔNG CUỘN NGANG
+       * ========================================================================= */}
+      {snapshot && (
+        <>
+          <RollyDetailDrawer
+            title={`📊 Lợi nhuận ${snapshot.book.ten}`}
+            isOpen={detailDrawer === 'profit'}
+            onClose={() => setDetailDrawer(null)}
+          >
+            <HomNayTab
+              snapshot={snapshot}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              onJumpToForm={handleJumpToForm}
+            />
+          </RollyDetailDrawer>
+
+          <RollyDetailDrawer
+            title={`💰 Tiền thực tế ${snapshot.book.ten}`}
+            isOpen={detailDrawer === 'wallets'}
+            onClose={() => setDetailDrawer(null)}
+          >
+            <DongTienTab
+              snapshot={snapshot}
+              selectedDate={selectedDate}
+              onDataChanged={reloadSnapshot}
+            />
+          </RollyDetailDrawer>
+
+          <RollyDetailDrawer
+            title={`📕 Sổ Nợ & Phải Thu ${snapshot.book.ten}`}
+            isOpen={detailDrawer === 'debts'}
+            onClose={() => setDetailDrawer(null)}
+          >
+            <SoNoTab
+              snapshot={snapshot}
+              selectedDate={selectedDate}
+              focusedSupplierId={focusedSupplierId}
+              onClearFocusSupplier={clearFocusedSupplier}
+              onDataChanged={reloadSnapshot}
+            />
+          </RollyDetailDrawer>
+        </>
+      )}
+
+      {/* Menu Modal 3 chấm gọn gàng */}
+      {showMainMenu && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 max-w-md mx-auto"
+        >
+          <div className="w-full bg-white rounded-3xl p-5 shadow-2xl space-y-3 border-2 border-stone-300">
+            <div className="flex items-center justify-between border-b pb-2">
+              <div className="text-xl font-black text-stone-900">⚙️ Tùy chọn hệ thống</div>
+              <button
+                type="button"
+                onClick={() => setShowMainMenu(false)}
+                className="w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-700 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              {activeReminders.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMainMenu(false);
+                    setDetailDrawer('debts');
+                  }}
+                  className="w-full p-3.5 rounded-2xl bg-amber-50 hover:bg-amber-100 border-2 border-amber-500 font-extrabold text-left text-amber-950 flex items-center justify-between"
+                >
+                  <span className="flex items-center gap-2">
+                    <BellRing className="w-5 h-5 text-amber-700" />
+                    Việc cần làm ngay
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-amber-400 text-stone-950 text-xs font-black">
+                    {activeReminders.length}
+                  </span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMainMenu(false);
+                  setShowGuide(true);
+                }}
+                className="w-full p-3.5 rounded-2xl bg-stone-50 hover:bg-stone-100 border border-stone-300 font-bold text-left text-stone-900 flex items-center gap-2"
+              >
+                <HelpCircle className="w-5 h-5 text-teal-700" />
+                📖 Cẩm nang sử dụng cho Bố/Mẹ
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMainMenu(false);
+                  setShowSettings(true);
+                }}
+                className="w-full p-3.5 rounded-2xl bg-stone-50 hover:bg-stone-100 border border-stone-300 font-bold text-left text-stone-900 flex items-center gap-2"
+              >
+                <Settings className="w-5 h-5 text-teal-700" />
+                ⚙️ Cài đặt sổ (Đơn giá, Thợ, Mối hàng, PIN)
+              </button>
+
+              {session.vai_tro === 'admin' && (
+                <div className="p-2.5 rounded-2xl bg-stone-100 space-y-1.5">
+                  <div className="text-xs font-bold text-stone-500 uppercase">
+                    Chuyển cơ sở (Admin)
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMainMenu(false);
+                        handleAdminSwitchFacility('hiep_hoa');
+                      }}
+                      className="p-2 rounded-xl bg-white border border-stone-300 font-bold text-sm"
+                    >
+                      👨‍🍳 Hiệp Hòa
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMainMenu(false);
+                        handleAdminSwitchFacility('tien_du');
+                      }}
+                      className="p-2 rounded-xl bg-white border border-stone-300 font-bold text-sm"
+                    >
+                      👩‍🍳 Tiên Du
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMainMenu(false);
+                  logout();
+                }}
+                className="w-full p-3.5 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-300 font-extrabold text-left text-rose-800 flex items-center gap-2"
+              >
+                <LogOut className="w-5 h-5 text-rose-700" />
+                🚪 Đăng xuất / Đổi người dùng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Cửa sổ Cài đặt toàn diện */}
       {showSettings && snapshot && (
         <SettingsModal
@@ -472,10 +658,7 @@ export const AppShell: React.FC = () => {
       )}
 
       {/* Hướng dẫn 1 trang chữ to cho Bố & Mẹ */}
-      <ElderlyGuideModal
-        isOpen={showGuide}
-        onClose={() => setShowGuide(false)}
-      />
+      <ElderlyGuideModal isOpen={showGuide} onClose={() => setShowGuide(false)} />
     </div>
   );
 };

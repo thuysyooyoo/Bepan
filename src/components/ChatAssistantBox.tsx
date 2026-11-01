@@ -3,6 +3,7 @@ import {
   AudioLines,
   CheckCheck,
   HelpCircle,
+  Keyboard,
   Mic,
   Send,
   Sparkles,
@@ -60,13 +61,6 @@ interface ChatAssistantBoxProps {
   onCommitted: (undo: UndoState) => Promise<void>;
 }
 
-const QUICK_PROMPTS = [
-  'Hôm nay lãi bao nhiêu?',
-  'Đang nợ những ai?',
-  'Tiền mặt còn bao nhiêu?',
-  'Suất ăn giống hôm qua',
-];
-
 const AUTO_TTS_STORAGE_KEY = 'sobep_auto_tts_v1';
 
 export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
@@ -80,6 +74,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
   const [busy, setBusy] = useState(false);
   const [savingCardId, setSavingCardId] = useState<string | null>(null);
   const [turns, setTurns] = useState<ChatTurn[]>([]);
+  const [showKeyboardInput, setShowKeyboardInput] = useState(false);
 
   // Trạng thái Giọng nói & Đọc to thẻ xác nhận (Phiên 4)
   const [autoSpeak, setAutoSpeak] = useState<boolean>(() => {
@@ -517,30 +512,38 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
         </div>
       </div>
 
-      {/* Các nút câu hỏi / lệnh mẫu 1 chạm */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {QUICK_PROMPTS.map((q) => (
-          <button
-            key={q}
-            type="button"
-            onClick={() => submitUtterance(q, 'chat')}
-            className="px-3.5 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-400 text-teal-950 font-bold text-base whitespace-nowrap shrink-0"
-          >
-            {q}
-          </button>
-        ))}
-      </div>
-
       {/* Dòng hội thoại & Thẻ xác nhận */}
       {turns.length === 0 ? (
-        <div className="rounded-2xl bg-stone-50 border border-stone-200 p-3.5 text-base text-stone-700 space-y-1">
-          <div className="font-bold text-stone-900">
-            🎤 Bấm nút Micro tròn to bên dưới rồi nói tự nhiên:
+        <div className="rounded-2xl bg-stone-50 border border-stone-200 p-3.5 text-base text-stone-700 space-y-2">
+          <div className="font-bold text-stone-900 text-lg">
+            🎤 Bấm nút Micro tròn bên dưới rồi nói tự nhiên:
           </div>
-          <div>• “Sáng 150, trưa 320, tối 80, vãng lai trưa 5”</div>
-          <div>• “Mua 5 cân thịt 4 trăm rưỡi, rau 300”</div>
-          <div>• “Lấy thịt chị Hoa 2 triệu ghi nợ”</div>
-          <div>• “Căn tin hôm nay 2 triệu 3 tiền mặt, chuyển khoản 800”</div>
+          <div className="space-y-1.5 text-stone-800">
+            <button
+              type="button"
+              onClick={() => submitUtterance('Hôm nay lãi bao nhiêu?', 'chat')}
+              className="w-full text-left p-2.5 rounded-xl bg-white border border-stone-300 font-semibold hover:bg-stone-100 flex items-center justify-between text-base"
+            >
+              <span>📊 “Hôm nay lãi bao nhiêu?”</span>
+              <span className="text-xs text-stone-400">Chạm để thử</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => submitUtterance('Mua 5 cân thịt 4 trăm rưỡi', 'chat')}
+              className="w-full text-left p-2.5 rounded-xl bg-white border border-stone-300 font-semibold hover:bg-stone-100 flex items-center justify-between text-base"
+            >
+              <span>🥩 “Mua 5 cân thịt 4 trăm rưỡi”</span>
+              <span className="text-xs text-stone-400">Chạm để thử</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => submitUtterance('Ai đang nợ mình?', 'chat')}
+              className="w-full text-left p-2.5 rounded-xl bg-white border border-stone-300 font-semibold hover:bg-stone-100 flex items-center justify-between text-base"
+            >
+              <span>📗 “Ai đang nợ mình?”</span>
+              <span className="text-xs text-stone-400">Chạm để thử</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
@@ -778,34 +781,47 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
         </div>
       )}
 
-      {/* Ô nhập chữ + Nút Gửi + Nút Micro 1 chạm khổng lồ >= 112px (w-28 h-28) */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submitUtterance(inputText, 'chat');
-        }}
-        className="space-y-3 pt-1"
-      >
-        <div className="flex items-center gap-2 bg-stone-50 border-2 border-stone-400 focus-within:border-teal-700 rounded-2xl px-3 py-1.5">
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder="Hoặc gõ câu ghi sổ tại đây..."
-            className="flex-1 text-xl py-2 px-1 bg-transparent outline-none text-stone-950 placeholder:text-stone-400 font-medium"
-          />
-          <button
-            type="submit"
-            disabled={busy || !inputText.trim()}
-            className="h-12 px-4 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-extrabold text-lg inline-flex items-center gap-1.5 disabled:opacity-45 shrink-0"
-          >
-            <Send className="w-5 h-5" />
-            {busy ? '...' : 'Gửi'}
-          </button>
-        </div>
-
-        {/* Cụm nút Micro 1 chạm khổng lồ (112px x 112px > 96px chuẩn người lớn tuổi) */}
-        <div className="flex flex-col items-center gap-2.5 pt-1">
+      {/* Ô nhập chữ (khi bấm icon bàn phím) HOẶC Cụm Micro 1 chạm khổng lồ cố định */}
+      {showKeyboardInput ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submitUtterance(inputText, 'chat');
+          }}
+          className="space-y-2 pt-1"
+        >
+          <div className="flex items-center gap-2 bg-stone-50 border-2 border-stone-400 focus-within:border-teal-700 rounded-2xl px-3 py-1.5">
+            <input
+              type="text"
+              autoFocus
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Gõ yêu cầu ghi sổ tại đây..."
+              className="flex-1 text-xl py-2 px-1 bg-transparent outline-none text-stone-950 placeholder:text-stone-400 font-medium"
+            />
+            <button
+              type="submit"
+              disabled={busy || !inputText.trim()}
+              className="h-12 px-4 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-extrabold text-lg inline-flex items-center gap-1.5 disabled:opacity-45 shrink-0"
+            >
+              <Send className="w-5 h-5" />
+              {busy ? '...' : 'Gửi'}
+            </button>
+          </div>
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => setShowKeyboardInput(false)}
+              className="text-stone-500 font-bold text-sm inline-flex items-center gap-1 hover:text-stone-800"
+            >
+              <Mic className="w-4 h-4 text-teal-700" />
+              <span>Thu bàn phím, quay lại nút Micro</span>
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="flex items-center justify-center gap-4 pt-2">
+          {/* Nút Micro 1 chạm khổng lồ ở giữa */}
           <button
             type="button"
             disabled={busy}
@@ -813,7 +829,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
             aria-label={
               voiceState === 'idle' ? 'Bấm 1 lần để bắt đầu nói' : 'Bấm để dừng nghe và gửi'
             }
-            className={`w-28 h-28 rounded-full text-white shadow-lg flex flex-col items-center justify-center gap-1 transition-transform active:scale-95 disabled:opacity-50 ${
+            className={`w-28 h-28 rounded-full text-white shadow-lg flex flex-col items-center justify-center gap-1 transition-transform active:scale-95 disabled:opacity-50 shrink-0 ${
               voiceState === 'idle'
                 ? 'bg-teal-700 hover:bg-teal-800 border-4 border-teal-200'
                 : 'bg-rose-600 hover:bg-rose-700 border-4 border-rose-200 ring-8 ring-rose-100 animate-pulse'
@@ -832,31 +848,18 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
             )}
           </button>
 
-          {/* 2 nút phụ trợ nhỏ gọn: Ghi âm dự phòng gửi AI & Hướng dẫn bật quyền Micro Chrome Android */}
-          <div className="flex items-center justify-center gap-3 flex-wrap text-sm">
-            {voiceState === 'idle' && isAudioRecorderSupported() && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void handleStartFallbackRecording()}
-                className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-800 font-bold inline-flex items-center gap-1.5"
-              >
-                <AudioLines className="w-4 h-4 text-teal-700" />
-                Chỗ ồn? Ghi âm gửi AI
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setShowMicGuide(true)}
-              className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 font-bold inline-flex items-center gap-1"
-            >
-              <HelpCircle className="w-4 h-4 text-teal-700" />
-              Cách bật Micro điện thoại
-            </button>
-          </div>
+          {/* Nút bật bàn phím nhỏ gọn bên cạnh */}
+          <button
+            type="button"
+            onClick={() => setShowKeyboardInput(true)}
+            title="Gõ chữ nếu không tiện nói"
+            aria-label="Mở bàn phím gõ chữ"
+            className="w-12 h-12 rounded-2xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 flex items-center justify-center transition active:scale-95 shrink-0"
+          >
+            <Keyboard className="w-6 h-6 text-stone-700" />
+          </button>
         </div>
-      </form>
+      )}
 
       {/* Hộp thoại hướng dẫn mở quyền Micro trên Chrome Android */}
       <MicPermissionGuideModal

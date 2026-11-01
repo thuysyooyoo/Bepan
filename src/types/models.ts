@@ -17,7 +17,9 @@ export type TransactionType =
   | 'truong_chuyen' // Nhà trường chuyển tiền ăn về TK mợ Diệp (cộng Ví + đối trừ dự kiến trường)
   | 'tra_luong'     // Trả/ứng lương công nhân (trừ Ví + đối trừ lương phải trả)
   | 'chuyen_quy'    // Chuyển tiền giữa 2 ví cùng cơ sở
-  | 'dieu_chinh_vi';// Kiểm đếm thực tế lệch sổ -> điều chỉnh ví
+  | 'dieu_chinh_vi' // Kiểm đếm thực tế lệch sổ -> điều chỉnh ví
+  | 'ban_chiu'      // Khách/giáo viên mua chịu (tính Lãi lỗ Doanh thu + tăng Phải thu, KHÔNG đổi Ví)
+  | 'thu_no';       // Thu nợ cũ từ khách (cộng Ví + giảm Phải thu, KHÔNG tính lại Doanh thu)
 
 export type ReminderType =
   | 'nhap_so_ngay'
@@ -148,6 +150,7 @@ export interface Transaction {
   wallet_id: string | null; // null khi mua chịu (chi_no)
   to_wallet_id?: string | null; // dùng khi chuyen_quy
   supplier_id?: string | null;  // dùng khi chi_no / tra_no
+  doi_tac?: string | null;      // dùng khi ban_chiu / thu_no (tên khách / giáo viên nợ hoặc trả)
   worker_id?: string | null;    // tùy chọn khi ứng/trả lương
   ky_thang?: string | null;     // YYYY-MM (cho chi phí tháng, trường chuyển, trả lương)
   ghi_chu: string;

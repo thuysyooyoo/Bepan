@@ -221,9 +221,9 @@ export function computeDailyReport(snapshot: BookSnapshot, ngay: string): DailyR
     (t) => t.book_id === bookId && !t.da_xoa && t.ngay === ngay
   );
 
-  // Thu khác trực tiếp của Bếp ăn
+  // Thu khác trực tiếp của Bếp ăn (bao gồm cả bán chịu ghi nhận doanh thu)
   const thuKhacBep = activeTxs
-    .filter((t) => t.loai === 'thu' && t.mang === 'bep_an')
+    .filter((t) => (t.loai === 'thu' || t.loai === 'ban_chiu') && t.mang === 'bep_an')
     .reduce((sum, t) => sum + t.so_tien, 0);
 
   // Chi nguyên liệu theo ngày của Bếp ăn (tách rõ trả ngay 'chi' và mua chịu 'chi_no')
@@ -286,7 +286,7 @@ export function computeDailyReport(snapshot: BookSnapshot, ngay: string): DailyR
   const tongThuQuayCuoiNgay = thuTienMatCuoiNgay + thuChuyenKhoanCuoiNgay;
 
   const thuKhacCanTin = activeTxs
-    .filter((t) => t.loai === 'thu' && t.mang === 'can_tin')
+    .filter((t) => (t.loai === 'thu' || t.loai === 'ban_chiu') && t.mang === 'can_tin')
     .reduce((sum, t) => sum + t.so_tien, 0);
 
   const coNhapThuCuoiNgay = tongThuQuayCuoiNgay > 0;
@@ -885,7 +885,7 @@ export function computeWalletBalances(
 
     for (const tx of activeTxs) {
       if (
-        (tx.loai === 'thu_cuoi_ngay' || tx.loai === 'thu' || tx.loai === 'truong_chuyen') &&
+        (tx.loai === 'thu_cuoi_ngay' || tx.loai === 'thu' || tx.loai === 'truong_chuyen' || tx.loai === 'thu_no') &&
         tx.wallet_id === wallet.id
       ) {
         vao += tx.so_tien;
@@ -970,10 +970,10 @@ export function computeWalletTimeline(
     ? walletMap.get(filterWalletId)?.so_du_dau_ky ?? 0
     : Array.from(walletMap.values()).reduce((s, w) => s + w.so_du_dau_ky, 0);
 
-  // Chỉ lấy giao dịch thực thu thực chi (loại trừ chi_no và da_xoa)
+  // Chỉ lấy giao dịch thực thu thực chi (loại trừ chi_no, ban_chiu và da_xoa)
   const cashTxs = snapshot.transactions
     .filter((t) => {
-      if (t.book_id !== bookId || t.da_xoa || t.loai === 'chi_no') return false;
+      if (t.book_id !== bookId || t.da_xoa || t.loai === 'chi_no' || t.loai === 'ban_chiu') return false;
       if (!filterWalletId) return true;
       return (
         t.wallet_id === filterWalletId ||
@@ -993,7 +993,12 @@ export function computeWalletTimeline(
     let huong: WalletTimelineEntry['huong'] = 'ra';
     let bienDong = 0;
 
-    if (tx.loai === 'thu_cuoi_ngay' || tx.loai === 'thu' || tx.loai === 'truong_chuyen') {
+    if (
+      tx.loai === 'thu_cuoi_ngay' ||
+      tx.loai === 'thu' ||
+      tx.loai === 'truong_chuyen' ||
+      tx.loai === 'thu_no'
+    ) {
       huong = 'vao';
       bienDong = tx.so_tien;
     } else if (tx.loai === 'chi' || tx.loai === 'tra_no' || tx.loai === 'tra_luong') {
@@ -1198,14 +1203,22 @@ export interface SupplierDebtItem {
   so_ngay_no_lau_nhat: number;
 }
 
+export interface CustomerReceivableItem {
+  doi_tac: string;
+  tong_ban_chiu: number;
+  tong_da_thu: number;
+  con_phai_thu: number;
+  ngay_muon_nhat: string | null;
+}
+
 export interface DebtAndPayablesSummary {
   ky_thang: string;
-  // 1. Nợ nhà cung cấp (mua chịu)
+  // 1. Nợ nhà cung cấp (mua chịu - mình nợ người ta)
   nha_cung_cap: {
     danh_sach: SupplierDebtItem[];
     tong_no_ncc: number;
   };
-  // 2. Lương thợ phải trả trong kỳ tháng
+  // 2. Lương thợ phải trả trong kỳ tháng (mình nợ thợ)
   luong_tho_ky_nay: {
     tong_luong_tinh_theo_cong: number;
     da_tra_hoac_ung: number;
@@ -1218,18 +1231,28 @@ export interface DebtAndPayablesSummary {
       con_lai: number;
     }>;
   };
-  // 3. Tiền trường dự kiến về trong kỳ tháng (để đối chiếu & hiện trên thẻ nhắc)
+  // 3. Tiền trường dự kiến về trong kỳ tháng (người ta nợ mình)
   tien_truong_ky_nay: {
     tong_suat_truong: number;
     so_tien_du_kien: number;
     truong_da_chuyen: number;
     con_cho_chuyen: number;
   };
+  // 4. Khách / giáo viên ăn chịu, đặt cỗ chưa thanh toán (người ta nợ mình)
+  phai_thu_khach: {
+    danh_sach: CustomerReceivableItem[];
+    tong_phai_thu_khach: number;
+  };
+  // 5. Tổng hợp 2 chiều: Nợ mình nợ & Người ta nợ mình
+  tong_minh_no: number;     // = tong_no_ncc + con_phai_tra_luong
+  tong_nguoi_ta_no: number; // = con_cho_chuyen + tong_phai_thu_khach
 }
 
 /**
  * 5. SỔ NỢ & PHẢI TRẢ / DỰ KIẾN THU (Tách riêng hoàn toàn khỏi Sổ Dòng Tiền):
- * Gồm: Nợ mua chịu nhà cung cấp + Lương thợ lũy kế phải trả + Tiền suất ăn trường dự kiến về.
+ * Gồm 2 bảng rõ ràng:
+ * - 📕 Khoản mình nợ (Phải trả): Nợ mua chịu nhà cung cấp + Lương thợ lũy kế phải trả.
+ * - 📗 Khoản người ta nợ mình (Phải thu): Tiền suất ăn trường dự kiến về + Khách/giáo viên ăn chịu.
  */
 export function computeDebtAndPayables(
   snapshot: BookSnapshot,
@@ -1284,6 +1307,7 @@ export function computeDebtAndPayables(
 
   const tongLuongCong = chiTietTho.reduce((s, w) => s + w.thanh_tien, 0);
   const tongDaTraLuong = wageTxs.reduce((s, t) => s + t.so_tien, 0);
+  const luongThoConPhaiTra = Math.max(0, tongLuongCong - tongDaTraLuong);
 
   // 3. Tiền trường dự kiến kỳ này
   const monthMeals = snapshot.mealCounts.filter(
@@ -1302,6 +1326,46 @@ export function computeDebtAndPayables(
       (t) => t.loai === 'truong_chuyen' && (t.ky_thang || getYearMonth(t.ngay)) === kyThang
     )
     .reduce((s, t) => s + t.so_tien, 0);
+  const tienTruongConCho = Math.max(0, soTienDuKienTruong - truongDaChuyen);
+
+  // 4. Khách / giáo viên ăn chịu & thu nợ (Phải thu khách)
+  const receivableMap = new Map<
+    string,
+    { tong_ban_chiu: number; tong_da_thu: number; ngay_muon_nhat: string | null }
+  >();
+
+  for (const tx of activeTxs) {
+    if (tx.loai === 'ban_chiu' || tx.loai === 'thu_no') {
+      const partner = (tx.doi_tac || tx.ghi_chu || 'Khách vãng lai').trim();
+      if (!partner) continue;
+      const current = receivableMap.get(partner) || {
+        tong_ban_chiu: 0,
+        tong_da_thu: 0,
+        ngay_muon_nhat: null,
+      };
+      if (tx.loai === 'ban_chiu') {
+        current.tong_ban_chiu += tx.so_tien;
+      } else if (tx.loai === 'thu_no') {
+        current.tong_da_thu += tx.so_tien;
+      }
+      if (!current.ngay_muon_nhat || tx.ngay > current.ngay_muon_nhat) {
+        current.ngay_muon_nhat = tx.ngay;
+      }
+      receivableMap.set(partner, current);
+    }
+  }
+
+  const customerReceivables: CustomerReceivableItem[] = Array.from(receivableMap.entries())
+    .map(([doi_tac, info]) => ({
+      doi_tac,
+      tong_ban_chiu: info.tong_ban_chiu,
+      tong_da_thu: info.tong_da_thu,
+      con_phai_thu: Math.max(0, info.tong_ban_chiu - info.tong_da_thu),
+      ngay_muon_nhat: info.ngay_muon_nhat,
+    }))
+    .filter((c) => c.con_phai_thu > 0 || c.tong_ban_chiu > 0);
+
+  const tongPhaiThuKhach = customerReceivables.reduce((s, c) => s + c.con_phai_thu, 0);
 
   return {
     ky_thang: kyThang,
@@ -1312,14 +1376,20 @@ export function computeDebtAndPayables(
     luong_tho_ky_nay: {
       tong_luong_tinh_theo_cong: tongLuongCong,
       da_tra_hoac_ung: tongDaTraLuong,
-      con_phai_tra: Math.max(0, tongLuongCong - tongDaTraLuong),
+      con_phai_tra: luongThoConPhaiTra,
       chi_tiet_tho: chiTietTho,
     },
     tien_truong_ky_nay: {
       tong_suat_truong: tongSuatTruong,
       so_tien_du_kien: soTienDuKienTruong,
       truong_da_chuyen: truongDaChuyen,
-      con_cho_chuyen: Math.max(0, soTienDuKienTruong - truongDaChuyen),
+      con_cho_chuyen: tienTruongConCho,
     },
+    phai_thu_khach: {
+      danh_sach: customerReceivables,
+      tong_phai_thu_khach: tongPhaiThuKhach,
+    },
+    tong_minh_no: tongNoNcc + luongThoConPhaiTra,
+    tong_nguoi_ta_no: tienTruongConCho + tongPhaiThuKhach,
   };
 }
