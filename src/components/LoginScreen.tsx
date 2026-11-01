@@ -7,18 +7,19 @@ import { ElderlyGuideModal } from './ElderlyGuideModal';
 export const LoginScreen: React.FC = () => {
   const { profiles, lastProfileId, login } = useAuth();
   const [selectedProfile, setSelectedProfile] = useState<PublicProfileSummary | null>(null);
+  const [hasSwitchedUser, setHasSwitchedUser] = useState(false);
   const [pin, setPin] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
 
-  // Tự chọn sẵn người dùng lần trước trên máy điện thoại này để ông bà đỡ bấm 1 bước
+  // Tự chọn sẵn người dùng lần trước trên máy điện thoại này để ông bà đỡ bấm 1 bước (chỉ khi chưa bấm Đổi người dùng)
   useEffect(() => {
-    if (lastProfileId && profiles.length > 0 && !selectedProfile) {
+    if (!hasSwitchedUser && lastProfileId && profiles.length > 0 && !selectedProfile) {
       const found = profiles.find((p) => p.id === lastProfileId);
       if (found) setSelectedProfile(found);
     }
-  }, [lastProfileId, profiles, selectedProfile]);
+  }, [hasSwitchedUser, lastProfileId, profiles, selectedProfile]);
 
   const handleDigit = async (digit: string) => {
     if (submitting || !selectedProfile || pin.length >= 4) return;
@@ -126,37 +127,39 @@ export const LoginScreen: React.FC = () => {
         <button
           type="button"
           onClick={() => {
+            localStorage.removeItem('sobep_last_profile');
+            setHasSwitchedUser(true);
             setSelectedProfile(null);
             setPin('');
             setErrorMsg('');
           }}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-stone-300 text-stone-800 font-semibold text-lg shadow-xs"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-stone-300 text-stone-700 hover:bg-stone-50 font-bold text-sm shadow-xs transition active:scale-95"
         >
-          <ArrowLeft className="w-6 h-6" />
-          Đổi người dùng
+          <ArrowLeft className="w-4 h-4" />
+          <span>Đổi người dùng</span>
         </button>
 
-        <div className="text-center mt-5">
-          <div className="text-5xl mb-2">{selectedProfile.avatar_emoji}</div>
-          <h2 className="text-2xl font-extrabold text-stone-900">
+        <div className="text-center mt-4">
+          <div className="text-4xl mb-1.5">{selectedProfile.avatar_emoji}</div>
+          <h2 className="text-xl font-black text-stone-900">
             Xin chào {selectedProfile.xung_ho}!
           </h2>
-          <p className="text-lg text-stone-700 mt-1 flex items-center justify-center gap-1.5">
-            <Lock className="w-5 h-5 text-teal-700" />
-            Bấm 4 số mã PIN để mở sổ
+          <p className="text-sm text-stone-600 mt-1 flex items-center justify-center gap-1.5 font-medium">
+            <Lock className="w-4 h-4 text-teal-700" />
+            Nhập 4 số mã PIN để mở sổ
           </p>
 
           {/* 4 ô hiển thị dấu chấm mã PIN to rõ */}
-          <div className="flex justify-center gap-4 my-5" aria-label="Ô nhập mã PIN">
+          <div className="flex justify-center gap-3.5 my-4" aria-label="Ô nhập mã PIN">
             {[0, 1, 2, 3].map((idx) => {
               const filled = idx < pin.length;
               return (
                 <div
                   key={idx}
-                  className={`w-14 h-16 rounded-2xl border-2 flex items-center justify-center text-3xl font-bold transition-all ${
+                  className={`w-12 h-14 rounded-2xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
                     filled
-                      ? 'border-teal-700 bg-teal-700 text-white scale-105'
-                      : 'border-stone-400 bg-white text-stone-400'
+                      ? 'border-teal-700 bg-teal-700 text-white scale-105 shadow-xs'
+                      : 'border-stone-300 bg-white text-stone-400'
                   }`}
                 >
                   {filled ? '●' : ''}
@@ -168,31 +171,31 @@ export const LoginScreen: React.FC = () => {
           {errorMsg ? (
             <div
               role="alert"
-              className="mx-auto mb-3 px-4 py-3 rounded-xl bg-red-100 border-2 border-red-500 text-red-900 font-bold text-lg"
+              className="mx-auto mb-2 px-3 py-2 rounded-xl bg-red-100 border border-red-500 text-red-900 font-bold text-sm"
             >
               {errorMsg}
             </div>
           ) : (
-            <div className="h-6" />
+            <div className="h-4" />
           )}
         </div>
       </div>
 
-      {/* Bàn phím số khổng lồ dễ bấm cho người lớn tuổi */}
-      <div className="grid grid-cols-3 gap-3 pb-2">
+      {/* Bàn phím số rõ ràng, êm mắt */}
+      <div className="grid grid-cols-3 gap-2.5 pb-2">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
           <button
             key={d}
             type="button"
             disabled={submitting}
             onClick={() => handleDigit(d)}
-            className="h-18 rounded-2xl bg-white border-2 border-stone-300 shadow-xs text-3xl font-extrabold text-stone-900 active:bg-teal-100 active:border-teal-600"
+            className="h-14 rounded-2xl bg-white border border-stone-300 shadow-xs text-2xl font-bold text-stone-900 active:bg-teal-50 active:border-teal-600"
           >
             {d}
           </button>
         ))}
 
-        <div className="flex items-center justify-center text-base font-medium text-stone-500 px-1 text-center">
+        <div className="flex items-center justify-center text-xs font-medium text-stone-500 px-1 text-center">
           Lưu 90 ngày
         </div>
 
@@ -200,7 +203,7 @@ export const LoginScreen: React.FC = () => {
           type="button"
           disabled={submitting}
           onClick={() => handleDigit('0')}
-          className="h-18 rounded-2xl bg-white border-2 border-stone-300 shadow-xs text-3xl font-extrabold text-stone-900 active:bg-teal-100 active:border-teal-600"
+          className="h-14 rounded-2xl bg-white border border-stone-300 shadow-xs text-2xl font-bold text-stone-900 active:bg-teal-50 active:border-teal-600"
         >
           0
         </button>
@@ -210,15 +213,15 @@ export const LoginScreen: React.FC = () => {
           disabled={submitting || pin.length === 0}
           onClick={handleBackspace}
           aria-label="Xóa 1 số"
-          className="h-18 rounded-2xl bg-stone-200 border-2 border-stone-300 text-stone-900 font-bold text-xl flex items-center justify-center gap-1 active:bg-stone-300 disabled:opacity-40"
+          className="h-14 rounded-2xl bg-stone-200 border border-stone-300 text-stone-900 font-bold text-base flex items-center justify-center gap-1 active:bg-stone-300 disabled:opacity-40"
         >
-          <Delete className="w-7 h-7" />
+          <Delete className="w-5 h-5" />
           Xóa
         </button>
       </div>
 
       {(import.meta.env.DEV || import.meta.env.VITE_DEMO_HINT === 'true') && (
-        <div className="mt-2 text-center text-base text-stone-600">
+        <div className="mt-1 text-center text-xs text-stone-500">
           PIN thử: Bố <b>1111</b> · Mẹ <b>2222</b> · Admin <b>9999</b>
         </div>
       )}
@@ -227,7 +230,7 @@ export const LoginScreen: React.FC = () => {
         <button
           type="button"
           onClick={() => setShowGuide(true)}
-          className="text-stone-600 hover:text-stone-900 underline text-base font-semibold"
+          className="text-stone-500 hover:text-stone-800 underline text-xs font-medium"
         >
           📖 Xem hướng dẫn dùng Sổ Bếp
         </button>

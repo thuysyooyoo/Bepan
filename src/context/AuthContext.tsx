@@ -110,6 +110,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(() => {
     localStorage.removeItem(SESSION_STORAGE_KEY);
+    localStorage.removeItem(LAST_PROFILE_KEY);
+    setLastProfileId(null);
     void dbRepo.signOutCloud?.();
     setSession(null);
   }, []);

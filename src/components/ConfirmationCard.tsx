@@ -104,54 +104,54 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
     <div
       role="region"
       aria-label="Thẻ kiểm tra trước khi lưu"
-      className={`rounded-3xl bg-white border-3 ${style.border} p-5 shadow-md space-y-4`}
+      className={`rounded-2xl bg-white border-2 ${style.border} p-3.5 shadow-sm space-y-2.5`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className={`px-3.5 py-1 rounded-xl text-base font-extrabold ${style.badgeBg}`}>
+        <span className={`px-2.5 py-0.5 rounded-lg text-xs font-bold ${style.badgeBg}`}>
           {data.badge}
         </span>
         <button
           type="button"
           onClick={() => speakVietnameseText(data.spokenText)}
-          className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold text-base inline-flex items-center gap-1.5"
+          className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs inline-flex items-center gap-1 transition"
         >
-          <Volume2 className="w-5 h-5 text-teal-700" />
-          Nghe đọc lại
+          <Volume2 className="w-3.5 h-3.5 text-teal-700" />
+          <span>Nghe đọc lại</span>
         </button>
       </div>
 
       <div>
-        <div className="text-2xl font-extrabold text-stone-900 leading-snug">{data.title}</div>
-        <div className="text-base font-semibold text-stone-600 mt-0.5">{data.dateLabel}</div>
+        <div className="text-base font-bold text-stone-900 leading-snug">{data.title}</div>
+        <div className="text-xs font-medium text-stone-500 mt-0.5">{data.dateLabel}</div>
       </div>
 
-      {/* Ô số tiền khổng lồ để ông bà nhìn rõ không nhầm số 0 */}
-      <div className={`rounded-2xl p-4 border border-stone-200 ${style.boxBg}`}>
+      {/* Ô số tiền gọn gàng, rõ ràng, không nuốt màn hình */}
+      <div className={`rounded-xl p-2.5 border border-stone-200/80 ${style.boxBg}`}>
         {data.headlineAmount !== null ? (
           <>
-            <div className={`text-4xl font-black tracking-tight ${style.amountText}`}>
+            <div className={`text-2xl font-black tracking-tight ${style.amountText}`}>
               {formatVND(data.headlineAmount)}
             </div>
-            <div className="text-lg font-bold text-stone-700 mt-1">
-              (Bằng chữ gọn: {formatCompactVND(data.headlineAmount)})
+            <div className="text-xs font-semibold text-stone-600 mt-0.5">
+              (Gọn: {formatCompactVND(data.headlineAmount)})
             </div>
           </>
         ) : null}
         {data.headlineSubtext && (
-          <div className="text-xl font-extrabold text-stone-900 mt-1">
+          <div className="text-sm font-bold text-stone-900 mt-0.5">
             {data.headlineSubtext}
           </div>
         )}
       </div>
 
       {/* Chi tiết từng dòng */}
-      <div className="space-y-2 border-t border-b border-stone-200 py-3">
+      <div className="space-y-1.5 border-t border-b border-stone-200/80 py-2 text-xs sm:text-sm">
         {data.rows.map((r, i) => (
-          <div key={i} className="flex items-start justify-between gap-3 text-lg">
-            <span className="text-stone-600 font-medium">{r.label}:</span>
+          <div key={i} className="flex items-start justify-between gap-2">
+            <span className="text-stone-500 font-medium">{r.label}:</span>
             <span
               className={`text-right ${
-                r.highlight ? 'font-extrabold text-stone-950' : 'font-bold text-stone-800'
+                r.highlight ? 'font-black text-stone-950' : 'font-semibold text-stone-800'
               }`}
             >
               {r.value}
@@ -161,30 +161,30 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
       </div>
 
       {/* Giải thích dễ hiểu cách ghi vào 3 sổ */}
-      <div className="rounded-xl bg-stone-100 px-3.5 py-2.5 text-base text-stone-700 font-medium leading-relaxed">
+      <div className="rounded-lg bg-stone-100 px-2.5 py-1.5 text-xs text-stone-600 font-medium leading-relaxed">
         {data.bookImpactNote}
       </div>
 
-      {/* 2 nút hành động cỡ lớn */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+      {/* 2 nút hành động gọn gàng, chuẩn bấm ngón tay */}
+      <div className="grid grid-cols-2 gap-2 pt-0.5">
         <button
           type="button"
           disabled={saving}
           onClick={onConfirm}
-          className="min-h-15 rounded-2xl bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white font-extrabold text-xl px-4 py-3.5 shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+          className="py-2.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white font-bold text-sm shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50 transition"
         >
-          <Check className="w-7 h-7 stroke-[3]" />
-          {saving ? 'Đang lưu...' : 'Đúng rồi, Lưu sổ'}
+          <Check className="w-4 h-4 stroke-[3]" />
+          <span>{saving ? 'Đang lưu...' : 'Lưu sổ ngay'}</span>
         </button>
 
         <button
           type="button"
           disabled={saving}
           onClick={onEdit}
-          className="min-h-14 rounded-2xl bg-white hover:bg-stone-100 border-2 border-stone-400 text-stone-900 font-bold text-xl px-4 py-3 flex items-center justify-center gap-2"
+          className="py-2.5 px-3 rounded-xl bg-white hover:bg-stone-50 active:scale-[0.98] border border-stone-300 text-stone-700 font-bold text-sm flex items-center justify-center gap-1.5 transition"
         >
-          <Pencil className="w-6 h-6" />
-          Quay lại sửa
+          <Pencil className="w-3.5 h-3.5" />
+          <span>Sửa lại</span>
         </button>
       </div>
     </div>

@@ -209,22 +209,22 @@ export const AppShell: React.FC = () => {
     offlineStatus && (!offlineStatus.isOnline || offlineStatus.pendingCount > 0);
 
   return (
-    <div className="min-h-screen bg-stone-100 flex flex-col max-w-md mx-auto shadow-md">
-      {/* Thanh tiêu đề cơ sở rõ ràng, có chuông nhắc việc, nút Cài đặt & Thoát */}
-      <header className={`px-4 py-3 border-b sticky top-0 z-20 ${headerTheme}`}>
+    <div className="h-[100dvh] bg-stone-100 flex flex-col max-w-md mx-auto shadow-md overflow-hidden">
+      {/* Thanh tiêu đề cơ sở rõ ràng, có nút Đổi người & Menu tùy chọn */}
+      <header className={`px-3.5 py-2.5 border-b shrink-0 z-20 ${headerTheme}`}>
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-xl font-extrabold truncate">
+            <div className="text-base font-extrabold truncate">
               {isAdminCombinedMode
                 ? '👑 Tổng hợp 2 cơ sở'
                 : snapshot
                 ? snapshot.book.ten
                 : 'Đang mở sổ...'}
             </div>
-            <div className="text-sm opacity-90 truncate">
+            <div className="text-xs opacity-90 truncate">
               {session.avatar_emoji} {session.xung_ho} ·{' '}
               {offlineStatus && !offlineStatus.isOnline
-                ? '📡 Đang ngoại tuyến'
+                ? '📡 Ngoại tuyến'
                 : cloudStatus?.connected
                 ? '☁️ Đám mây'
                 : '📱 Lưu máy'}
@@ -232,16 +232,28 @@ export const AppShell: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* Nút Đổi người dùng 1 chạm trực tiếp trên header: Không bao giờ bị kẹt */}
+            <button
+              type="button"
+              onClick={logout}
+              title="Đổi người dùng (Bố / Mẹ / Admin)"
+              aria-label="Đổi người dùng"
+              className="px-2.5 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs flex items-center gap-1 transition active:scale-95"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Đổi người</span>
+            </button>
+
             {/* Duy nhất 1 nút menu 3 chấm tinh gọn chống tràn màn hình (kiểu Rolly) */}
             <button
               type="button"
               onClick={() => setShowMainMenu(true)}
               aria-label="Mở menu tùy chọn"
-              className="relative w-11 h-11 rounded-2xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center font-black transition active:scale-95 shrink-0"
+              className="relative w-9 h-9 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center font-black transition active:scale-95 shrink-0"
             >
-              <MoreVertical className="w-6 h-6" />
+              <MoreVertical className="w-5 h-5" />
               {activeReminders.length > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-amber-400 text-stone-950 text-xs font-black flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-4 px-1 rounded-full bg-amber-400 text-stone-950 text-[10px] font-black flex items-center justify-center">
                   {activeReminders.length}
                 </span>
               )}
@@ -251,17 +263,17 @@ export const AppShell: React.FC = () => {
 
         {/* Thanh chuyển nhanh 3 chế độ dành riêng cho tài khoản Admin */}
         {session.vai_tro === 'admin' && (
-          <div className="grid grid-cols-3 gap-1.5 mt-3 bg-black/25 p-1 rounded-xl">
+          <div className="grid grid-cols-3 gap-1.5 mt-2 bg-black/25 p-1 rounded-xl">
             <button
               type="button"
               onClick={() => switchAdminMode('tong_hop')}
-              className={`py-2 px-2 rounded-lg font-extrabold text-sm transition inline-flex items-center justify-center gap-1 ${
+              className={`py-1.5 px-2 rounded-lg font-bold text-xs transition inline-flex items-center justify-center gap-1 ${
                 isAdminCombinedMode
                   ? 'bg-amber-300 text-stone-950 shadow-xs'
                   : 'text-white/85 hover:text-white'
               }`}
             >
-              <Crown className="w-4 h-4 shrink-0" />
+              <Crown className="w-3.5 h-3.5 shrink-0" />
               <span>Tổng hợp</span>
             </button>
 
@@ -272,7 +284,7 @@ export const AppShell: React.FC = () => {
                   key={bid}
                   type="button"
                   onClick={() => handleAdminSwitchFacility(bid)}
-                  className={`py-2 px-2 rounded-lg font-extrabold text-sm transition ${
+                  className={`py-1.5 px-2 rounded-lg font-bold text-xs transition ${
                     selected
                       ? 'bg-white text-stone-900 shadow-xs'
                       : 'text-white/85 hover:text-white'
@@ -289,30 +301,30 @@ export const AppShell: React.FC = () => {
       {/* Thanh báo trạng thái Offline / Hàng đợi chờ đẩy lên Đám mây */}
       {showOfflineBanner && offlineStatus && (
         <div
-          className={`px-4 py-2.5 border-b text-sm font-bold flex items-center justify-between gap-2 ${
+          className={`px-3 py-2 border-b text-xs font-bold shrink-0 flex items-center justify-between gap-2 ${
             !offlineStatus.isOnline
               ? 'bg-amber-100 border-amber-400 text-amber-950'
               : 'bg-sky-100 border-sky-400 text-sky-950'
           }`}
         >
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
             {!offlineStatus.isOnline ? (
-              <CloudOff className="w-5 h-5 text-amber-800 shrink-0" />
+              <CloudOff className="w-4 h-4 text-amber-800 shrink-0" />
             ) : (
               <RefreshCw
-                className={`w-5 h-5 text-sky-800 shrink-0 ${
+                className={`w-4 h-4 text-sky-800 shrink-0 ${
                   offlineStatus.isSyncing ? 'animate-spin' : ''
                 }`}
               />
             )}
-            <span className="leading-snug">
+            <span className="leading-snug truncate">
               {!offlineStatus.isOnline
                 ? offlineStatus.pendingCount > 0
-                  ? `Đang mất mạng — đã lưu tạm ${offlineStatus.pendingCount} mục trên máy, có mạng sẽ tự đẩy lên!`
-                  : 'Đang mất mạng — ông/bà vẫn ghi sổ bình thường trên máy!'
+                  ? `Đang ngoại tuyến — đã lưu tạm ${offlineStatus.pendingCount} mục trên máy`
+                  : 'Đang ngoại tuyến — vẫn ghi sổ bình thường trên máy'
                 : offlineStatus.isSyncing
-                ? `Đang đẩy ${offlineStatus.pendingCount} mục lưu tạm lên Đám mây...`
-                : `Còn ${offlineStatus.pendingCount} mục lưu tạm chờ đồng bộ Đám mây`}
+                ? `Đang đồng bộ ${offlineStatus.pendingCount} mục lên Đám mây...`
+                : `Còn ${offlineStatus.pendingCount} mục chờ đồng bộ Đám mây`}
             </span>
           </div>
 
@@ -322,7 +334,7 @@ export const AppShell: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleManualFlushOffline()}
-                className="px-2.5 py-1.5 rounded-xl bg-sky-800 text-white text-xs font-extrabold shrink-0"
+                className="px-2 py-1 rounded-lg bg-sky-800 text-white text-[11px] font-bold shrink-0"
               >
                 Đồng bộ
               </button>
@@ -331,68 +343,74 @@ export const AppShell: React.FC = () => {
       )}
 
       {/* Nội dung chính */}
-      <main
-        className={`flex-1 px-4 py-4 ${
-          session.vai_tro === 'owner' || isAdminCombinedMode ? 'pb-8' : 'pb-26'
-        }`}
-      >
-        <PwaInstallBanner />
-
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {isAdminCombinedMode ? (
-          <AdminDashboardView
-            initialMonth={getYearMonth(selectedDate)}
-            onOpenFacilityBook={handleAdminSwitchFacility}
-            onActOnFacilityReminder={handleAdminActOnReminder}
-          />
+          <div className="flex-1 overflow-y-auto px-3.5 py-3">
+            <PwaInstallBanner />
+            <AdminDashboardView
+              initialMonth={getYearMonth(selectedDate)}
+              onOpenFacilityBook={handleAdminSwitchFacility}
+              onActOnFacilityReminder={handleAdminActOnReminder}
+            />
+          </div>
         ) : error ? (
-          <div className="p-4 rounded-2xl bg-red-100 border-2 border-red-500 text-red-900 font-bold text-lg">
+          <div className="p-3.5 m-3 rounded-2xl bg-red-100 border border-red-500 text-red-900 font-bold text-sm">
             {error}
           </div>
         ) : !snapshot ? (
-          <div className="text-center py-12 text-xl text-stone-600 font-semibold">
+          <div className="text-center py-12 text-sm text-stone-600 font-semibold">
             Đang tải dữ liệu sổ...
           </div>
         ) : activeForm ? (
-          <ManualEntryForms
-            kind={activeForm.kind}
-            selectedDate={selectedDate}
-            snapshot={snapshot}
-            editingTx={activeForm.editTx}
-            onCancel={() => setActiveForm(null)}
-            onSaved={async (undo) => {
-              setActiveForm(null);
-              if (undo) setUndoState(undo);
-              await reloadSnapshot();
-            }}
-          />
-        ) : session.vai_tro === 'owner' ? (
-          /* =========================================================================
-           * GIAO DIỆN ROLLY 1 MÀN HÌNH CHÍNH CHO BỐ & MẸ:
-           * - Khung xem nhanh trên đầu (Lãi hôm nay, Tiền có, Sổ nợ & Phải thu)
-           * - Hội thoại Chat AI ở giữa (Thẻ xác nhận tinh gọn 1 dòng)
-           * - Nút Micro 1 chạm khổng lồ cố định ở đáy
-           * - KHÔNG CÒN 4 TAB DƯỚI ĐÁY, KHÔNG CUỘN NGANG!
-           * ========================================================================= */
-          <div className="space-y-4">
-            <UndoBanner
-              undoState={undoState}
-              onDismiss={() => setUndoState(null)}
-              onUndone={async () => {
-                setUndoState(null);
+          <div className="flex-1 overflow-y-auto px-3.5 py-3">
+            <ManualEntryForms
+              kind={activeForm.kind}
+              selectedDate={selectedDate}
+              snapshot={snapshot}
+              editingTx={activeForm.editTx}
+              onCancel={() => setActiveForm(null)}
+              onSaved={async (undo) => {
+                setActiveForm(null);
+                if (undo) setUndoState(undo);
                 await reloadSnapshot();
               }}
             />
+          </div>
+        ) : session.vai_tro === 'owner' ? (
+          /* =========================================================================
+           * GIAO DIỆN ROLLY 1 MÀN HÌNH CỐ ĐỊNH CHO BỐ & MẸ:
+           * - Header cố định ở trên
+           * - Khung xem nhanh RollyOverviewBanner nhỏ gọn ở trên
+           * - Vùng hội thoại Chat AI ở giữa (cuộn lên xuống xem lịch sử cũ)
+           * - Cụm Micro 1 chạm cố định vững chắc ở đáy
+           * ========================================================================= */
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden p-2.5 gap-2">
+            {/* Thanh hoàn tác nếu có */}
+            {undoState && (
+              <div className="shrink-0">
+                <UndoBanner
+                  undoState={undoState}
+                  onDismiss={() => setUndoState(null)}
+                  onUndone={async () => {
+                    setUndoState(null);
+                    await reloadSnapshot();
+                  }}
+                />
+              </div>
+            )}
 
             {/* Khối Rolly Overview: Xem nhanh Lãi hôm nay + Tiền có + Nợ & Phải thu */}
-            <RollyOverviewBanner
-              snapshot={snapshot}
-              selectedDate={selectedDate}
-              onOpenProfit={() => setDetailDrawer('profit')}
-              onOpenWallets={() => setDetailDrawer('wallets')}
-              onOpenDebts={() => setDetailDrawer('debts')}
-            />
+            <div className="shrink-0">
+              <RollyOverviewBanner
+                snapshot={snapshot}
+                selectedDate={selectedDate}
+                onOpenProfit={() => setDetailDrawer('profit')}
+                onOpenWallets={() => setDetailDrawer('wallets')}
+                onOpenDebts={() => setDetailDrawer('debts')}
+              />
+            </div>
 
-            {/* Trợ lý Giọng nói AI kiểu Rolly: Nói tự nhiên & Hỏi lại thông minh */}
+            {/* Trợ lý Giọng nói AI: Bảng chat cuộn độc lập + Micro cố định ở đáy */}
             <ChatAssistantBox
               snapshot={snapshot}
               selectedDate={selectedDate}
@@ -407,7 +425,8 @@ export const AppShell: React.FC = () => {
           </div>
         ) : (
           /* Chế độ Admin: Giữ 4 Tab như cũ */
-          <>
+          <div className="flex-1 overflow-y-auto px-3.5 py-3 pb-24">
+            <PwaInstallBanner />
             {activeTab === 'ghi_so' && (
               <GhiSoTab
                 snapshot={snapshot}
@@ -452,7 +471,7 @@ export const AppShell: React.FC = () => {
                 onDataChanged={reloadSnapshot}
               />
             )}
-          </>
+          </div>
         )}
       </main>
 

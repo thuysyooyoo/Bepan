@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   AudioLines,
+  Check,
   CheckCheck,
   HelpCircle,
   Keyboard,
@@ -96,6 +97,12 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
   const speechSessionRef = useRef<ActiveSpeechSession | null>(null);
   const fallbackRecorderRef = useRef<ActiveAudioFallbackRecorder | null>(null);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Tự động cuộn xuống tin nhắn mới nhất khi có câu nói mới hoặc kết quả mới
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [turns, voiceState, liveTranscript]);
 
   useEffect(() => {
     return () => {
@@ -465,34 +472,34 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
   };
 
   return (
-    <div className="rounded-3xl bg-white border-2 border-teal-600 p-4 shadow-sm space-y-4">
-      {/* Thanh tiêu đề + Nút Bật/Tắt đọc to giọng Việt */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2 text-xl font-extrabold text-teal-900">
-          <Sparkles className="w-6 h-6 text-teal-700 shrink-0" />
-          Nói hoặc Nhắn tin ghi sổ
+    <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-xs">
+      {/* Thanh tiêu đề nhỏ gọn + Nút Bật/Tắt đọc to + Xóa chat */}
+      <div className="shrink-0 px-3 py-2 bg-stone-50/90 border-b border-stone-200 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-teal-950">
+          <Sparkles className="w-4 h-4 text-teal-700 shrink-0" />
+          <span>Trợ lý Bếp AI</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={toggleAutoSpeak}
             aria-label="Bật hoặc tắt tự động đọc to thẻ xác nhận"
-            className={`px-3 py-1.5 rounded-xl border font-bold text-sm inline-flex items-center gap-1.5 ${
+            className={`px-2 py-1 rounded-lg border font-semibold text-xs inline-flex items-center gap-1 transition ${
               autoSpeak
                 ? 'bg-teal-50 border-teal-500 text-teal-900'
-                : 'bg-stone-100 border-stone-300 text-stone-600'
+                : 'bg-white border-stone-300 text-stone-500'
             }`}
           >
             {autoSpeak ? (
               <>
-                <Volume2 className="w-4 h-4 text-teal-700" />
-                Đọc to: BẬT
+                <Volume2 className="w-3.5 h-3.5 text-teal-700" />
+                <span>Đọc: Bật</span>
               </>
             ) : (
               <>
-                <VolumeX className="w-4 h-4 text-stone-500" />
-                Đọc to: TẮT
+                <VolumeX className="w-3.5 h-3.5 text-stone-400" />
+                <span>Đọc: Tắt</span>
               </>
             )}
           </button>
@@ -504,7 +511,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
                 stopVietnameseSpeech();
                 setTurns([]);
               }}
-              className="text-sm font-bold text-stone-500 underline px-1"
+              className="text-xs font-medium text-stone-400 hover:text-stone-700 px-1"
             >
               Xóa chat
             </button>
@@ -512,224 +519,233 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
         </div>
       </div>
 
-      {/* Dòng hội thoại & Thẻ xác nhận */}
-      {turns.length === 0 ? (
-        <div className="rounded-2xl bg-stone-50 border border-stone-200 p-3.5 text-base text-stone-700 space-y-2">
-          <div className="font-bold text-stone-900 text-lg">
-            🎤 Bấm nút Micro tròn bên dưới rồi nói tự nhiên:
+      {/* Vùng cuộn hội thoại độc lập: Cuộn lên xuống thoải mái xem lại lịch sử cũ */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-3">
+        {turns.length === 0 ? (
+          <div className="rounded-xl bg-stone-50 border border-stone-200/80 p-3 text-stone-700 space-y-2">
+            <div className="font-bold text-stone-900 text-xs sm:text-sm flex items-center gap-1.5">
+              <span>🎤</span>
+              <span>Bấm nút Micro bên dưới rồi nói tự nhiên:</span>
+            </div>
+            <div className="space-y-1 text-stone-800">
+              <button
+                type="button"
+                onClick={() => submitUtterance('Hôm nay lãi bao nhiêu?', 'chat')}
+                className="w-full text-left p-2 rounded-lg bg-white border border-stone-200 font-medium hover:bg-stone-100 flex items-center justify-between text-xs transition"
+              >
+                <span>📊 “Hôm nay lãi bao nhiêu?”</span>
+                <span className="text-[10px] text-stone-400">Thử</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => submitUtterance('Mua 5 cân thịt 4 trăm rưỡi', 'chat')}
+                className="w-full text-left p-2 rounded-lg bg-white border border-stone-200 font-medium hover:bg-stone-100 flex items-center justify-between text-xs transition"
+              >
+                <span>🥩 “Mua 5 cân thịt 4 trăm rưỡi”</span>
+                <span className="text-[10px] text-stone-400">Thử</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => submitUtterance('Ai đang nợ mình?', 'chat')}
+                className="w-full text-left p-2 rounded-lg bg-white border border-stone-200 font-medium hover:bg-stone-100 flex items-center justify-between text-xs transition"
+              >
+                <span>📗 “Ai đang nợ mình?”</span>
+                <span className="text-[10px] text-stone-400">Thử</span>
+              </button>
+            </div>
           </div>
-          <div className="space-y-1.5 text-stone-800">
-            <button
-              type="button"
-              onClick={() => submitUtterance('Hôm nay lãi bao nhiêu?', 'chat')}
-              className="w-full text-left p-2.5 rounded-xl bg-white border border-stone-300 font-semibold hover:bg-stone-100 flex items-center justify-between text-base"
-            >
-              <span>📊 “Hôm nay lãi bao nhiêu?”</span>
-              <span className="text-xs text-stone-400">Chạm để thử</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => submitUtterance('Mua 5 cân thịt 4 trăm rưỡi', 'chat')}
-              className="w-full text-left p-2.5 rounded-xl bg-white border border-stone-300 font-semibold hover:bg-stone-100 flex items-center justify-between text-base"
-            >
-              <span>🥩 “Mua 5 cân thịt 4 trăm rưỡi”</span>
-              <span className="text-xs text-stone-400">Chạm để thử</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => submitUtterance('Ai đang nợ mình?', 'chat')}
-              className="w-full text-left p-2.5 rounded-xl bg-white border border-stone-300 font-semibold hover:bg-stone-100 flex items-center justify-between text-base"
-            >
-              <span>📗 “Ai đang nợ mình?”</span>
-              <span className="text-xs text-stone-400">Chạm để thử</span>
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {turns.map((turn) => {
-            const pendingActionCount = turn.cards.filter(
-              (c) =>
-                c.status === 'pending' &&
-                c.item.intent !== 'hoi' &&
-                c.item.intent !== 'khong_ro'
-            ).length;
+        ) : (
+          <div className="space-y-3">
+            {turns.map((turn) => {
+              const pendingActionCount = turn.cards.filter(
+                (c) =>
+                  c.status === 'pending' &&
+                  c.item.intent !== 'hoi' &&
+                  c.item.intent !== 'khong_ro'
+              ).length;
 
-            return (
-              <div key={turn.id} className="space-y-3">
-                {/* Bong bóng câu nói của ông bà */}
-                <div className="flex justify-end">
-                  <div className="max-w-[88%] rounded-2xl rounded-tr-sm bg-teal-800 text-white px-4 py-2.5 text-lg font-semibold shadow-xs">
-                    <span className="mr-1.5 opacity-85">
-                      {turn.source === 'giong' ? '🎤' : '💬'}
-                    </span>
-                    “{turn.userText}”
+              return (
+                <div key={turn.id} className="space-y-2.5">
+                  {/* Bong bóng câu nói của người dùng */}
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] rounded-2xl rounded-tr-xs bg-teal-800 text-white px-3.5 py-2 text-xs sm:text-sm font-medium shadow-xs">
+                      <span className="mr-1 opacity-80">
+                        {turn.source === 'giong' ? '🎤' : '💬'}
+                      </span>
+                      “{turn.userText}”
+                    </div>
                   </div>
-                </div>
 
-                {/* Phản hồi của AI: trả lời câu hỏi hoặc danh sách Thẻ xác nhận */}
-                <div className="space-y-3">
-                  {pendingActionCount >= 2 && (
-                    <button
-                      type="button"
-                      disabled={savingCardId === turn.id}
-                      onClick={() => handleSaveAllInTurn(turn)}
-                      className="w-full py-3.5 px-4 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xl shadow-sm flex items-center justify-center gap-2"
-                    >
-                      <CheckCheck className="w-7 h-7" />
-                      {savingCardId === turn.id
-                        ? 'Đang lưu tất cả...'
-                        : `Đúng hết cả ${pendingActionCount} mục — Lưu tất cả`}
-                    </button>
-                  )}
+                  {/* Phản hồi của AI: trả lời câu hỏi hoặc danh sách Thẻ xác nhận */}
+                  <div className="space-y-2">
+                    {pendingActionCount >= 2 && (
+                      <button
+                        type="button"
+                        disabled={savingCardId === turn.id}
+                        onClick={() => handleSaveAllInTurn(turn)}
+                        className="w-full py-2.5 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs sm:text-sm shadow-xs flex items-center justify-center gap-1.5 transition"
+                      >
+                        <CheckCheck className="w-4 h-4" />
+                        <span>
+                          {savingCardId === turn.id
+                            ? 'Đang lưu tất cả...'
+                            : `Đúng hết cả ${pendingActionCount} mục — Lưu tất cả`}
+                        </span>
+                      </button>
+                    )}
 
-                  {turn.cards.map((card) => {
-                    if (card.item.intent === 'hoi' || card.item.intent === 'khong_ro') {
-                      const replyText = card.item.cau_tra_loi ?? '';
-                      return (
-                        <div
-                          key={card.cardId}
-                          className="rounded-2xl rounded-tl-sm bg-stone-100 border-2 border-stone-300 p-4 text-lg text-stone-900 whitespace-pre-line space-y-2"
-                        >
-                          <div className="font-semibold leading-relaxed">{replyText}</div>
-                          <button
-                            type="button"
-                            onClick={() => speakVietnameseText(replyText)}
-                            className="px-3 py-1.5 rounded-xl bg-white border border-stone-300 text-stone-800 font-bold text-base inline-flex items-center gap-1.5"
+                    {turn.cards.map((card) => {
+                      if (card.item.intent === 'hoi' || card.item.intent === 'khong_ro') {
+                        const replyText = card.item.cau_tra_loi ?? '';
+                        return (
+                          <div
+                            key={card.cardId}
+                            className="rounded-xl rounded-tl-xs bg-stone-100 border border-stone-200 p-2.5 text-xs sm:text-sm text-stone-900 whitespace-pre-line space-y-1.5"
                           >
-                            <Volume2 className="w-5 h-5 text-teal-700" />
-                            Nghe đọc lại
-                          </button>
-                        </div>
-                      );
-                    }
+                            <div className="font-medium leading-relaxed">{replyText}</div>
+                            <button
+                              type="button"
+                              onClick={() => speakVietnameseText(replyText)}
+                              className="px-2.5 py-1 rounded-lg bg-white border border-stone-300 text-stone-700 font-semibold text-xs inline-flex items-center gap-1 transition"
+                            >
+                              <Volume2 className="w-3.5 h-3.5 text-teal-700" />
+                              <span>Nghe đọc lại</span>
+                            </button>
+                          </div>
+                        );
+                      }
 
-                    if (card.status === 'saved') {
+                      if (card.status === 'saved') {
+                        return (
+                          <div
+                            key={card.cardId}
+                            className="rounded-xl bg-emerald-50 border border-emerald-400 px-3 py-2 text-emerald-950 font-bold text-xs sm:text-sm flex items-center gap-1.5"
+                          >
+                            <Check className="w-4 h-4 text-emerald-700 shrink-0" />
+                            <span>{card.savedSummary}</span>
+                          </div>
+                        );
+                      }
+
+                      if (card.status === 'cancelled') {
+                        return (
+                          <div
+                            key={card.cardId}
+                            className="rounded-lg bg-stone-100 px-3 py-1.5 text-stone-400 text-xs italic"
+                          >
+                            Đã bỏ qua mục này.
+                          </div>
+                        );
+                      }
+
+                      const built = buildActionCardFromIntent(
+                        card.item,
+                        snapshot,
+                        turn.userText
+                      );
+                      if (!built) return null;
+
                       return (
-                        <div
-                          key={card.cardId}
-                          className="rounded-2xl bg-emerald-50 border-2 border-emerald-500 px-4 py-3 text-emerald-950 font-bold text-lg"
-                        >
-                          ✓ {card.savedSummary}
-                        </div>
-                      );
-                    }
-
-                    if (card.status === 'cancelled') {
-                      return (
-                        <div
-                          key={card.cardId}
-                          className="rounded-xl bg-stone-100 px-4 py-2 text-stone-500 text-base italic"
-                        >
-                          Đã bỏ qua mục này.
-                        </div>
-                      );
-                    }
-
-                    const built = buildActionCardFromIntent(
-                      card.item,
-                      snapshot,
-                      turn.userText
-                    );
-                    if (!built) return null;
-
-                    return (
-                      <div key={card.cardId} className="space-y-2">
-                        {card.item.cau_hoi_lam_ro && card.item.lua_chon_lam_ro && (
-                          <div className="rounded-2xl bg-amber-50 border-2 border-amber-500 p-3.5 space-y-2.5">
-                            <div className="flex items-start gap-2 text-lg font-extrabold text-amber-950">
-                              <HelpCircle className="w-6 h-6 text-amber-700 shrink-0 mt-0.5" />
-                              <span>{card.item.cau_hoi_lam_ro}</span>
+                        <div key={card.cardId} className="space-y-1.5">
+                          {card.item.cau_hoi_lam_ro && card.item.lua_chon_lam_ro && (
+                            <div className="rounded-xl bg-amber-50 border border-amber-400 p-2.5 space-y-2">
+                              <div className="flex items-start gap-1.5 text-xs sm:text-sm font-bold text-amber-950">
+                                <HelpCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                                <span>{card.item.cau_hoi_lam_ro}</span>
+                              </div>
+                              <div className="grid grid-cols-1 gap-1.5">
+                                {card.item.lua_chon_lam_ro.map((ch) => (
+                                  <button
+                                    key={ch.id}
+                                    type="button"
+                                    onClick={() =>
+                                      handleApplyChoice(turn.id, card.cardId, ch)
+                                    }
+                                    className="py-2 px-3 rounded-lg bg-white hover:bg-amber-100 border border-amber-500 text-amber-950 font-bold text-xs sm:text-sm text-left transition"
+                                  >
+                                    👉 {ch.label}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
-                            <div className="grid grid-cols-1 gap-2">
-                              {card.item.lua_chon_lam_ro.map((ch) => (
-                                <button
-                                  key={ch.id}
-                                  type="button"
-                                  onClick={() =>
-                                    handleApplyChoice(turn.id, card.cardId, ch)
-                                  }
-                                  className="py-2.5 px-3.5 rounded-xl bg-white hover:bg-amber-100 border-2 border-amber-600 text-amber-950 font-extrabold text-base text-left"
-                                >
-                                  👉 {ch.label}
-                                </button>
-                              ))}
+                          )}
+
+                          <div className="relative">
+                            <ConfirmationCard
+                              data={built.preview}
+                              saving={savingCardId === card.cardId}
+                              onConfirm={() => handleSaveSingleCard(turn, card)}
+                              onEdit={async () => {
+                                if (session && turn.logId) {
+                                  await dbRepo.updateChatLogStatus(
+                                    session,
+                                    snapshot.book.id,
+                                    turn.logId,
+                                    'da_sua'
+                                  );
+                                }
+                                onOpenManualForm(built.manualFallbackKind, built.draftTx);
+                              }}
+                            />
+                            <div className="text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleCancelCard(turn, card.cardId)}
+                                className="mt-1 text-xs font-semibold text-stone-400 hover:text-red-700 inline-flex items-center gap-1 px-1 transition"
+                              >
+                                <X className="w-3 h-3" />
+                                <span>Bỏ không lưu thẻ này</span>
+                              </button>
                             </div>
                           </div>
-                        )}
-
-                        <div className="relative">
-                          <ConfirmationCard
-                            data={built.preview}
-                            saving={savingCardId === card.cardId}
-                            onConfirm={() => handleSaveSingleCard(turn, card)}
-                            onEdit={async () => {
-                              if (session && turn.logId) {
-                                await dbRepo.updateChatLogStatus(
-                                  session,
-                                  snapshot.book.id,
-                                  turn.logId,
-                                  'da_sua'
-                                );
-                              }
-                              onOpenManualForm(built.manualFallbackKind, built.draftTx);
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleCancelCard(turn, card.cardId)}
-                            className="mt-1.5 text-base font-bold text-stone-500 hover:text-red-700 inline-flex items-center gap-1 px-2"
-                          >
-                            <X className="w-4 h-4" />
-                            Bỏ không lưu thẻ này
-                          </button>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
 
-      {/* Bảng chữ chạy trực tiếp trong lúc ông bà đang nói (Web Speech API vi-VN) */}
+      {/* Bảng chữ chạy trực tiếp trong lúc đang nói (Web Speech API vi-VN) */}
       {voiceState === 'listening' && (
         <div
           role="status"
           aria-live="polite"
-          className="rounded-2xl bg-rose-50 border-3 border-rose-500 p-4 space-y-3 shadow-sm"
+          className="shrink-0 bg-rose-50 border-t border-rose-300 p-2.5 space-y-2 shadow-xs"
         >
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-lg font-extrabold text-rose-900">
-              <span className="w-3.5 h-3.5 rounded-full bg-rose-600 animate-ping shrink-0" />
-              Đang nghe {session?.xung_ho ?? 'ông/bà'} nói... (Ngừng nói tự gửi)
+            <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping shrink-0" />
+              <span>Đang nghe {session?.xung_ho ?? 'ông/bà'} nói...</span>
             </div>
           </div>
 
-          <div className="min-h-14 rounded-xl bg-white border border-rose-200 p-3 text-2xl font-extrabold text-stone-950 leading-snug">
+          <div className="min-h-9 rounded-lg bg-white border border-rose-200 p-2 text-xs sm:text-sm font-bold text-stone-900 leading-snug">
             {liveTranscript ? (
               <span>“{liveTranscript}”</span>
             ) : (
-              <span className="text-stone-400 font-semibold text-lg">
+              <span className="text-stone-400 font-normal text-xs">
                 Mời nói tự nhiên, ví dụ: “Mua 5 cân thịt 4 trăm rưỡi”...
               </span>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => speechSessionRef.current?.finishNow()}
-              className="py-3 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-lg"
+              className="py-2 px-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center justify-center gap-1 transition"
             >
               ✅ Xong, gửi luôn
             </button>
             <button
               type="button"
               onClick={handleCancelVoice}
-              className="py-3 px-3 rounded-xl bg-white hover:bg-stone-100 border-2 border-stone-400 text-stone-800 font-bold text-lg"
+              className="py-2 px-2.5 rounded-lg bg-white hover:bg-stone-100 border border-stone-300 text-stone-700 font-semibold text-xs flex items-center justify-center gap-1 transition"
             >
               ✖ Hủy nói
             </button>
@@ -742,24 +758,24 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
         <div
           role="status"
           aria-live="polite"
-          className="rounded-2xl bg-amber-50 border-3 border-amber-500 p-4 space-y-3 shadow-sm"
+          className="shrink-0 bg-amber-50 border-t border-amber-300 p-2.5 space-y-2 shadow-xs"
         >
-          <div className="flex items-center gap-2 text-lg font-extrabold text-amber-950">
-            <AudioLines className="w-6 h-6 text-amber-700 animate-pulse shrink-0" />
-            Đang ghi âm gửi AI ({recordingSeconds}s / 20s)...
+          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
+            <AudioLines className="w-4 h-4 text-amber-700 animate-pulse shrink-0" />
+            <span>Đang ghi âm gửi AI ({recordingSeconds}s / 20s)...</span>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => void handleStopFallbackRecording()}
-              className="py-3 px-3 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-extrabold text-lg"
+              className="py-2 px-2.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs transition"
             >
-              ⏹ Dừng & gửi AI
+              ⏹ Dừng & gửi
             </button>
             <button
               type="button"
               onClick={handleCancelVoice}
-              className="py-3 px-3 rounded-xl bg-white border-2 border-stone-400 text-stone-800 font-bold text-lg"
+              className="py-2 px-2.5 rounded-lg bg-white border border-stone-300 text-stone-700 font-semibold text-xs transition"
             >
               ✖ Hủy
             </button>
@@ -769,97 +785,99 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
 
       {/* Thông báo lỗi / gợi ý nếu chưa nghe rõ */}
       {voiceFeedbackMsg && (
-        <div className="rounded-2xl bg-amber-50 border-2 border-amber-400 p-3.5 text-base font-bold text-amber-950 flex items-start justify-between gap-2">
+        <div className="shrink-0 bg-amber-50 border-t border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-950 flex items-start justify-between gap-2">
           <span>💡 {voiceFeedbackMsg}</span>
           <button
             type="button"
             onClick={() => setVoiceFeedbackMsg(null)}
-            className="text-stone-500 font-extrabold px-1"
+            className="text-stone-400 hover:text-stone-700 font-bold px-1"
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Ô nhập chữ (khi bấm icon bàn phím) HOẶC Cụm Micro 1 chạm khổng lồ cố định */}
-      {showKeyboardInput ? (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submitUtterance(inputText, 'chat');
-          }}
-          className="space-y-2 pt-1"
-        >
-          <div className="flex items-center gap-2 bg-stone-50 border-2 border-stone-400 focus-within:border-teal-700 rounded-2xl px-3 py-1.5">
-            <input
-              type="text"
-              autoFocus
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder="Gõ yêu cầu ghi sổ tại đây..."
-              className="flex-1 text-xl py-2 px-1 bg-transparent outline-none text-stone-950 placeholder:text-stone-400 font-medium"
-            />
-            <button
-              type="submit"
-              disabled={busy || !inputText.trim()}
-              className="h-12 px-4 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-extrabold text-lg inline-flex items-center gap-1.5 disabled:opacity-45 shrink-0"
-            >
-              <Send className="w-5 h-5" />
-              {busy ? '...' : 'Gửi'}
-            </button>
-          </div>
-          <div className="text-center">
+      {/* Vùng nhập liệu cố định ở đáy: Nút Micro 1 chạm hoặc Bàn phím gõ chữ */}
+      <div className="shrink-0 bg-stone-50 border-t border-stone-200 p-2">
+        {showKeyboardInput ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submitUtterance(inputText, 'chat');
+            }}
+            className="space-y-1.5"
+          >
+            <div className="flex items-center gap-1.5 bg-white border border-stone-300 focus-within:border-teal-700 rounded-xl px-2.5 py-1">
+              <input
+                type="text"
+                autoFocus
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder="Gõ yêu cầu ghi sổ tại đây..."
+                className="flex-1 text-xs sm:text-sm py-1.5 px-1 bg-transparent outline-none text-stone-900 placeholder:text-stone-400 font-medium"
+              />
+              <button
+                type="submit"
+                disabled={busy || !inputText.trim()}
+                className="h-8 px-3 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs inline-flex items-center gap-1 disabled:opacity-45 shrink-0 transition"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{busy ? '...' : 'Gửi'}</span>
+              </button>
+            </div>
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setShowKeyboardInput(false)}
+                className="text-stone-500 font-semibold text-xs inline-flex items-center gap-1 hover:text-stone-800"
+              >
+                <Mic className="w-3.5 h-3.5 text-teal-700" />
+                <span>Quay lại nút Micro</span>
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex items-center justify-center gap-3">
+            {/* Nút Micro 1 chạm cố định ở đáy: 80px, êm ái, vừa vặn, không che khuất */}
             <button
               type="button"
-              onClick={() => setShowKeyboardInput(false)}
-              className="text-stone-500 font-bold text-sm inline-flex items-center gap-1 hover:text-stone-800"
+              disabled={busy}
+              onClick={handleTogglePrimaryMic}
+              aria-label={
+                voiceState === 'idle' ? 'Bấm 1 lần để bắt đầu nói' : 'Bấm để dừng nghe và gửi'
+              }
+              className={`w-20 h-20 rounded-full text-white shadow-md flex flex-col items-center justify-center gap-0.5 transition-transform active:scale-95 disabled:opacity-50 shrink-0 ${
+                voiceState === 'idle'
+                  ? 'bg-teal-700 hover:bg-teal-800 border-4 border-teal-100'
+                  : 'bg-rose-600 hover:bg-rose-700 border-4 border-rose-100 ring-4 ring-rose-200 animate-pulse'
+              }`}
             >
-              <Mic className="w-4 h-4 text-teal-700" />
-              <span>Thu bàn phím, quay lại nút Micro</span>
+              {voiceState === 'idle' ? (
+                <>
+                  <Mic className="w-7 h-7" />
+                  <span className="text-[10px] font-black tracking-wider">BẤM ĐỂ NÓI</span>
+                </>
+              ) : (
+                <>
+                  <Square className="w-6 h-6 fill-current" />
+                  <span className="text-[10px] font-black tracking-wider">BẤM XONG</span>
+                </>
+              )}
+            </button>
+
+            {/* Nút bật bàn phím nhỏ gọn bên cạnh */}
+            <button
+              type="button"
+              onClick={() => setShowKeyboardInput(true)}
+              title="Gõ chữ nếu không tiện nói"
+              aria-label="Mở bàn phím gõ chữ"
+              className="w-10 h-10 rounded-xl bg-white hover:bg-stone-100 border border-stone-300 text-stone-600 flex items-center justify-center transition active:scale-95 shrink-0 shadow-xs"
+            >
+              <Keyboard className="w-5 h-5 text-stone-600" />
             </button>
           </div>
-        </form>
-      ) : (
-        <div className="flex items-center justify-center gap-4 pt-2">
-          {/* Nút Micro 1 chạm khổng lồ ở giữa */}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={handleTogglePrimaryMic}
-            aria-label={
-              voiceState === 'idle' ? 'Bấm 1 lần để bắt đầu nói' : 'Bấm để dừng nghe và gửi'
-            }
-            className={`w-28 h-28 rounded-full text-white shadow-lg flex flex-col items-center justify-center gap-1 transition-transform active:scale-95 disabled:opacity-50 shrink-0 ${
-              voiceState === 'idle'
-                ? 'bg-teal-700 hover:bg-teal-800 border-4 border-teal-200'
-                : 'bg-rose-600 hover:bg-rose-700 border-4 border-rose-200 ring-8 ring-rose-100 animate-pulse'
-            }`}
-          >
-            {voiceState === 'idle' ? (
-              <>
-                <Mic className="w-11 h-11" />
-                <span className="text-sm font-black tracking-wide">BẤM ĐỂ NÓI</span>
-              </>
-            ) : (
-              <>
-                <Square className="w-9 h-9 fill-current" />
-                <span className="text-xs font-black tracking-wide">BẤM XONG</span>
-              </>
-            )}
-          </button>
-
-          {/* Nút bật bàn phím nhỏ gọn bên cạnh */}
-          <button
-            type="button"
-            onClick={() => setShowKeyboardInput(true)}
-            title="Gõ chữ nếu không tiện nói"
-            aria-label="Mở bàn phím gõ chữ"
-            className="w-12 h-12 rounded-2xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 flex items-center justify-center transition active:scale-95 shrink-0"
-          >
-            <Keyboard className="w-6 h-6 text-stone-700" />
-          </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Hộp thoại hướng dẫn mở quyền Micro trên Chrome Android */}
       <MicPermissionGuideModal

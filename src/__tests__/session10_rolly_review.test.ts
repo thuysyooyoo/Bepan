@@ -227,4 +227,34 @@ describe('Phiên 10 — Review & Hoàn Thiện: Tinh Gọn Rolly, Sổ Nợ / Ph
     expect(qTongKet.items[0].cau_tra_loi).toContain('Bếp ăn: Thu');
     expect(qTongKet.items[0].cau_tra_loi).toContain('Tiền thực có');
   });
+
+  it('6. Kiểm tra cơ chế Đổi người dùng & Cố định bảng chat cuộn độc lập', async () => {
+    // 1. Kiểm tra logic đăng xuất & đổi người dùng không bị kẹt lastProfileId trong source code
+    const fs = await import('node:fs');
+    const authContextContent = fs.readFileSync('src/context/AuthContext.tsx', 'utf8');
+    const loginScreenContent = fs.readFileSync('src/components/LoginScreen.tsx', 'utf8');
+
+    // Trong logout(): Bắt buộc xóa cả SESSION_STORAGE_KEY và LAST_PROFILE_KEY
+    expect(authContextContent).toContain('localStorage.removeItem(LAST_PROFILE_KEY)');
+    expect(authContextContent).toContain('setLastProfileId(null)');
+
+    // Trong LoginScreen: Bấm "Đổi người dùng" phải xóa sobep_last_profile và setHasSwitchedUser(true)
+    expect(loginScreenContent).toContain("localStorage.removeItem('sobep_last_profile')");
+    expect(loginScreenContent).toContain('setHasSwitchedUser(true)');
+
+    // 2. Kiểm tra CSS cấu trúc AppShell & ChatAssistantBox:
+    // Cố định viewport h-[100dvh], bảng chat có flex-1 min-h-0 overflow-y-auto, không trôi nút Mic
+    const appShellContent = fs.readFileSync('src/components/AppShell.tsx', 'utf8');
+    const chatBoxContent = fs.readFileSync('src/components/ChatAssistantBox.tsx', 'utf8');
+
+    // AppShell phải có layout h-[100dvh] và overflow-hidden
+    expect(appShellContent).toContain('h-[100dvh]');
+    expect(appShellContent).toContain('overflow-hidden');
+    expect(appShellContent).toContain('Đổi người');
+
+    // ChatAssistantBox phải có vùng cuộn độc lập và nút Mic cố định
+    expect(chatBoxContent).toContain('flex-1 min-h-0 overflow-y-auto');
+    expect(chatBoxContent).toContain('shrink-0 bg-stone-50 border-t');
+    expect(chatBoxContent).toContain('w-20 h-20 rounded-full'); // Kích thước nút Mic chuẩn 80px
+  });
 });
