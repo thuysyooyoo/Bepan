@@ -257,4 +257,29 @@ describe('Phiên 10 — Review & Hoàn Thiện: Tinh Gọn Rolly, Sổ Nợ / Ph
     expect(chatBoxContent).toContain('shrink-0 bg-stone-50 border-t');
     expect(chatBoxContent).toContain('w-20 h-20 rounded-full'); // Kích thước nút Mic chuẩn 80px
   });
+
+  it('7. Fix câu nói liên tục không dấu phẩy: "Hôm nay vừa mua 300.000 tiền thức ăn thuê 2 cô công nhân Để nấu ăn Chưa trả tiền"', async () => {
+    const snap = await getSeededSnapshot();
+    const today = '2026-11-01';
+
+    const raw = 'Hôm nay vừa mua 300.000 tiền thức ăn thuê 2 cô công nhân Để nấu ăn Chưa trả tiền';
+    const parsed = parseVietnameseCommandLocal(raw, snap, today);
+
+    // Tuyệt đối không được trả về câu hỏi báo cáo 0đ!
+    expect(parsed.items.length).toBe(2);
+
+    // Món 1: Chi nợ 300.000đ thức ăn (cat_thit), hỏi rõ nợ ai
+    const item1 = parsed.items[0];
+    expect(item1.intent).toBe('chi_no');
+    expect(item1.so_tien).toBe(300_000);
+    expect(item1.category_id).toBe('cat_thit');
+    expect(item1.cau_hoi_lam_ro).toContain('Khoản nợ này của ai');
+
+    // Món 2: Chấm công 2 cô công nhân nấu ăn (1 công)
+    const item2 = parsed.items[1];
+    expect(item2.intent).toBe('cham_cong');
+    expect(item2.cham_cong).toBeDefined();
+    expect(item2.cham_cong?.length).toBe(2);
+    expect(item2.cham_cong?.every((c) => c.so_cong === 1)).toBe(true);
+  });
 });

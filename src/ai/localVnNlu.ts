@@ -143,6 +143,8 @@ const BUILTIN_DIALECT_SYNONYMS: Array<{ regex: RegExp; categoryId: string; boost
   { regex: /\b(keo mut|banh quy|kem que|kem oc que|thach|oishi|snack|banh gao|chocopie)\b/, categoryId: 'cat_nhap_banh_keo_ct', boost: 25 },
   // Ăn vặt căn tin
   { regex: /\b(xien banh|vien chien|ca vien chien|bo vien|xuc xich ran|banh mi cay)\b/, categoryId: 'cat_nhap_an_vat_ct', boost: 25 },
+  // Thức ăn, thực phẩm chung, đi chợ
+  { regex: /\b(thuc an|thuc pham|do an|di cho|do nau an)\b/, categoryId: 'cat_thit', boost: 25 },
   // Thịt các loại
   { regex: /\b(thit lon|thit ba chi|thit nac|thit ga|xuong ong|mong gio|thit vit|gio nac)\b/, categoryId: 'cat_thit', boost: 25 },
   // Thủy hải sản
@@ -547,6 +549,31 @@ function tryParseAttendance(
     };
   }
 
+  // Trường hợp 1b: Thuê/chấm công theo số lượng công nhân ("thuê 2 cô công nhân để nấu ăn", "hôm nay có 2 cô phụ bếp", "2 thợ nấu ăn")
+  const workerCountMatch = noAcc.match(
+    /\b(?:thue|co|cham cong|cham cho)?\s*(\d+)\s*(?:co|nguoi|cong nhan|tho|phu bep)\s*(?:cong nhan\s*)?(?:de\s+)?(?:nau an|lam com|di lam|phu bep|lam bep)?\b/
+  );
+  if (
+    workerCountMatch &&
+    /\b(thue|cong nhan|phu bep|nau an|lam bep|di lam|cham cong)\b/.test(noAcc) &&
+    parseVietnameseMoney(fullText) === null
+  ) {
+    const requestedCount = parseInt(workerCountMatch[1], 10);
+    if (requestedCount > 0) {
+      const selectedWorkers = activeWorkers.slice(0, requestedCount);
+      return {
+        intent: 'cham_cong',
+        ngay,
+        cham_cong: selectedWorkers.map((w) => ({
+          worker_id: w.id,
+          ho_ten: w.ho_ten,
+          so_cong: 1,
+        })),
+        ghi_chu: `Chấm công ${requestedCount} phụ bếp đi làm`,
+      };
+    }
+  }
+
   const hasAttVerb = /\b(cham cong|di lam|du cong|1 cong|mot cong|nghi|vang|nua buoi|nua cong)\b/.test(
     noAcc
   );
@@ -808,9 +835,12 @@ function tryParseCustomerReceivable(
   }
 
   // 2. Bán chịu / Khách nợ: "Cô Lan ăn chịu 3 suất", "Cô Lan nợ tiền cơm 105k", "Bác Hùng nợ tiền cơm 150k", "Bán 20 suất cỗ 1tr5 chưa lấy tiền", "Khách nợ 50k"
+  if (/\b(mua|nhap|lay hang|chi|thue)\b/.test(clauseNoAcc)) {
+    return null;
+  }
   const isCreditSale =
-    /\b(an chiu|no tien com|no tien an|no tien co|chua lay tien|chua tra tien|no \d+\s*suat|an no)\b/.test(clauseNoAcc) ||
-    (/(?:cô|bác|chị|anh|chú|bà|ông|khách|giao vien)\s+[\p{L}]+\s+(?:nợ|chiu)/iu.test(clauseNoAcc) && !/\b(mua|nhap|lay hang)\b/.test(clauseNoAcc));
+    /\b(an chiu|no tien com|no tien an|no tien co|chua lay tien|no \d+\s*suat|an no)\b/.test(clauseNoAcc) ||
+    /(?:cô|bác|chị|anh|chú|bà|ông|khách|giao vien)\s+[\p{L}]+\s+(?:nợ|chiu|chưa trả)/iu.test(clauseNoAcc);
 
   if (isCreditSale) {
     let amt = parseVietnameseMoney(clause, { allowBareThousands: true });
@@ -881,15 +911,26 @@ export function parseVietnameseCommandLocal(
   const globalMonth = parseVietnameseMonth(trimmed, referenceDate);
 
   // 1. CÂU HỎI BÁO CÁO (Trả lời số liệu thật, tuyệt đối không ghi sổ)
-  const isQuestion =
-    trimmed.includes('?') ||
-    /\b(bao nhieu|lai bn|con bn|loi nhuan|bao cao|tong ket|nhung ai|chuyen tien chua|tra tien chua|da chuyen chua|xem lai|xem so|xem no|kiem tra so|may dong)\b/.test(
-      noAccFull
-    ) ||
-    (/^(cho bo hoi|cho me hoi|hoi xem|hom nay|thang nay|tien mat|so no|truong|luong tho)\b/.test(
+  // Phải phân biệt rõ: nếu câu có động từ giao dịch/hành động (mua, bán, thuê, chấm công...) kèm số tiền/số lượng
+  // thì ĐÂY LÀ GHI SỔ, TUYỆT ĐỐI KHÔNG BỊ NHẬN NHẦM THÀNH CÂU HỎI BÁO CÁO!
+  const hasTransactionAction =
+    /\b(vua mua|mua|nhap|lay hang|lay|chi|thue|ban|thu cuoi ngay|cham cong|tra no|tra luong|ung luong)\b/.test(
       noAccFull
     ) &&
+    (parseVietnameseMoney(trimmed, { allowBareThousands: true }) !== null ||
+      /\b\d+\s*(?:suat|nguoi|co|tho|cong|kg|can)\b/.test(noAccFull));
+
+  const isExplicitQuestion =
+    trimmed.includes('?') ||
+    /\b(bao nhieu|lai bn|con bn|loi nhuan|bao cao|tong ket|nhung ai|ai no|minh no|may dong|xem lai|xem so|xem no|kiem tra so|the nao|ntn|ra sao|sao roi)\b/.test(
+      noAccFull
+    ) ||
+    (/\b(chuyen tien chua|da chuyen chua|ve chua)\b/.test(noAccFull) &&
+      !/\b(chua tra|chua thanh toan|chua dua|chua lay)\b/.test(noAccFull)) ||
+    (/^(cho bo hoi|cho me hoi|hoi xem|xem xem)\b/.test(noAccFull) &&
       /\b(bn|the nao|ntn|sao roi|chua)\b/.test(noAccFull));
+
+  const isQuestion = isExplicitQuestion && !hasTransactionAction;
 
   if (isQuestion) {
     return {
@@ -1097,19 +1138,27 @@ export function parseVietnameseCommandLocal(
     };
   }
 
-  // 8. CHẤM CÔNG THỢ NGUYÊN CÂU
-  const attItem = tryParseAttendance(trimmed, snapshot, globalDate);
-  if (attItem) {
-    return {
-      engine: 'local_vn',
-      raw_text: trimmed,
-      items: [attItem],
-    };
+  // 8. CHẤM CÔNG THỢ NGUYÊN CÂU (chỉ khi câu không chứa các hành động giao dịch / mua bán khác)
+  const hasOtherNonAttActions =
+    hasRealSpendVerb(trimmed) ||
+    /\b(suat|xuat|thu cuoi ngay|tien quay|ban duoc|tra no)\b/.test(noAccFull);
+
+  if (!hasOtherNonAttActions) {
+    const attItem = tryParseAttendance(trimmed, snapshot, globalDate);
+    if (attItem) {
+      return {
+        engine: 'local_vn',
+        raw_text: trimmed,
+        items: [attItem],
+      };
+    }
   }
 
   // 9. TÁCH ĐA MỆNH ĐỀ ("Hôm nay trưa 320 suất, tối 80, mua thịt 1 triệu 2, rau 300")
   const rawClauses = trimmed
-    .split(/[,;\n]+|(?:\s+và\s+(?=(?:mua|nhập|lấy|chi|sáng|trưa|tối|vãng lai|căn tin|thu)))/iu)
+    .split(
+      /[,;\n]+|(?:\s+và\s+(?=(?:mua|nhập|lấy|chi|sáng|trưa|tối|vãng lai|căn tin|thu)))|(?<=[^\s,;])\s+(?=(?:thuê\s+(?:\d+|cô|người|thợ|công nhân|phụ bếp|bác|chị|anh)|chấm công\b|vừa mua\b|mua\s+|nhập\s+|lấy hàng\b|thu cuối ngày|bán được\s+\d+|trả nợ\s+\d+|trả lương\s+\d+|ứng lương\s+\d+))/iu
+    )
     .map((s) => s.trim())
     .filter(Boolean);
 
@@ -1120,7 +1169,7 @@ export function parseVietnameseCommandLocal(
     const isPureModifier =
       parseVietnameseMoney(cl, { allowBareThousands: false }) === null &&
       !extractMealsFromText(cl).matched &&
-      /^(ghi no|mua chiu|chiu|ghi so|chua tra|tra sau|tien mat|tm|chuyen khoan|ck|tk chi nhan|tk mo diep)$/.test(
+      /^(ghi no|mua chiu|chiu|ghi so|chua tra|chua tra tien|chua dua tien|chua thanh toan|tra sau|tien mat|tm|chuyen khoan|ck|tk chi nhan|tk mo diep)$/.test(
         clNoAcc
       );
 
@@ -1214,7 +1263,7 @@ export function parseVietnameseCommandLocal(
     const clauseNoAcc = stripAccents(clause);
     const hasExpenseCue =
       seenExpenseContext ||
-      /\b(mua|nhap|lay|chi|het|doi|goi|dong|nop|tra|tien dien|tien nuoc|tien gas|tien ga|gia vi|thit|suon|xuong|bo|ga|vit|ca|tom|rau|cu|gao|bun|pho|trung|dau|gio|cha|sua|nuoc ngot|banh|keo|bim bim|kem|xuc xich|mi tom|da vien|tui bong|giay an)\b/.test(
+      /\b(mua|nhap|lay|chi|het|doi|goi|dong|nop|tra|tien dien|tien nuoc|tien gas|tien ga|gia vi|thuc an|thuc pham|do an|di cho|thit|suon|xuong|bo|ga|vit|ca|tom|rau|cu|gao|bun|pho|trung|dau|gio|cha|sua|nuoc ngot|banh|keo|bim bim|kem|xuc xich|mi tom|da vien|tui bong|giay an)\b/.test(
         clauseNoAcc
       );
 
@@ -1226,7 +1275,19 @@ export function parseVietnameseCommandLocal(
         specificClauseDate !== referenceDate ? specificClauseDate : globalDate;
       const clauseMonth = parseVietnameseMonth(clause, clauseDate);
       const { category, ambiguousSegment } = matchCategory(clause, snapshot.categories);
-      const isCredit = isCreditPurchaseText(clause);
+      const hasExplicitPayment = /\b(da tra|tra roi|da thanh toan|thanh toan roi|tien mat|tm|chuyen khoan|ck|chi nhan|mo diep)\b/.test(
+        clauseNoAcc
+      );
+      let isCredit = isCreditPurchaseText(clause);
+      if (!isCredit && !hasExplicitPayment) {
+        // Nếu trong câu có vế nợ ("chưa trả tiền", "ghi nợ") nhưng vế đó không mang số tiền riêng (VD: nằm ở cuối câu hoặc ở vế chấm công)
+        const hasUnattachedCreditCue = rawClauses.some(
+          (c) => c !== clause && isCreditPurchaseText(c) && parseVietnameseMoney(c) === null
+        );
+        if (hasUnattachedCreditCue) {
+          isCredit = true;
+        }
+      }
       const walletKind = detectWalletKind(clause, 'tien_mat');
 
       const explicitMang: BusinessSegment = /\b(can tin|cantin|cang tin)\b/.test(clauseNoAcc)
@@ -1294,10 +1355,6 @@ export function parseVietnameseCommandLocal(
         });
         continue;
       }
-
-      const hasExplicitPayment = /\b(da tra|tra roi|da thanh toan|thanh toan roi|tien mat|tm|chuyen khoan|ck|chi nhan|mo diep)\b/.test(
-        clauseNoAcc
-      );
 
       if (ambiguousSegment) {
         parsedItems.push({
