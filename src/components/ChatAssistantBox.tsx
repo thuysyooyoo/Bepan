@@ -204,6 +204,18 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
         aiSettings: aiSettings ?? undefined,
       });
 
+      // Nếu không trích xuất được mục nào (AI trả về rỗng hoặc lỗi) -> phản hồi hướng dẫn ngay, không để im lặng
+      if (!parsed.items || parsed.items.length === 0) {
+        parsed.items = [
+          {
+            intent: 'khong_ro',
+            ngay: selectedDate,
+            ghi_chu: clean,
+            cau_tra_loi: `Em chưa nhận diện được số tiền hoặc danh mục trong câu: “${clean}”.\nBác thử nói: “Bán căn tin 400k tiền mặt” hoặc “Mua thịt 200k” nhé!`,
+          },
+        ];
+      }
+
       // Nếu câu nói mới là câu điều chỉnh cho thẻ pending của lượt trước -> hủy thẻ pending cũ để tránh lưu trùng
       const isAdjustment = parsed.items.some(
         (it) => it.intent === 'chi_no' || it.intent === 'ban_chiu'
@@ -691,7 +703,21 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
                         snapshot,
                         turn.userText
                       );
-                      if (!built) return null;
+                      if (!built) {
+                        return (
+                          <div
+                            key={card.cardId}
+                            className="rounded-xl rounded-tl-xs bg-stone-100 border border-stone-200 p-2.5 text-xs text-stone-700 space-y-1"
+                          >
+                            <div className="font-semibold text-stone-900">
+                              Em đã nghe thấy câu: “{turn.userText}”
+                            </div>
+                            <div className="text-[11px] text-stone-500">
+                              Bác vui lòng nói rõ số tiền hoặc hành động, ví dụ: <em>“Bán căn tin 400k tiền mặt”</em> hoặc <em>“Mua rau 50k”</em> nhé!
+                            </div>
+                          </div>
+                        );
+                      }
 
                       return (
                         <div key={card.cardId} className="space-y-1.5">
@@ -756,6 +782,14 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
             })}
           </div>
         )}
+
+        {busy && (
+          <div className="flex items-center gap-2 p-2.5 rounded-2xl rounded-tl-xs bg-stone-100 border border-stone-200 text-stone-600 text-xs font-semibold w-fit animate-pulse">
+            <Sparkles className="w-3.5 h-3.5 text-teal-700 animate-spin" />
+            <span>Trợ lý AI đang suy nghĩ và phân tích...</span>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 

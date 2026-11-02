@@ -680,64 +680,88 @@ export function buildActionCardFromIntent(
     };
   }
 
-  // 2. THU CUỐI NGÀY (CÁCH A: CĂN TIN + VÃNG LAI)
-  if (item.intent === 'thu_can_tin' && item.thu_cuoi_ngay) {
-    const tm = item.thu_cuoi_ngay.tien_mat;
-    const ck = item.thu_cuoi_ngay.chuyen_khoan;
-    const tong = tm + ck;
-    const mealRev = computeDailyMealRevenue(
-      snapshot.mealCounts,
-      snapshot.mealPrices,
-      bookId,
-      ngay
-    );
-    const vlMoney = mealRev.doanh_thu_vang_lai;
-    const ctMoney = Math.max(0, tong - vlMoney);
-    const ckWallet = getWalletByKind(snapshot, 'tk_chi_nhan');
+  // 2. THU CUỐI NGÀY / DOANH THU CĂN TIN (CẢ LOCAL NLU & CLOUD AI DEEPSEEK / GEMINI)
+  if (
+    item.intent === 'thu_can_tin' ||
+    (item as unknown as { intent: string }).intent === 'thu' ||
+    (item.thu_cuoi_ngay !== undefined && item.thu_cuoi_ngay !== null)
+  ) {
+    let tm = item.thu_cuoi_ngay?.tien_mat ?? 0;
+    let ck = item.thu_cuoi_ngay?.chuyen_khoan ?? 0;
 
-    return {
-      manualFallbackKind: 'thu_cuoi_ngay',
-      preview: {
-        badge: 'TỔNG THU CUỐI NGÀY',
-        tone: 'income',
-        title: 'Thu tiền mặt & CK cuối ngày',
-        headlineAmount: tong,
-        dateLabel,
-        rows: [
-          { label: 'Tiền mặt vào ví', value: formatVND(tm), highlight: true },
-          { label: `CK vào ${ckWallet.ten_vi}`, value: formatVND(ck), highlight: true },
-          { label: 'Trừ tiền suất vãng lai hôm nay', value: `-${formatVND(vlMoney)}` },
-          { label: '→ Doanh thu Căn tin còn lại', value: formatVND(ctMoney), highlight: true },
-        ],
-        bookImpactNote: `Tiền mặt +${formatVND(tm)}, ${ckWallet.ten_vi} +${formatVND(
-          ck
-        )} · Tự trừ vãng lai ra Doanh thu Căn tin ${formatVND(ctMoney)}.`,
-        spokenText: `Ghi tổng thu cuối ngày ${formatCompactVND(tong)}, gồm tiền mặt ${formatCompactVND(
-          tm
-        )} và chuyển khoản ${formatCompactVND(ck)}. Đúng không ạ?`,
-      },
-      commit: async (actor, source) => {
-        const { createdIds, replacedIds } = await repo.saveDailyCollection(actor, {
-          book_id: bookId,
-          ngay,
-          tien_mat: tm,
-          chuyen_khoan: ck,
-          ghi_chu: item.ghi_chu,
-          nguon: source,
-        });
-        return {
-          message: `Đã lưu tổng thu cuối ngày ${formatVND(tong)}`,
-          undoFn: async () => {
-            for (const cid of createdIds) {
-              await repo.softDeleteTransaction(actor, bookId, cid);
-            }
-            for (const rid of replacedIds) {
-              await repo.restoreTransaction(actor, bookId, rid);
-            }
-          },
-        };
-      },
-    };
+    // Nếu Cloud AI trả về phẳng (so_tien, vi) mà không bọc trong thu_cuoi_ngay
+    if (tm === 0 && ck === 0 && (item.so_tien ?? 0) > 0) {
+      const isCk =
+        item.vi === 'tk_chi_nhan' ||
+        item.vi === 'tk_mo_diep' ||
+        /(chuyển khoản|ck|ngân hàng)/i.test(String(item.ghi_chu || rawSentence));
+      if (isCk) {
+        ck = Math.round(item.so_tien ?? 0);
+      } else {
+        tm = Math.round(item.so_tien ?? 0);
+      }
+    }
+
+    const tong = tm + ck;
+    if (tong > 0) {
+      const mealRev = computeDailyMealRevenue(
+        snapshot.mealCounts,
+        snapshot.mealPrices,
+        bookId,
+        ngay
+      );
+      const vlMoney = mealRev.doanh_thu_vang_lai;
+      const ctMoney = Math.max(0, tong - vlMoney);
+      const ckWallet = getWalletByKind(snapshot, 'tk_chi_nhan');
+
+      return {
+        manualFallbackKind: 'thu_cuoi_ngay',
+        preview: {
+          badge: 'TỔNG THU CĂN TIN & CUỐI NGÀY',
+          tone: 'income',
+          title: 'Thu tiền mặt & CK căn tin',
+          headlineAmount: tong,
+          dateLabel,
+          rows: [
+            ...(tm > 0 ? [{ label: 'Tiền mặt vào ví', value: formatVND(tm), highlight: true }] : []),
+            ...(ck > 0 ? [{ label: `CK vào ${ckWallet.ten_vi}`, value: formatVND(ck), highlight: true }] : []),
+            ...(vlMoney > 0 ? [{ label: 'Trừ tiền suất vãng lai hôm nay', value: `-${formatVND(vlMoney)}` }] : []),
+            { label: '→ Doanh thu Căn tin ghi nhận', value: formatVND(ctMoney), highlight: true },
+          ],
+          bookImpactNote: `${tm > 0 ? `Tiền mặt +${formatVND(tm)}` : ''}${
+            ck > 0 ? `${tm > 0 ? ' · ' : ''}${ckWallet.ten_vi} +${formatVND(ck)}` : ''
+          } · Tự trừ vãng lai ra Doanh thu Căn tin ${formatVND(ctMoney)}.`,
+          spokenText: `Ghi nhận thu căn tin ${formatCompactVND(tong)}${
+            tm > 0 && ck > 0
+              ? `, gồm tiền mặt ${formatCompactVND(tm)} và chuyển khoản ${formatCompactVND(ck)}`
+              : tm > 0
+              ? ' tiền mặt'
+              : ' chuyển khoản'
+          }. Đúng không ạ?`,
+        },
+        commit: async (actor, source) => {
+          const { createdIds, replacedIds } = await repo.saveDailyCollection(actor, {
+            book_id: bookId,
+            ngay,
+            tien_mat: tm,
+            chuyen_khoan: ck,
+            ghi_chu: item.ghi_chu || 'Thu căn tin',
+            nguon: source,
+          });
+          return {
+            message: `Đã lưu thu căn tin ${formatVND(tong)}`,
+            undoFn: async () => {
+              for (const cid of createdIds) {
+                await repo.softDeleteTransaction(actor, bookId, cid);
+              }
+              for (const rid of replacedIds) {
+                await repo.restoreTransaction(actor, bookId, rid);
+              }
+            },
+          };
+        },
+      };
+    }
   }
 
   // 3. CHẤM CÔNG THỢ

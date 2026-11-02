@@ -237,7 +237,12 @@ CÁC INTENT VÀ QUY TẮC PHÂN LOẠI (TUYỆT ĐỐI TUÂN THỦ):
 3. 'chi_no': Mua thực phẩm nhưng chưa trả tiền / mua chịu ghi sổ (Ví dụ: "lấy 10 cân thịt 900 nghìn nợ", "mua rau 80k chưa trả" -> intent: 'chi_no').
 4. 'tra_no': Trả nợ cho nhà cung cấp (Ví dụ: "trả nợ thịt 1 triệu", "trả cô Hoa rau 500k" -> intent: 'tra_no').
 5. 'ban_chiu': Khách / giáo viên ăn cơm nhưng ghi nợ (Ví dụ: "thầy Tuấn nợ 2 suất cơm", "cô Lan nợ tiền cơm 50k" -> intent: 'ban_chiu', doi_tac: "Thầy Tuấn").
-6. 'thu_can_tin': Tổng thu quầy căn tin cuối ngày.
+6. 'thu_can_tin': Doanh thu bán hàng căn tin / tổng thu cuối ngày:
+   - Các câu nói: "bán được 400k tiền mặt", "bán cantin được 400k", "bán căn tin 500k chuyển khoản", "thu quầy hôm nay 800 nghìn", "tổng thu căn tin 1 triệu":
+     + BẮT BUỘC intent = 'thu_can_tin'.
+     + Gán "so_tien": số tiền nói đến.
+     + Nếu nói "tiền mặt" -> "vi": "tien_mat". Nếu nói "chuyển khoản", "ck" -> "vi": "tk_chi_nhan".
+     + Gán "mang": "can_tin".
 7. 'suat_an': Báo số lượng suất ăn trường hoặc vãng lai nấu trong ngày.
 8. 'hoi': Tra cứu báo cáo (hôm nay lãi bao nhiêu, ai đang nợ mình...).
 
@@ -434,6 +439,23 @@ function normalizeParsedCloudItems(rawItems: unknown[]): ParsedIntentItem[] {
         it.chua_tra = true;
       } else if (typeof it.ghi_chu === 'string' && /(chưa trả|chua tra|ghi nợ|chưa đưa)/i.test(it.ghi_chu)) {
         it.chua_tra = true;
+      }
+    }
+
+    // Chuẩn hóa intent thu_can_tin / bán căn tin
+    if (it.intent === 'thu_can_tin' || (it as unknown as { intent: string }).intent === 'thu') {
+      it.intent = 'thu_can_tin';
+      it.mang = 'can_tin';
+      const amt = Number(it.so_tien || r.amount || 0);
+      if (!it.thu_cuoi_ngay && amt > 0) {
+        const isCk =
+          it.vi === 'tk_chi_nhan' ||
+          it.vi === 'tk_mo_diep' ||
+          /(chuyển khoản|ck|ngân hàng)/i.test(String(it.ghi_chu || ''));
+        it.thu_cuoi_ngay = {
+          tien_mat: isCk ? 0 : amt,
+          chuyen_khoan: isCk ? amt : 0,
+        };
       }
     }
 

@@ -650,7 +650,7 @@ function isCollectionTriggerClause(text: string): boolean {
     return false;
   }
   return (
-    /\b(can tin|cantin|cang tin|thu cuoi ngay|tong thu|tien quay|ban hang hom nay)\b/.test(
+    /\b(can tin|cantin|cang tin|thu cuoi ngay|tong thu|tien quay|ban hang hom nay|ban duoc|ban dc|ban tien mat)\b/.test(
       noAcc
     ) && !/\?|\bbao nhieu\b|\bbn\b/.test(noAcc)
   );

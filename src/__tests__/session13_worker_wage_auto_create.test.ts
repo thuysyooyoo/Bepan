@@ -118,4 +118,38 @@ describe('Phiên 13 — Tự động tạo thợ mới (Chú Hiển), Ghi nợ l
     expect(followUp![0].chua_tra).toBe(true);
     expect(followUp![0].ghi_chu).toContain('Chưa trả tiền/Ghi nợ lương');
   });
+
+  it('5. Doanh thu căn tin: "bán được 400k tiền mặt" và "bán cantin được 400k tiền mặt" sinh thẻ xác nhận thu căn tin', async () => {
+    const snap = await getSnap();
+
+    // Test 1: NLU Local nhận diện
+    const sentence1 = 'bán được 400k tiền mặt';
+    const parsed1 = parseVietnameseCommandLocal(sentence1, snap, '2026-11-02');
+    expect(parsed1.items).toHaveLength(1);
+    expect(parsed1.items[0].intent).toBe('thu_can_tin');
+    expect(parsed1.items[0].thu_cuoi_ngay?.tien_mat).toBe(400_000);
+
+    const card1 = buildActionCardFromIntent(parsed1.items[0], snap, sentence1, repo);
+    expect(card1).toBeDefined();
+    expect(card1!.preview.headlineAmount).toBe(400_000);
+    expect(card1!.preview.badge).toContain('TỔNG THU CĂN TIN');
+
+    // Test 2: Dữ liệu phẳng từ Cloud AI (DeepSeek / Gemini: { intent: "thu_can_tin", so_tien: 400000, vi: "tien_mat" })
+    const cloudItem = {
+      intent: 'thu_can_tin' as const,
+      ngay: '2026-11-02',
+      so_tien: 400_000,
+      vi: 'tien_mat' as const,
+      mang: 'can_tin' as const,
+      ghi_chu: 'Bán cantin được 400k tiền mặt',
+    };
+    const card2 = buildActionCardFromIntent(cloudItem, snap, 'bán cantin được 400k tiền mặt', repo);
+    expect(card2).toBeDefined();
+    expect(card2!.preview.headlineAmount).toBe(400_000);
+    expect(card2!.preview.rows.some((r) => r.label.includes('Tiền mặt') && r.value.includes('400.000'))).toBe(true);
+
+    // Commit lưu thẻ
+    const res = await card2!.commit(session, 'chat');
+    expect(res.message).toContain('400.000');
+  });
 });
