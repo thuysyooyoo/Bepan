@@ -578,19 +578,19 @@ export const AppShell: React.FC = () => {
           aria-modal="true"
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 max-w-md mx-auto"
         >
-          <div className="w-full bg-white rounded-3xl p-5 shadow-2xl space-y-3 border-2 border-stone-300">
+          <div className="w-full bg-white rounded-3xl p-4 shadow-2xl space-y-2.5 border border-stone-200">
             <div className="flex items-center justify-between border-b pb-2">
-              <div className="text-xl font-black text-stone-900">Tùy chọn hệ thống</div>
+              <div className="text-sm sm:text-base font-bold text-stone-900">Tùy chọn hệ thống</div>
               <button
                 type="button"
                 onClick={() => setShowMainMenu(false)}
-                className="w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-700 font-bold"
+                className="w-7 h-7 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-700 font-bold text-xs"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-2 pt-1">
+            <div className="space-y-1.5 pt-0.5">
               {activeReminders.length > 0 && (
                 <button
                   type="button"
@@ -598,13 +598,13 @@ export const AppShell: React.FC = () => {
                     setShowMainMenu(false);
                     setDetailDrawer('debts');
                   }}
-                  className="w-full p-3.5 rounded-2xl bg-amber-50 hover:bg-amber-100 border-2 border-amber-500 font-extrabold text-left text-amber-950 flex items-center justify-between"
+                  className="w-full p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-400 font-bold text-left text-amber-950 flex items-center justify-between text-xs"
                 >
                   <span className="flex items-center gap-2">
-                    <BellRing className="w-5 h-5 text-amber-700" />
+                    <BellRing className="w-4 h-4 text-amber-700" />
                     Việc cần làm ngay
                   </span>
-                  <span className="px-2 py-0.5 rounded-full bg-amber-400 text-stone-950 text-xs font-black">
+                  <span className="px-2 py-0.5 rounded-full bg-amber-400 text-stone-950 text-[10px] font-bold">
                     {activeReminders.length}
                   </span>
                 </button>
@@ -616,9 +616,9 @@ export const AppShell: React.FC = () => {
                   setShowMainMenu(false);
                   setShowGuide(true);
                 }}
-                className="w-full p-3.5 rounded-2xl bg-stone-50 hover:bg-stone-100 border border-stone-300 font-bold text-left text-stone-900 flex items-center gap-2"
+                className="w-full p-2.5 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 font-bold text-left text-stone-900 flex items-center gap-2 text-xs"
               >
-                <HelpCircle className="w-5 h-5 text-teal-700" />
+                <HelpCircle className="w-4 h-4 text-teal-700" />
                 Cẩm nang sử dụng cho Bố/Mẹ
               </button>
 
@@ -628,15 +628,15 @@ export const AppShell: React.FC = () => {
                   setShowMainMenu(false);
                   setShowSettings(true);
                 }}
-                className="w-full p-3.5 rounded-2xl bg-stone-50 hover:bg-stone-100 border border-stone-300 font-bold text-left text-stone-900 flex items-center gap-2"
+                className="w-full p-2.5 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 font-bold text-left text-stone-900 flex items-center gap-2 text-xs"
               >
-                <Settings className="w-5 h-5 text-teal-700" />
+                <Settings className="w-4 h-4 text-teal-700" />
                 Cài đặt sổ (Đơn giá, Thợ, Mối hàng, PIN)
               </button>
 
               {session.vai_tro === 'admin' && (
-                <div className="p-2.5 rounded-2xl bg-stone-100 space-y-1.5">
-                  <div className="text-xs font-bold text-stone-500 uppercase">
+                <div className="p-2 rounded-xl bg-stone-100 space-y-1">
+                  <div className="text-[10px] font-bold text-stone-500 uppercase">
                     Chuyển cơ sở (Admin)
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -646,7 +646,7 @@ export const AppShell: React.FC = () => {
                         setShowMainMenu(false);
                         handleAdminSwitchFacility('hiep_hoa');
                       }}
-                      className="p-2 rounded-xl bg-white border border-stone-300 font-bold text-sm"
+                      className="p-1.5 rounded-lg bg-white border border-stone-200 font-bold text-xs"
                     >
                       Hiệp Hòa
                     </button>
@@ -656,7 +656,7 @@ export const AppShell: React.FC = () => {
                         setShowMainMenu(false);
                         handleAdminSwitchFacility('tien_du');
                       }}
-                      className="p-2 rounded-xl bg-white border border-stone-300 font-bold text-sm"
+                      className="p-1.5 rounded-lg bg-white border border-stone-200 font-bold text-xs"
                     >
                       Tiên Du
                     </button>

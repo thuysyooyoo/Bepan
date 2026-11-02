@@ -120,20 +120,26 @@ export async function testAiConnection(settings: AiSettings): Promise<AiTestResu
   const endpoint = settings.endpoint?.trim() || defaultEndpoint;
   const model = settings.model.trim() || (isDeepSeek ? 'deepseek-chat' : 'gpt-4o-mini');
 
+  const isReasoner = model.includes('reasoner') || model.includes('r1');
+
   try {
+    const testBody: Record<string, unknown> = {
+      model,
+      messages: [{ role: 'user', content: 'Tra ve JSON: {"ping": "pong"}' }],
+      max_tokens: 15,
+    };
+    if (!isReasoner) {
+      testBody.response_format = { type: 'json_object' };
+    }
+
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: 'Tra ve JSON: {"ping": "pong"}' }],
-        response_format: { type: 'json_object' },
-        max_tokens: 10,
-      }),
-      signal: AbortSignal.timeout(8000),
+      body: JSON.stringify(testBody),
+      signal: AbortSignal.timeout(isReasoner ? 20000 : 8000),
     });
 
     const latencyMs = Date.now() - t0;
@@ -203,10 +209,10 @@ function buildSystemPrompt(snapshot: BookSnapshot, dateStr: string): string {
     .map((w) => `- id: "${w.id}", loai: "${w.loai_vi}", ten: "${w.ten_vi}"`)
     .join('\n');
 
-  return `Bạn là trợ lý kế toán cho cơ sở nấu ăn trường học: "${snapshot.book.ten}".
+  return `Bạn là chuyên gia kế toán và trợ lý thông minh cho cơ sở nấu ăn trường học: "${snapshot.book.ten}".
 Ngày làm việc hiện tại: ${dateStr}.
 
-Nhiệm vụ của bạn: Phân tích câu nói tiếng Việt của người dùng (Bố/Mẹ) thành cấu trúc JSON danh sách các hành động { "items": [...] }.
+Nhiệm vụ: Phân tích chính xác câu nói tiếng Việt của người quản lý bếp (Bố/Mẹ) thành cấu trúc JSON danh sách các hành động: { "items": [...] }.
 
 DANH MỤC CÓ SẴN:
 ${catLines}
@@ -214,37 +220,37 @@ ${catLines}
 NHÀ CUNG CẤP:
 ${supLines}
 
-CÔNG NHÂN PHỤ BẾP:
+CÔNG NHÂN PHỤ BẾP HIỆN CÓ:
 ${workerLines}
 
 VÍ TIỀN:
 ${walletLines}
 
-CÁC INTENT HỢP LỆ:
-- 'chi': Chi tiền mua thực phẩm/đồ dùng hàng ngày trả tiền ngay (ví dụ: 'mua thịt 450 nghìn đã trả tiền mặt')
-- 'chi_no': Mua thực phẩm/đồ dùng nhưng chưa trả tiền / mua chịu (ví dụ: 'mua 5 cân thịt 450 nghìn chưa trả tiền' -> intent: 'chi_no', category_id: 'cat_thit', supplier_id: sup_id)
-- 'tra_no': Trả nợ cho nhà cung cấp (ví dụ: 'trả nợ thịt 500 nghìn')
-- 'thu_can_tin': Thu cuối ngày quầy căn tin
-- 'suat_an': Báo số suất ăn trường hoặc vãng lai
-- 'cham_cong': Chấm công thợ hoặc ghi nhận tiền công/lương thợ làm bếp:
-  + Nếu có tên người làm (ví dụ: "chú Hiển", "bác Hiển", "cô Lan"), nếu chưa có trong CÔNG NHÂN PHỤ BẾP thì trả về "ten_tho_moi": "Chú Hiển", "luong_ngay_moi": 500000, "so_tien": 500000.
-  + Nếu câu nói có "chưa trả", "chưa đưa tiền", "ghi nợ", "chưa thanh toán" -> BẮT BUỘC đặt "chua_tra": true để ghi nhận vào Sổ Nợ mà không trừ tiền ví.
-  + Nếu đã trả -> "chua_tra": false, "vi": "tien_mat".
-- 'hoi': Câu hỏi báo cáo (lãi hôm nay, nợ nần, còn bao nhiêu tiền...)
-- 'khong_ro': Câu nói không liên quan hoặc không thể hiểu.
+CÁC INTENT VÀ QUY TẮC PHÂN LOẠI (TUYỆT ĐỐI TUÂN THỦ):
+1. 'cham_cong': Chấm công hoặc ghi nhận tiền công thợ / phụ bếp làm việc:
+   - Khi câu nói có từ "tiền công", "công", "lương" kèm tên người (Ví dụ: "công chú hiển hôm nay 500000 chưa trả", "tiền công bác Nam 300k"):
+     + BẮT BUỘC intent = 'cham_cong'.
+     + Nếu tên người chưa có trong danh sách CÔNG NHÂN PHỤ BẾP -> gán "ten_tho_moi": "Chú Hiển", "luong_ngay_moi": 500000, "so_tien": 500000.
+     + Nếu câu nói có "chưa trả", "chưa đưa", "ghi nợ", "nợ" -> BẮT BUỘC "chua_tra": true.
+     + TUYỆT ĐỐI KHÔNG ĐƯỢC gán nhầm thành mua đồ khô hay chi mua hàng!
+2. 'chi': Mua thực phẩm, gia vị, đồ dùng trả tiền ngay (Ví dụ: "mua 5 cân thịt 450 nghìn đã trả tiền mặt" -> intent: 'chi', category_id: 'cat_thit').
+3. 'chi_no': Mua thực phẩm nhưng chưa trả tiền / mua chịu ghi sổ (Ví dụ: "lấy 10 cân thịt 900 nghìn nợ", "mua rau 80k chưa trả" -> intent: 'chi_no').
+4. 'tra_no': Trả nợ cho nhà cung cấp (Ví dụ: "trả nợ thịt 1 triệu", "trả cô Hoa rau 500k" -> intent: 'tra_no').
+5. 'ban_chiu': Khách / giáo viên ăn cơm nhưng ghi nợ (Ví dụ: "thầy Tuấn nợ 2 suất cơm", "cô Lan nợ tiền cơm 50k" -> intent: 'ban_chiu', doi_tac: "Thầy Tuấn").
+6. 'thu_can_tin': Tổng thu quầy căn tin cuối ngày.
+7. 'suat_an': Báo số lượng suất ăn trường hoặc vãng lai nấu trong ngày.
+8. 'hoi': Tra cứu báo cáo (hôm nay lãi bao nhiêu, ai đang nợ mình...).
 
-LƯU Ý NGỮ CẢNH HỘI THOẠI TRƯỚC:
-Nếu người dùng nói tiếp một câu ngắn (ví dụ: 'khoản đó chưa trả tiền nhé', 'chưa trả đâu', 'ghi nợ nhé', 'của căn tin nhé', 'sửa thành 500 nghìn', 'của chú Hiển nhé'), bạn phải dựa vào tin nhắn trước đó để cập nhật khoản giao dịch tương ứng!
+NẾU CÂU NÓI CÓ NHIỀU KHOẢN TIỀN (ĐA MỆNH ĐỀ):
+Tự động tách thành nhiều phần tử trong mảng "items". Ví dụ: "mua thịt 300k, rau 50k, công chú hiển 400k chưa trả" -> 3 items riêng biệt.
 
-BẮT BUỘC trả về đúng định dạng JSON:
+ĐỊNH DẠNG JSON BẮT BUỘC:
 {
   "items": [
     {
-      "intent": "chi" | "chi_no" | "tra_no" | "thu_can_tin" | "suat_an" | "cham_cong" | "hoi" | "khong_ro",
+      "intent": "cham_cong" | "chi" | "chi_no" | "tra_no" | "ban_chiu" | "thu_can_tin" | "suat_an" | "hoi",
       "ngay": "${dateStr}",
-      "so_tien": 450000,
-      "category_id": "cat_thit",
-      "supplier_id": "sup_td_thit",
+      "so_tien": 500000,
       "ten_tho_moi": "Chú Hiển",
       "luong_ngay_moi": 500000,
       "chua_tra": true,
@@ -278,7 +284,6 @@ export async function callCloudAi(
 
       const contents: Array<{ role: 'user' | 'model'; parts: [{ text: string }] }> = [];
 
-      // Gemini contents format
       contents.push({
         role: 'user',
         parts: [{ text: `${systemPrompt}\n\nNgười dùng nói: "Xin chào"` }],
@@ -288,7 +293,6 @@ export async function callCloudAi(
         parts: [{ text: '{"items": []}' }],
       });
 
-      // Thêm lịch sử hội thoại
       for (const h of history.slice(-4)) {
         contents.push({
           role: h.role === 'assistant' ? 'model' : 'user',
@@ -296,7 +300,6 @@ export async function callCloudAi(
         });
       }
 
-      // Lượt nói hiện tại
       contents.push({
         role: 'user',
         parts: [{ text: userText }],
@@ -325,7 +328,12 @@ export async function callCloudAi(
       const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!rawJson) return null;
 
-      const parsed = JSON.parse(rawJson);
+      let cleanJson = rawJson.trim();
+      if (cleanJson.startsWith('```')) {
+        cleanJson = cleanJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      }
+
+      const parsed = JSON.parse(cleanJson);
       if (Array.isArray(parsed.items) && parsed.items.length > 0) {
         return normalizeParsedCloudItems(parsed.items);
       }
@@ -339,6 +347,7 @@ export async function callCloudAi(
       : 'https://api.openai.com/v1/chat/completions';
     const endpoint = settings.endpoint?.trim() || defaultEndpoint;
     const model = settings.model.trim() || (isDeepSeek ? 'deepseek-chat' : 'gpt-4o-mini');
+    const isReasoner = model.includes('reasoner') || model.includes('r1');
 
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
       { role: 'system', content: systemPrompt },
@@ -353,19 +362,25 @@ export async function callCloudAi(
 
     messages.push({ role: 'user', content: userText });
 
+    const requestBody: Record<string, unknown> = {
+      model,
+      messages,
+    };
+
+    // DeepSeek-reasoner không nhận temperature và response_format
+    if (!isReasoner) {
+      requestBody.response_format = { type: 'json_object' };
+      requestBody.temperature = settings.temperature ?? 0.1;
+    }
+
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages,
-        response_format: { type: 'json_object' },
-        temperature: settings.temperature ?? 0.1,
-      }),
-      signal: AbortSignal.timeout(9000),
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(isReasoner ? 25000 : 10000),
     });
 
     if (!res.ok) {
@@ -377,7 +392,18 @@ export async function callCloudAi(
     const rawContent = data.choices?.[0]?.message?.content;
     if (!rawContent) return null;
 
-    const parsed = JSON.parse(rawContent);
+    let cleanJson = String(rawContent).trim();
+    if (cleanJson.startsWith('```')) {
+      cleanJson = cleanJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    } else {
+      // Tìm khối JSON {...} bên trong nếu model trả về text kèm reasoning
+      const match = cleanJson.match(/\{[\s\S]*\}/);
+      if (match) {
+        cleanJson = match[0];
+      }
+    }
+
+    const parsed = JSON.parse(cleanJson);
     if (Array.isArray(parsed.items) && parsed.items.length > 0) {
       return normalizeParsedCloudItems(parsed.items);
     }

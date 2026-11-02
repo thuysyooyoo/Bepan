@@ -321,23 +321,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     <div className="fixed inset-0 z-50 bg-black/50 flex justify-center overflow-y-auto">
       <div className="bg-stone-100 w-full max-w-md min-h-screen flex flex-col">
         {/* Header cài đặt */}
-        <div className="bg-stone-900 text-white px-4 py-3.5 flex items-center justify-between sticky top-0 z-20">
+        <div className="bg-stone-900 text-white px-3.5 py-2.5 flex items-center justify-between sticky top-0 z-20">
           <div>
-            <div className="text-xl font-extrabold">Cài đặt — {snapshot.book.ten}</div>
-            <div className="text-sm opacity-80">Áp dụng riêng cho cơ sở đang mở</div>
+            <div className="text-sm sm:text-base font-bold">Cài đặt — {snapshot.book.ten}</div>
+            <div className="text-[11px] opacity-75">Áp dụng riêng cho cơ sở đang mở</div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 font-bold text-base inline-flex items-center gap-1"
+            className="px-2.5 py-1 rounded-xl bg-white/15 hover:bg-white/25 font-bold text-xs inline-flex items-center gap-1"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
             Đóng
           </button>
         </div>
 
         {/* Thanh chọn mục cài đặt cuộn ngang mượt mà */}
-        <div className="bg-white border-b border-stone-200 p-1.5 flex gap-1 overflow-x-auto no-scrollbar sticky top-[64px] z-10">
+        <div className="bg-white border-b border-stone-200 p-1 flex gap-1 overflow-x-auto no-scrollbar sticky top-[50px] z-10">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -346,7 +346,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 setTab(t.key);
                 setErrMsg('');
               }}
-              className={`py-1.5 px-3 rounded-lg font-bold text-xs whitespace-nowrap border transition-colors ${
+              className={`py-1 px-2.5 rounded-lg font-bold text-[11px] whitespace-nowrap border transition-colors ${
                 tab === t.key
                   ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
                   : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
@@ -358,30 +358,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Nội dung cài đặt */}
-        <div className="p-4 space-y-4 flex-1 pb-12">
+        <div className="p-3 space-y-3 flex-1 pb-12">
           {toast && (
-            <div className="rounded-2xl bg-emerald-700 text-white px-4 py-3 font-bold text-lg flex items-center gap-2">
-              <Check className="w-6 h-6 shrink-0" />
+            <div className="rounded-xl bg-emerald-700 text-white px-3 py-2 font-bold text-xs flex items-center gap-2">
+              <Check className="w-4 h-4 shrink-0" />
               {toast}
             </div>
           )}
           {errMsg && (
-            <div className="rounded-2xl bg-red-100 border-2 border-red-500 text-red-900 px-4 py-3 font-bold text-lg">
+            <div className="rounded-xl bg-red-100 border border-red-500 text-red-900 px-3 py-2 font-bold text-xs">
               {errMsg}
             </div>
           )}
 
           {/* 1. ĐƠN GIÁ SUẤT ĂN */}
           {tab === 'gia_suat' && (
-            <div className="space-y-4">
-              <div className="rounded-2xl bg-white border-2 border-stone-200 p-4 space-y-2">
-                <h3 className="text-xl font-extrabold text-teal-900">
+            <div className="space-y-3">
+              <div className="rounded-2xl bg-white border border-stone-200 p-3 space-y-1.5">
+                <h3 className="text-xs sm:text-sm font-bold text-teal-950">
                   Bảng đơn giá đang có hiệu lực hôm nay ({today})
                 </h3>
                 {(['sang', 'trua', 'toi'] as MealPeriod[]).map((bua) => (
                   <div
                     key={bua}
-                    className="flex items-center justify-between py-2 border-b border-stone-100 text-lg"
+                    className="flex items-center justify-between py-1.5 border-b border-stone-100 text-xs"
                   >
                     <span className="font-bold text-stone-800">{BUA_NAMES[bua]}</span>
                     <span className="text-stone-900">
@@ -410,16 +410,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <form
                 onSubmit={handleSaveMealPrice}
-                className="rounded-2xl bg-white border-2 border-teal-600 p-4 space-y-3"
+                className="rounded-2xl bg-white border border-teal-600 p-3 space-y-2.5"
               >
-                <h4 className="text-lg font-extrabold text-stone-900">
+                <h4 className="text-xs sm:text-sm font-bold text-stone-900">
                   Cập nhật đơn giá mới (giữ nguyên số liệu các tháng cũ)
                 </h4>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-2">
                   <select
                     value={priceBua}
                     onChange={(e) => setPriceBua(e.target.value as MealPeriod)}
-                    className="rounded-xl border-2 border-stone-400 px-3 py-2.5 font-bold text-lg"
+                    className="rounded-xl border border-stone-300 px-2.5 py-1.5 font-bold text-xs bg-white"
                   >
                     <option value="sang">Bữa sáng</option>
                     <option value="trua">Bữa trưa</option>
@@ -428,7 +428,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <select
                     value={priceLoai}
                     onChange={(e) => setPriceLoai(e.target.value as GuestType)}
-                    className="rounded-xl border-2 border-stone-400 px-3 py-2.5 font-bold text-lg"
+                    className="rounded-xl border border-stone-300 px-2.5 py-1.5 font-bold text-xs bg-white"
                   >
                     <option value="truong">Suất trường</option>
                     <option value="vang_lai">Suất vãng lai</option>
@@ -442,20 +442,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
 
                 <div>
-                  <label className="block text-base font-bold text-stone-700 mb-1">
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
                     Áp dụng từ ngày:
                   </label>
                   <input
                     type="date"
                     value={priceFromDate}
                     onChange={(e) => setPriceFromDate(e.target.value)}
-                    className="w-full rounded-xl border-2 border-stone-400 px-3.5 py-2.5 text-lg font-bold"
+                    className="w-full rounded-xl border border-stone-300 px-2.5 py-1.5 text-xs font-bold bg-white"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-2xl bg-teal-700 text-white font-extrabold text-lg"
+                  className="w-full py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs"
                 >
                   Lưu mức giá này
                 </button>
@@ -498,10 +498,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <form
                 onSubmit={handleAddWorker}
-                className="rounded-2xl bg-white border-2 border-teal-600 p-4 space-y-3"
+                className="rounded-2xl bg-white border border-teal-600 p-3 space-y-2.5"
               >
-                <h4 className="text-lg font-extrabold text-teal-900 inline-flex items-center gap-1.5">
-                  <Plus className="w-5 h-5" />
+                <h4 className="text-xs sm:text-sm font-bold text-teal-900 inline-flex items-center gap-1.5">
+                  <Plus className="w-4 h-4" />
                   Thêm công nhân / phụ bếp mới
                 </h4>
                 <input
@@ -509,7 +509,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   value={newWorkerName}
                   onChange={(e) => setNewWorkerName(e.target.value)}
                   placeholder="Họ tên (VD: Cô Hạnh)"
-                  className="w-full rounded-xl border-2 border-stone-400 px-3.5 py-2.5 text-lg font-bold"
+                  className="w-full rounded-xl border border-stone-300 px-3 py-1.5 text-xs font-bold bg-white"
                 />
                 <MoneyInput
                   label="Tiền công 1 ngày"
@@ -518,7 +518,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-2xl bg-teal-700 text-white font-extrabold text-lg"
+                  className="w-full py-2 rounded-xl bg-teal-700 text-white font-bold text-xs hover:bg-teal-800"
                 >
                   Thêm phụ bếp
                 </button>
@@ -529,7 +529,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* 3. VÍ & SỐ DƯ ĐẦU KỲ */}
           {tab === 'vi' && (
             <div className="space-y-3">
-              <div className="rounded-xl bg-amber-50 border border-amber-300 p-3 text-base text-amber-950 font-medium">
+              <div className="rounded-xl bg-amber-50 border border-amber-300 p-2.5 text-xs text-amber-950 font-medium">
                 Số dư đầu kỳ là số tiền đang có sẵn trong ví lúc mới bắt đầu dùng phần mềm.
               </div>
               {snapshot.wallets.map((w) => (
@@ -548,8 +548,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* 4. MỐI HÀNG / NHÀ CUNG CẤP */}
           {tab === 'ncc' && (
-            <div className="space-y-4">
-              <div className="space-y-3">
+            <div className="space-y-3">
+              <div className="space-y-2.5">
                 {snapshot.suppliers.map((s) => (
                   <SupplierEditCard
                     key={s.id}
@@ -565,9 +565,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <form
                 onSubmit={handleAddSupplier}
-                className="rounded-2xl bg-white border-2 border-rose-600 p-4 space-y-3"
+                className="rounded-2xl bg-white border border-rose-500 p-3 space-y-2.5"
               >
-                <h4 className="text-lg font-extrabold text-rose-900">
+                <h4 className="text-xs sm:text-sm font-bold text-rose-900">
                   + Thêm mối hàng / đại lý mới
                 </h4>
                 <input
@@ -575,21 +575,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   value={newSupName}
                   onChange={(e) => setNewSupName(e.target.value)}
                   placeholder="Tên người bán / đại lý (VD: Chị Thủy rau)"
-                  className="w-full rounded-xl border-2 border-stone-400 px-3.5 py-2.5 text-lg font-bold"
+                  className="w-full rounded-xl border border-stone-300 px-3 py-1.5 text-xs font-bold bg-white"
                 />
                 <input
                   type="text"
                   value={newSupItem}
                   onChange={(e) => setNewSupItem(e.target.value)}
                   placeholder="Mặt hàng chính (VD: Rau củ quả)"
-                  className="w-full rounded-xl border-2 border-stone-300 px-3.5 py-2 text-lg"
+                  className="w-full rounded-xl border border-stone-300 px-3 py-1.5 text-xs bg-white"
                 />
                 <input
                   type="tel"
                   value={newSupPhone}
                   onChange={(e) => setNewSupPhone(e.target.value)}
                   placeholder="Số điện thoại (nếu có)"
-                  className="w-full rounded-xl border-2 border-stone-300 px-3.5 py-2 text-lg"
+                  className="w-full rounded-xl border border-stone-300 px-3 py-1.5 text-xs bg-white"
                 />
                 <MoneyInput
                   label="Nợ cũ đầu kỳ (nếu đang còn nợ trước đó)"
@@ -598,7 +598,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-2xl bg-rose-700 text-white font-extrabold text-lg"
+                  className="w-full py-2 rounded-xl bg-rose-700 text-white font-bold text-xs hover:bg-rose-800"
                 >
                   Thêm mối hàng
                 </button>
@@ -608,13 +608,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* 5. DANH MỤC */}
           {tab === 'danh_muc' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {session.vai_tro === 'admin' && (
                 <form
                   onSubmit={handleAddCategory}
-                  className="rounded-2xl bg-white border-2 border-teal-600 p-4 space-y-3"
+                  className="rounded-2xl bg-white border border-teal-600 p-3 space-y-2.5"
                 >
-                  <h4 className="text-lg font-extrabold text-teal-900">
+                  <h4 className="text-xs sm:text-sm font-bold text-teal-900">
                     + Thêm danh mục chi tiêu mới (Quyền Admin)
                   </h4>
                   <div className="flex gap-2">
@@ -622,21 +622,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       type="text"
                       value={catIcon}
                       onChange={(e) => setCatIcon(e.target.value)}
-                      className="w-16 rounded-xl border-2 border-stone-400 text-center text-2xl py-2"
+                      placeholder="Icon"
+                      className="w-14 rounded-xl border border-stone-300 text-center text-xs py-1.5 bg-white"
                     />
                     <input
                       type="text"
                       value={catName}
                       onChange={(e) => setCatName(e.target.value)}
                       placeholder="Tên danh mục (VD: Đậu phụ)"
-                      className="flex-1 rounded-xl border-2 border-stone-400 px-3 py-2 text-lg font-bold"
+                      className="flex-1 rounded-xl border border-stone-300 px-3 py-1.5 text-xs font-bold bg-white"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <select
                       value={catMode}
                       onChange={(e) => setCatMode(e.target.value as CategoryCalcMode)}
-                      className="rounded-xl border-2 border-stone-400 px-3 py-2 font-bold text-base"
+                      className="rounded-xl border border-stone-300 px-2.5 py-1.5 font-bold text-xs bg-white"
                     >
                       <option value="theo_ngay">Tính theo ngày</option>
                       <option value="theo_thang">Trừ vào cuối tháng</option>
@@ -644,7 +645,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <select
                       value={catMang}
                       onChange={(e) => setCatMang(e.target.value as BusinessSegment)}
-                      className="rounded-xl border-2 border-stone-400 px-3 py-2 font-bold text-base"
+                      className="rounded-xl border border-stone-300 px-2.5 py-1.5 font-bold text-xs bg-white"
                     >
                       <option value="bep_an">Mảng Bếp ăn</option>
                       <option value="can_tin">Mảng Căn tin</option>
@@ -656,27 +657,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     value={catKeywords}
                     onChange={(e) => setCatKeywords(e.target.value)}
                     placeholder="Từ khóa AI cách nhau dấu phẩy (VD: đậu mơ, đậu rán)"
-                    className="w-full rounded-xl border-2 border-stone-300 px-3 py-2 text-base"
+                    className="w-full rounded-xl border border-stone-300 px-3 py-1.5 text-xs bg-white"
                   />
                   <button
                     type="submit"
-                    className="w-full py-2.5 rounded-xl bg-teal-700 text-white font-extrabold text-lg"
+                    className="w-full py-2 rounded-xl bg-teal-700 text-white font-bold text-xs hover:bg-teal-800"
                   >
                     Lưu danh mục mới
                   </button>
                 </form>
               )}
 
-              <div className="rounded-2xl bg-white border border-stone-300 p-4 space-y-3">
+              <div className="rounded-2xl bg-white border border-stone-200 p-3 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <div className="text-lg font-extrabold text-stone-900">
+                  <div className="text-xs sm:text-sm font-bold text-stone-900">
                     Danh mục &amp; Từ khóa địa phương ({snapshot.categories.length})
                   </div>
-                  <span className="text-xs text-stone-500 font-semibold">
+                  <span className="text-[10px] text-stone-500 font-semibold">
                     Chạm để xem/thêm từ khóa
                   </span>
                 </div>
-                <div className="space-y-2 max-h-[460px] overflow-y-auto pr-0.5">
+                <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-0.5">
                   {snapshot.categories.map((c) => (
                     <CategoryEditCard
                       key={c.id}
@@ -696,27 +697,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* 6. LỊCH NHẮC & ĐỔI MÃ PIN */}
           {tab === 'nhac_pin' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <form
                 onSubmit={handleSaveReminders}
-                className="rounded-2xl bg-white border-2 border-stone-300 p-4 space-y-3"
+                className="rounded-2xl bg-white border border-stone-200 p-3 space-y-2.5"
               >
-                <h4 className="text-xl font-extrabold text-stone-900">
+                <h4 className="text-xs sm:text-sm font-bold text-stone-900">
                   Lịch nhắc việc định kỳ ({snapshot.book.ten})
                 </h4>
                 <div>
-                  <label className="block text-base font-bold text-stone-700 mb-1">
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
                     Giờ nhắc nhập suất ăn & thu cuối ngày:
                   </label>
                   <input
                     type="time"
                     value={gioNhac}
                     onChange={(e) => setGioNhac(e.target.value)}
-                    className="w-full rounded-xl border-2 border-stone-400 px-3 py-2 text-lg font-bold"
+                    className="w-full rounded-xl border border-stone-300 px-2.5 py-1.5 text-xs font-bold bg-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-base font-bold text-stone-700 mb-1">
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
                     Nhắc "Trường chưa chuyển tiền" từ ngày mấy hàng tháng?
                   </label>
                   <input
@@ -725,11 +726,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     max={28}
                     value={ngayNhacTruong}
                     onChange={(e) => setNgayNhacTruong(Number(e.target.value))}
-                    className="w-full rounded-xl border-2 border-stone-400 px-3 py-2 text-lg font-bold"
+                    className="w-full rounded-xl border border-stone-300 px-2.5 py-1.5 text-xs font-bold bg-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-base font-bold text-stone-700 mb-1">
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
                     Nhắc khoản nợ mối hàng nếu quá bao nhiêu ngày?
                   </label>
                   <input
@@ -738,12 +739,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     max={90}
                     value={soNgayNhacNo}
                     onChange={(e) => setSoNgayNhacNo(Number(e.target.value))}
-                    className="w-full rounded-xl border-2 border-stone-400 px-3 py-2 text-lg font-bold"
+                    className="w-full rounded-xl border border-stone-300 px-2.5 py-1.5 text-xs font-bold bg-white"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-2xl bg-teal-700 text-white font-extrabold text-lg"
+                  className="w-full py-2 rounded-xl bg-teal-700 text-white font-bold text-xs hover:bg-teal-800"
                 >
                   Lưu lịch nhắc
                 </button>
@@ -751,18 +752,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <form
                 onSubmit={handleChangePin}
-                className="rounded-2xl bg-white border-2 border-stone-300 p-4 space-y-3"
+                className="rounded-2xl bg-white border border-stone-200 p-3 space-y-2.5"
               >
-                <h4 className="text-xl font-extrabold text-stone-900">Đổi mã PIN 4 số</h4>
+                <h4 className="text-xs sm:text-sm font-bold text-stone-900">Đổi mã PIN 4 số</h4>
                 {session.vai_tro === 'admin' ? (
                   <div>
-                    <label className="block text-base font-bold text-stone-700 mb-1">
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
                       Đổi PIN cho tài khoản:
                     </label>
                     <select
                       value={targetPinProfile}
                       onChange={(e) => setTargetPinProfile(e.target.value)}
-                      className="w-full rounded-xl border-2 border-stone-400 px-3 py-2.5 text-lg font-bold"
+                      className="w-full rounded-xl border border-stone-300 px-2.5 py-1.5 text-xs font-bold bg-white"
                     >
                       {profiles.map((p) => (
                         <option key={p.id} value={p.id}>
@@ -772,7 +773,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </select>
                   </div>
                 ) : (
-                  <div className="text-base text-stone-700">
+                  <div className="text-xs text-stone-700">
                     Đổi mã PIN đăng nhập của <strong>{session.xung_ho}</strong>
                   </div>
                 )}
@@ -784,33 +785,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   value={newPin}
                   onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   placeholder="Nhập 4 chữ số mới (VD: 5678)"
-                  className="w-full rounded-xl border-2 border-stone-400 px-3.5 py-2.5 text-2xl font-extrabold tracking-widest"
+                  className="w-full rounded-xl border border-stone-300 px-3 py-2 text-base font-extrabold tracking-widest text-center bg-white"
                 />
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-2xl bg-stone-900 text-white font-extrabold text-lg"
+                  className="w-full py-2 rounded-xl bg-stone-900 text-white font-bold text-xs hover:bg-stone-800"
                 >
                   Cập nhật mã PIN
                 </button>
               </form>
 
-              <div className="rounded-2xl bg-white border-2 border-sky-400 p-4 space-y-3 text-base text-stone-700">
+              <div className="rounded-2xl bg-white border border-sky-300 p-3 space-y-2.5 text-xs text-stone-700">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="font-extrabold text-lg text-stone-950">
+                  <div className="font-bold text-xs sm:text-sm text-stone-950">
                     Đám mây Supabase & Realtime
                   </div>
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                       cloudStatus?.connected
-                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-400'
-                        : 'bg-amber-100 text-amber-900 border border-amber-400'
+                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                        : 'bg-amber-100 text-amber-900 border border-amber-300'
                     }`}
                   >
                     {cloudStatus?.connected ? 'ĐÃ BẬT REALTIME' : 'ĐANG LƯU TRÊN MÁY'}
                   </span>
                 </div>
 
-                <p className="text-sm text-stone-700 leading-relaxed">
+                <p className="text-[11px] text-stone-600 leading-relaxed">
                   {cloudStatus?.message ||
                     'Đang lưu cục bộ trên trình duyệt thiết bị (IndexedDB).'}
                 </p>
@@ -836,9 +837,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         setSyncingCloud(false);
                       }
                     }}
-                    className="w-full min-h-[46px] px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-900 font-bold text-base inline-flex items-center justify-center gap-2"
+                    className="w-full py-2 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-900 font-bold text-xs inline-flex items-center justify-center gap-1.5"
                   >
-                    <RefreshCw className={`w-4 h-4 ${syncingCloud ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`w-3.5 h-3.5 ${syncingCloud ? 'animate-spin' : ''}`} />
                     <span>Kiểm tra lại kết nối Supabase</span>
                   </button>
 
@@ -876,9 +877,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           setSyncingCloud(false);
                         }
                       }}
-                      className="w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-base inline-flex items-center justify-center gap-2"
+                      className="w-full py-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs inline-flex items-center justify-center gap-1.5"
                     >
-                      <CloudUpload className="w-5 h-5" />
+                      <CloudUpload className="w-4 h-4" />
                       <span>
                         {session.vai_tro === 'admin'
                           ? 'Đẩy dữ liệu thử trên máy (cả 2 sổ) lên Đám mây'
@@ -890,18 +891,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {session.vai_tro === 'admin' && (
-                <div className="rounded-2xl bg-white border-2 border-indigo-400 p-4 space-y-3 text-base text-stone-800">
+                <div className="rounded-2xl bg-white border border-indigo-300 p-3 space-y-2 text-xs text-stone-800">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="font-extrabold text-lg text-indigo-950 flex items-center gap-1.5">
-                      <FileJson className="w-5 h-5 text-indigo-700" />
+                    <div className="font-bold text-xs sm:text-sm text-indigo-950 flex items-center gap-1.5">
+                      <FileJson className="w-4 h-4 text-indigo-700" />
                       <span>Sao lưu toàn hệ thống (.json)</span>
                     </div>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-indigo-100 text-indigo-950 border border-indigo-300">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-950 border border-indigo-200">
                       Chuẩn Rule 10
                     </span>
                   </div>
 
-                  <p className="text-sm text-stone-600 leading-relaxed">
+                  <p className="text-[11px] text-stone-600 leading-relaxed">
                     Tải về 1 file .json đầy đủ cả 2 cơ sở (Hiệp Hòa &amp; Tiên Du) để lưu trữ an toàn trên Google Drive / máy tính. Tuyệt đối không sinh bất kỳ file sao lưu .xlsx nào trên ổ đĩa.
                   </p>
 
@@ -910,9 +911,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       type="button"
                       disabled={exportingBackup}
                       onClick={handleExportBackup}
-                      className="min-h-[46px] px-3 py-2 rounded-xl bg-indigo-700 hover:bg-indigo-800 disabled:opacity-60 text-white font-extrabold text-sm flex items-center justify-center gap-1.5"
+                      className="py-2 px-3 rounded-xl bg-indigo-700 hover:bg-indigo-800 disabled:opacity-60 text-white font-bold text-xs flex items-center justify-center gap-1.5"
                     >
-                      <Download className="w-4 h-4" />
+                      <Download className="w-3.5 h-3.5" />
                       <span>{exportingBackup ? 'Đang tạo...' : 'Tải file .json'}</span>
                     </button>
 
@@ -920,9 +921,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       type="button"
                       disabled={restoringBackup}
                       onClick={() => backupFileInputRef.current?.click()}
-                      className="min-h-[46px] px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-900 font-extrabold text-sm flex items-center justify-center gap-1.5"
+                      className="py-2 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-900 font-bold text-xs flex items-center justify-center gap-1.5"
                     >
-                      <Upload className="w-4 h-4 text-stone-700" />
+                      <Upload className="w-3.5 h-3.5 text-stone-700" />
                       <span>{restoringBackup ? 'Đang đọc...' : 'Khôi phục file'}</span>
                     </button>
                     <input
@@ -1049,10 +1050,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
 
                     {/* Model Name */}
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-stone-700">
-                        Tên Model:
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-stone-700 flex items-center justify-between">
+                        <span>Tên Model:</span>
+                        {aiConfig.provider === 'deepseek' && (
+                          <span className="text-[10px] text-teal-800 font-bold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+                            DeepSeek Official API
+                          </span>
+                        )}
                       </label>
+
+                      {aiConfig.provider === 'deepseek' && (
+                        <div className="grid grid-cols-2 gap-1.5 pb-1">
+                          <button
+                            type="button"
+                            onClick={() => setAiConfig((prev) => ({ ...prev, model: 'deepseek-chat' }))}
+                            className={`p-2 rounded-xl border text-left text-xs transition ${
+                              aiConfig.model === 'deepseek-chat'
+                                ? 'bg-teal-700 text-white border-teal-700 font-bold'
+                                : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                            }`}
+                          >
+                            <div className="font-bold">deepseek-chat</div>
+                            <div className={`text-[10px] mt-0.5 ${aiConfig.model === 'deepseek-chat' ? 'text-teal-100' : 'text-stone-500'}`}>
+                              DeepSeek-V3 (Cực nhanh 1s, rất thông minh)
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAiConfig((prev) => ({ ...prev, model: 'deepseek-reasoner' }))}
+                            className={`p-2 rounded-xl border text-left text-xs transition ${
+                              aiConfig.model === 'deepseek-reasoner'
+                                ? 'bg-teal-700 text-white border-teal-700 font-bold'
+                                : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                            }`}
+                          >
+                            <div className="font-bold">deepseek-reasoner</div>
+                            <div className={`text-[10px] mt-0.5 ${aiConfig.model === 'deepseek-reasoner' ? 'text-teal-100' : 'text-stone-500'}`}>
+                              DeepSeek-R1 (Tư duy suy luận sâu CoT)
+                            </div>
+                          </button>
+                        </div>
+                      )}
+
                       <input
                         type="text"
                         value={aiConfig.model}
@@ -1236,18 +1276,18 @@ const WalletEditCard: React.FC<{
   const [dauKy, setDauKy] = useState(wallet.so_du_dau_ky);
 
   return (
-    <div className="rounded-2xl bg-white border-2 border-stone-200 p-4 space-y-2.5">
+    <div className="rounded-2xl bg-white border border-stone-200 p-3 space-y-2">
       <input
         type="text"
         value={tenVi}
         onChange={(e) => setTenVi(e.target.value)}
-        className="w-full rounded-xl border border-stone-300 px-3 py-1.5 text-lg font-extrabold"
+        className="w-full rounded-xl border border-stone-300 px-2.5 py-1.5 text-xs font-bold text-stone-900 bg-white"
       />
       <input
         type="text"
         value={chuTk}
         onChange={(e) => setChuTk(e.target.value)}
-        className="w-full rounded-xl border border-stone-300 px-3 py-1.5 text-base text-stone-700"
+        className="w-full rounded-xl border border-stone-300 px-2.5 py-1.5 text-xs text-stone-700 bg-white"
       />
       <MoneyInput label="Số dư đầu kỳ" value={dauKy} onChange={setDauKy} />
       <button
@@ -1255,7 +1295,7 @@ const WalletEditCard: React.FC<{
         onClick={() =>
           onSave({ ...wallet, ten_vi: tenVi, chu_tai_khoan: chuTk, so_du_dau_ky: dauKy })
         }
-        className="w-full py-2.5 rounded-xl bg-teal-700 text-white font-bold text-lg"
+        className="w-full py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs"
       >
         Lưu ví này
       </button>
@@ -1272,35 +1312,35 @@ const SupplierEditCard: React.FC<{
   const [noDau, setNoDau] = useState(supplier.no_dau_ky);
 
   return (
-    <div className="rounded-2xl bg-white border-2 border-stone-200 p-3.5 space-y-2">
+    <div className="rounded-2xl bg-white border border-stone-200 p-3 space-y-2">
       <input
         type="text"
         value={ten}
         onChange={(e) => setTen(e.target.value)}
-        className="w-full rounded-xl border border-stone-300 px-3 py-1.5 text-lg font-extrabold"
+        className="w-full rounded-xl border border-stone-300 px-2.5 py-1.5 text-xs font-bold text-stone-900 bg-white"
       />
       <input
         type="text"
         value={matHang}
         onChange={(e) => setMatHang(e.target.value)}
         placeholder="Mặt hàng chính"
-        className="w-full rounded-xl border border-stone-300 px-3 py-1.5 text-base text-stone-700"
+        className="w-full rounded-xl border border-stone-300 px-2.5 py-1.5 text-xs text-stone-700 bg-white"
       />
       <div className="flex items-center gap-2">
-        <span className="text-base font-semibold text-stone-700">Nợ đầu kỳ:</span>
+        <span className="text-xs font-semibold text-stone-700">Nợ đầu kỳ:</span>
         <input
           type="number"
           inputMode="numeric"
           value={noDau}
           onChange={(e) => setNoDau(Number(e.target.value || 0))}
-          className="flex-1 rounded-xl border border-stone-300 px-3 py-1.5 text-base font-bold"
+          className="flex-1 rounded-xl border border-stone-300 px-2.5 py-1.5 text-xs font-bold bg-white"
         />
         <button
           type="button"
           onClick={() =>
             onSave({ ...supplier, ten_ncc: ten, mat_hang_chinh: matHang, no_dau_ky: noDau })
           }
-          className="px-4 py-1.5 rounded-xl bg-rose-700 text-white font-bold text-base"
+          className="px-3 py-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs"
         >
           Lưu
         </button>
@@ -1338,19 +1378,19 @@ const CategoryEditCard: React.FC<{
   };
 
   return (
-    <div className="rounded-2xl bg-white border border-stone-200 p-3 space-y-2">
+    <div className="rounded-2xl bg-white border border-stone-200 p-2.5 space-y-1.5">
       <div
         className="flex items-center justify-between cursor-pointer select-none"
         onClick={() => setExpanded(!expanded)}
       >
-        <span className="font-bold text-stone-900 text-base">
+        <span className="font-bold text-stone-900 text-xs">
           {category.icon} {category.ten_danh_muc}
         </span>
         <div className="flex items-center gap-2">
-          <span className="text-xs px-2 py-0.5 rounded-lg bg-stone-100 text-stone-600 font-semibold">
+          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-600 font-semibold">
             {keywords.length} từ khóa
           </span>
-          <span className="text-stone-400 font-bold">{expanded ? '▲' : '▼'}</span>
+          <span className="text-stone-400 font-bold text-xs">{expanded ? '▲' : '▼'}</span>
         </div>
       </div>
 
@@ -1360,7 +1400,7 @@ const CategoryEditCard: React.FC<{
             {keywords.map((kw) => (
               <span
                 key={kw}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-900 text-xs font-bold"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 border border-teal-200 text-teal-900 text-[11px] font-bold"
               >
                 {kw}
                 {isAdmin && (
@@ -1393,12 +1433,12 @@ const CategoryEditCard: React.FC<{
                   }
                 }}
                 placeholder="Thêm từ địa phương (VD: bìa đậu, revive...)"
-                className="flex-1 rounded-xl border border-stone-300 px-3 py-1.5 text-sm font-semibold"
+                className="flex-1 rounded-xl border border-stone-300 px-2.5 py-1 text-xs font-semibold bg-white"
               />
               <button
                 type="button"
                 onClick={handleAddKeyword}
-                className="px-3 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shrink-0"
+                className="px-2.5 py-1 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shrink-0"
               >
                 + Thêm
               </button>

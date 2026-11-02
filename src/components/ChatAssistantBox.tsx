@@ -82,9 +82,9 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
   const [autoSpeak, setAutoSpeak] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(AUTO_TTS_STORAGE_KEY);
-      return saved === null ? true : saved === '1';
+      return saved === '1'; // Mặc định tắt để tránh phát âm robot khi thiết bị chưa có voice tiếng Việt chuẩn
     } catch {
-      return true;
+      return false;
     }
   });
   const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'recording_fallback'>(

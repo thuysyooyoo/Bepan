@@ -43,7 +43,7 @@ export const MoneyInput: React.FC<MoneyInputProps> = ({
           value={displayStr}
           onChange={handleTextChange}
           placeholder={placeholder}
-          className="w-full rounded-xl border border-stone-300 focus:border-teal-700 bg-white px-3 py-2 pr-14 text-base font-bold text-stone-950 outline-none"
+          className="w-full rounded-xl border border-stone-300 focus:border-teal-700 bg-white px-2.5 py-1.5 pr-12 text-xs sm:text-sm font-bold text-stone-950 outline-none"
         />
         <div className="absolute right-2.5 flex items-center gap-1">
           {value > 0 && (

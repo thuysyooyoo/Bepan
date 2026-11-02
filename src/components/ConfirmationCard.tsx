@@ -29,6 +29,58 @@ interface ConfirmationCardProps {
   onEdit: () => void;
 }
 
+let cachedViVoice: SpeechSynthesisVoice | null = null;
+let voicesLoaded = false;
+
+function getBestVietnameseVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices?.() ?? [];
+  if (voices.length === 0) return cachedViVoice;
+
+  // 1. Ưu tiên giọng Google Tiếng Việt (Chrome / Android / iOS) - rất tự nhiên
+  const googleVi = voices.find(
+    (v) =>
+      v.lang.toLowerCase().replace('_', '-').startsWith('vi') &&
+      v.name.toLowerCase().includes('google')
+  );
+  if (googleVi) {
+    cachedViVoice = googleVi;
+    return googleVi;
+  }
+
+  // 2. Ưu tiên giọng Microsoft Online (Edge / Windows 11: HoaiMy, NamMinh)
+  const msOnlineVi = voices.find(
+    (v) =>
+      v.lang.toLowerCase().replace('_', '-').startsWith('vi') &&
+      (v.name.toLowerCase().includes('online') || v.name.toLowerCase().includes('natural'))
+  );
+  if (msOnlineVi) {
+    cachedViVoice = msOnlineVi;
+    return msOnlineVi;
+  }
+
+  // 3. Bất kỳ giọng tiếng Việt nào khác
+  const anyVi = voices.find(
+    (v) =>
+      v.lang.toLowerCase().replace('_', '-').startsWith('vi') ||
+      v.name.toLowerCase().includes('vietnam') ||
+      v.name.toLowerCase().includes('tiếng việt')
+  );
+  if (anyVi) {
+    cachedViVoice = anyVi;
+    return anyVi;
+  }
+
+  return null;
+}
+
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    voicesLoaded = true;
+    getBestVietnameseVoice();
+  };
+}
+
 export function stopVietnameseSpeech(): void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   try {
@@ -45,17 +97,26 @@ export function speakVietnameseText(text: string): void {
 
   try {
     window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(cleanSpeech);
-    utter.lang = 'vi-VN';
-    utter.rate = 0.94; // Chậm rãi, rõ ràng cho ông bà dễ nghe
 
-    const voices = window.speechSynthesis.getVoices?.() ?? [];
-    const viVoice =
-      voices.find((v) => v.lang.toLowerCase().startsWith('vi') && v.localService) ??
-      voices.find((v) => v.lang.toLowerCase().startsWith('vi'));
-    if (viVoice) {
-      utter.voice = viVoice;
+    // Tìm giọng tiếng Việt chuẩn
+    const viVoice = getBestVietnameseVoice();
+
+    // NẾU THIẾT BỊ HOÀN TOÀN KHÔNG CÓ GIỌNG TIẾNG VIỆT:
+    // TUYỆT ĐỐI KHÔNG để trình duyệt tự tiện lấy giọng tiếng Anh đọc tiếng Việt
+    // (tránh hiện tượng giọng robot ngọng chát chúa, vô nghĩa)
+    if (!viVoice) {
+      // Đợi onvoiceschanged nếu voices chưa load
+      if (!voicesLoaded) {
+        window.speechSynthesis.getVoices();
+      }
+      return;
     }
+
+    const utter = new SpeechSynthesisUtterance(cleanSpeech);
+    utter.voice = viVoice;
+    utter.lang = viVoice.lang || 'vi-VN';
+    utter.rate = 0.92; // Tốc độ tự nhiên, rõ ràng từng từ
+    utter.pitch = 1.0;
 
     window.speechSynthesis.speak(utter);
   } catch {
