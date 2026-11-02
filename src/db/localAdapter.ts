@@ -253,6 +253,12 @@ export class LocalDexieAdapter implements DataRepository {
     return record;
   }
 
+  async deleteMealCount(actor: AuthSession, bookId: BookId, mealCountId: string): Promise<void> {
+    await this.ensureInitialized();
+    assertCanAccessBook(actor, bookId);
+    await this.db.meal_counts.delete(mealCountId);
+  }
+
   async upsertMealPrice(
     actor: AuthSession,
     price: Omit<MealPrice, 'id'> & { id?: string }
@@ -283,6 +289,13 @@ export class LocalDexieAdapter implements DataRepository {
     return record;
   }
 
+  async deleteWorker(actor: AuthSession, bookId: BookId, workerId: string): Promise<void> {
+    await this.ensureInitialized();
+    assertCanAccessBook(actor, bookId);
+    await this.db.workers.delete(workerId);
+    await this.db.attendance.where('worker_id').equals(workerId).delete();
+  }
+
   async upsertAttendance(
     actor: AuthSession,
     att: Omit<Attendance, 'id' | 'updated_at'> & { id?: string }
@@ -302,6 +315,12 @@ export class LocalDexieAdapter implements DataRepository {
     };
     await this.db.attendance.put(record);
     return record;
+  }
+
+  async deleteAttendance(actor: AuthSession, bookId: BookId, attendanceId: string): Promise<void> {
+    await this.ensureInitialized();
+    assertCanAccessBook(actor, bookId);
+    await this.db.attendance.delete(attendanceId);
   }
 
   async upsertSupplier(
@@ -661,6 +680,13 @@ export class LocalDexieAdapter implements DataRepository {
         const raw = localStorage.getItem('sobep_ai_settings_v1');
         if (raw) {
           const parsed = { ...DEFAULT_AI_SETTINGS, ...JSON.parse(raw) };
+          // Nếu cấu hình lưu trong máy bị rỗng API key hoặc là gemini cũ -> bắt buộc dùng DEFAULT_AI_SETTINGS (DeepSeek)
+          if (!parsed.api_key?.trim() || parsed.provider === 'gemini') {
+            const forced = { ...DEFAULT_AI_SETTINGS };
+            localStorage.setItem('sobep_ai_settings_v1', JSON.stringify(forced));
+            this.inMemoryAiSettings = forced;
+            return forced;
+          }
           this.inMemoryAiSettings = parsed;
           return parsed;
         }

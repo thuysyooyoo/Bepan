@@ -8,6 +8,8 @@ export interface DeleteTargetInfo {
   amount?: number | null;
   date?: string | null;
   subtitle?: string | null;
+  kind?: 'tx' | 'meal_count' | 'attendance';
+  payload?: unknown;
 }
 
 interface DeleteConfirmModalProps {

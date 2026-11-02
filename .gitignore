@@ -7,3 +7,5 @@ supabase/.temp
 supabase/.branches
 *.tsbuildinfo
 *.log
+scratch/
+

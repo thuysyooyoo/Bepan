@@ -16,11 +16,11 @@ describe('Phiên 11 — Cấu hình Đa Model AI (Gemini/DeepSeek), Lưu Supabas
   }
 
   it('1. Đọc và Lưu cấu hình AI Settings: Hỗ trợ chuyển đổi Gemini, DeepSeek, OpenAI, Local NLU', async () => {
-    // A) Mặc định khi chưa lưu: Trả về DEFAULT_AI_SETTINGS
+    // A) Mặc định khi chưa lưu: Trả về DEFAULT_AI_SETTINGS (mặc định DeepSeek theo cấu hình mới)
     const defaultSettings = await repo.getAiSettings();
     expect(defaultSettings).toBeDefined();
-    expect(defaultSettings.provider).toBe('gemini');
-    expect(defaultSettings.model).toBe('gemini-3.8-flash');
+    expect(defaultSettings.provider).toBe('deepseek');
+    expect(defaultSettings.model).toBe('deepseek-chat');
 
     // B) Lưu cấu hình mới sang DeepSeek
     const newSettings: AiSettings = {

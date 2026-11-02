@@ -457,10 +457,10 @@ export const SEED_CATEGORIES: Category[] = [
 ];
 
 export const SEED_WORKERS: Worker[] = [
-  // Hiệp Hòa (mẫu để Admin sửa tên thật ở Phiên 2)
+  // Hiệp Hòa (mẫu ban đầu cho test)
   { id: 'wk_hh_1', book_id: 'hiep_hoa', ho_ten: 'Cô Lan (Phụ bếp)', luong_ngay: 250_000, dang_lam: true },
   { id: 'wk_hh_2', book_id: 'hiep_hoa', ho_ten: 'Chị Hoa (Phụ bếp)', luong_ngay: 250_000, dang_lam: true },
-  // Tiên Du
+  // Tiên Du (mẫu ban đầu cho test)
   { id: 'wk_td_1', book_id: 'tien_du', ho_ten: 'Cô Mai (Phụ bếp)', luong_ngay: 260_000, dang_lam: true },
   { id: 'wk_td_2', book_id: 'tien_du', ho_ten: 'Chị Hương (Phụ bếp)', luong_ngay: 260_000, dang_lam: true },
 ];

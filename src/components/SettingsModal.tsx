@@ -12,9 +12,11 @@ import {
   Plus,
   RefreshCw,
   Sparkles,
+  Trash2,
   Upload,
   X,
 } from 'lucide-react';
+import { DeleteConfirmModal, type DeleteTargetInfo } from './DeleteConfirmModal';
 import { useAuth } from '../context/AuthContext';
 import { dbRepo } from '../db';
 import { getEffectiveMealPrice } from '../domain/accounting';
@@ -71,6 +73,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [testingAi, setTestingAi] = useState(false);
   const [testResult, setTestResult] = useState<AiTestResult | null>(null);
   const [savingAi, setSavingAi] = useState(false);
+  const [workerDeleteTarget, setWorkerDeleteTarget] = useState<DeleteTargetInfo | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -464,17 +467,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {tab === 'tho' && (
             <div className="space-y-4">
               <div className="space-y-3">
-                {snapshot.workers.map((w) => (
-                  <WorkerEditCard
-                    key={w.id}
-                    worker={w}
-                    onSave={async (updated) => {
-                      await dbRepo.upsertWorker(session, updated);
-                      await onChanged();
-                      notify(`Đã cập nhật ${updated.ho_ten}`);
-                    }}
-                  />
-                ))}
+                {snapshot.workers.length === 0 ? (
+                  <div className="rounded-2xl bg-white border border-stone-200 p-4 text-center space-y-1">
+                    <div className="text-xs font-bold text-stone-800">Chưa có công nhân / phụ bếp nào</div>
+                    <div className="text-[11px] text-stone-500">
+                      Khi nói hoặc ghi âm có tên người làm (VD: <em>"Tiền công chú Hiển 500k chưa trả"</em>), hệ thống sẽ tự động tạo mới vào danh sách này.
+                    </div>
+                  </div>
+                ) : (
+                  snapshot.workers.map((w) => (
+                    <WorkerEditCard
+                      key={w.id}
+                      worker={w}
+                      onSave={async (updated) => {
+                        await dbRepo.upsertWorker(session, updated);
+                        await onChanged();
+                        notify(`Đã cập nhật ${updated.ho_ten}`);
+                      }}
+                      onDelete={() => {
+                        setWorkerDeleteTarget({
+                          id: w.id,
+                          title: w.ho_ten,
+                          subtitle: `Tiền công: ${formatVND(w.luong_ngay)}/ngày`,
+                        });
+                      }}
+                    />
+                  ))
+                )}
               </div>
 
               <form
@@ -1124,6 +1143,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Modal xác nhận xóa thợ có tự động hủy sau 10s */}
+      <DeleteConfirmModal
+        target={workerDeleteTarget}
+        isOpen={Boolean(workerDeleteTarget)}
+        onConfirm={async () => {
+          if (!workerDeleteTarget || !session) return;
+          try {
+            await dbRepo.deleteWorker?.(session, snapshot.book.id, workerDeleteTarget.id);
+            await onChanged();
+            notify(`Đã xóa phụ bếp ${workerDeleteTarget.title}`);
+          } catch (err) {
+            setErrMsg(err instanceof Error ? err.message : 'Không thể xóa phụ bếp.');
+          } finally {
+            setWorkerDeleteTarget(null);
+          }
+        }}
+        onCancel={() => setWorkerDeleteTarget(null)}
+      />
     </div>
   );
 };
@@ -1133,24 +1171,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 const WorkerEditCard: React.FC<{
   worker: BookSnapshot['workers'][number];
   onSave: (w: BookSnapshot['workers'][number]) => Promise<void>;
-}> = ({ worker, onSave }) => {
+  onDelete?: () => void;
+}> = ({ worker, onSave, onDelete }) => {
   const [name, setName] = useState(worker.ho_ten);
   const [wage, setWage] = useState(worker.luong_ngay);
   const [active, setActive] = useState(worker.dang_lam);
 
   return (
-    <div className="rounded-2xl bg-white border-2 border-stone-200 p-3.5 space-y-2.5">
+    <div className="rounded-2xl bg-white border border-stone-200 p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="flex-1 rounded-xl border border-stone-300 px-3 py-1.5 text-lg font-extrabold"
+          className="flex-1 rounded-xl border border-stone-300 px-3 py-1.5 text-xs font-bold text-stone-900"
         />
         <button
           type="button"
           onClick={() => setActive((v) => !v)}
-          className={`px-3 py-1.5 rounded-xl font-bold text-sm ${
+          className={`px-2.5 py-1 rounded-xl font-bold text-[11px] ${
             active ? 'bg-emerald-100 text-emerald-900' : 'bg-stone-200 text-stone-600'
           }`}
         >
@@ -1163,16 +1202,26 @@ const WorkerEditCard: React.FC<{
           inputMode="numeric"
           value={wage}
           onChange={(e) => setWage(Number(e.target.value || 0))}
-          className="flex-1 rounded-xl border border-stone-300 px-3 py-2 text-lg font-bold"
+          className="flex-1 rounded-xl border border-stone-300 px-3 py-1.5 text-xs font-bold text-stone-900"
         />
-        <span className="text-base text-stone-600">đ/ngày</span>
+        <span className="text-xs text-stone-500">đ/ngày</span>
         <button
           type="button"
           onClick={() => onSave({ ...worker, ho_ten: name, luong_ngay: wage, dang_lam: active })}
-          className="px-4 py-2 rounded-xl bg-teal-700 text-white font-bold text-base"
+          className="px-3 py-1.5 rounded-xl bg-teal-700 text-white font-bold text-xs"
         >
           Lưu
         </button>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Xóa phụ bếp"
+            className="p-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-bold"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );

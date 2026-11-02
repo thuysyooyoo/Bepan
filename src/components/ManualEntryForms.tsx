@@ -1156,63 +1156,76 @@ export const ManualEntryForms: React.FC<ManualEntryFormsProps> = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-xs font-bold text-teal-900 uppercase tracking-wide">Chấm công hôm nay</h3>
-            <button
-              type="button"
-              onClick={() => {
-                const allFull: Record<string, 0 | 0.5 | 1> = {};
-                for (const w of activeWorkers) allFull[w.id] = 1;
-                setCongMap(allFull);
-              }}
-              className="px-2.5 py-1 rounded-lg bg-teal-100 text-teal-900 font-bold text-xs"
-            >
-              Tất cả làm đủ
-            </button>
+            {activeWorkers.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const allFull: Record<string, 0 | 0.5 | 1> = {};
+                  for (const w of activeWorkers) allFull[w.id] = 1;
+                  setCongMap(allFull);
+                }}
+                className="px-2.5 py-1 rounded-lg bg-teal-100 text-teal-900 font-bold text-xs"
+              >
+                Tất cả làm đủ
+              </button>
+            )}
           </div>
 
-          <div className="space-y-2">
-            {activeWorkers.map((w) => {
-              const cur = congMap[w.id] ?? 1;
-              return (
-                <div
-                  key={w.id}
-                  className="rounded-xl bg-stone-50 border border-stone-200 p-2.5 space-y-1.5"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-stone-900">{w.ho_ten}</span>
-                    <span className="text-[11px] font-semibold text-stone-500">
-                      {formatVND(w.luong_ngay)}/ngày
-                    </span>
+          {activeWorkers.length === 0 ? (
+            <div className="rounded-xl bg-stone-50 border border-stone-200 p-4 text-center space-y-2">
+              <div className="text-xs font-bold text-stone-800">
+                Chưa có phụ bếp nào trong danh sách
+              </div>
+              <div className="text-[11px] text-stone-600 leading-relaxed">
+                Khi ghi âm hoặc nói câu có tên người làm (VD: <em>"Tiền công của chú Hiển hôm nay làm bếp là 500.000 chưa trả"</em>), hệ thống sẽ tự động tạo mới phụ bếp và ghi nhận vào sổ nợ phải trả.
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {activeWorkers.map((w) => {
+                const cur = congMap[w.id] ?? 1;
+                return (
+                  <div
+                    key={w.id}
+                    className="rounded-xl bg-stone-50 border border-stone-200 p-2.5 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-stone-900">{w.ho_ten}</span>
+                      <span className="text-[11px] font-semibold text-stone-500">
+                        {formatVND(w.luong_ngay)}/ngày
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(
+                        [
+                          { val: 0, label: 'Nghỉ (0)' },
+                          { val: 0.5, label: 'Nửa buổi' },
+                          { val: 1, label: 'Đủ công' },
+                        ] as const
+                      ).map((opt) => (
+                        <button
+                          key={opt.val}
+                          type="button"
+                          onClick={() =>
+                            setCongMap((prev) => ({ ...prev, [w.id]: opt.val }))
+                          }
+                          className={`py-1.5 rounded-lg border font-bold text-xs ${
+                            cur === opt.val
+                              ? opt.val === 0
+                                ? 'border-stone-700 bg-stone-700 text-white'
+                                : 'border-teal-700 bg-teal-700 text-white'
+                              : 'border-stone-200 bg-white text-stone-700'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {(
-                      [
-                        { val: 0, label: 'Nghỉ (0)' },
-                        { val: 0.5, label: 'Nửa buổi' },
-                        { val: 1, label: 'Đủ công' },
-                      ] as const
-                    ).map((opt) => (
-                      <button
-                        key={opt.val}
-                        type="button"
-                        onClick={() =>
-                          setCongMap((prev) => ({ ...prev, [w.id]: opt.val }))
-                        }
-                        className={`py-1.5 rounded-lg border font-bold text-xs ${
-                          cur === opt.val
-                            ? opt.val === 0
-                              ? 'border-stone-700 bg-stone-700 text-white'
-                              : 'border-teal-700 bg-teal-700 text-white'
-                            : 'border-stone-200 bg-white text-stone-700'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

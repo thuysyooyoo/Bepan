@@ -519,9 +519,13 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
     <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-xs">
       {/* Thanh tiêu đề nhỏ gọn + Nút Bật/Tắt đọc to + Xóa chat */}
       <div className="shrink-0 px-3 py-2 bg-stone-50/90 border-b border-stone-200 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-teal-950">
+        <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-teal-950 min-w-0">
           <Sparkles className="w-4 h-4 text-teal-700 shrink-0" />
-          <span>Trợ lý Bếp AI</span>
+          <span className="truncate">Trợ lý Bếp AI</span>
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+            <span>{aiSettings?.provider === 'deepseek' ? 'DeepSeek AI' : aiSettings?.provider === 'gemini' ? 'Gemini AI' : 'DeepSeek AI'}</span>
+          </span>
         </div>
 
         <div className="flex items-center gap-1.5">

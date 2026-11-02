@@ -794,6 +794,105 @@ function tryParseDailyCollection(
 }
 
 /**
+ * Bóc tách câu nói về tiền công / lương thợ phát sinh, chấm công hoặc thợ mới
+ * Ví dụ: "Tiền công của chú hiển hôm nay làm bếp là 500.000 chưa trả"
+ */
+function tryParseWorkerWageClause(
+  fullText: string,
+  snapshot: BookSnapshot,
+  ngay: string
+): ParsedIntentItem | null {
+  const noAcc = stripAccents(fullText.toLowerCase());
+
+  // Bỏ qua nếu là câu trả lương / ứng lương tháng ("trả lương thợ tháng 10", "ứng lương cô Lan")
+  if (/\b(tra luong|ung luong|thanh toan luong)\b/i.test(noAcc)) return null;
+
+  // Bỏ qua nếu là câu chấm công chung không có số tiền ("hôm nay phụ bếp đi làm đủ hết", "cô Mai nghỉ, chị Hương đi làm")
+  if (
+    parseVietnameseMoney(fullText) === null &&
+    /\b(di lam du|lam du het|cham cong du|phu bep lam du|nghi|vang|nua buoi)\b/i.test(noAcc)
+  ) {
+    return null;
+  }
+
+  // Bỏ qua nếu câu có hành động mua hàng khác ("hôm nay vừa mua 300k...") -> để bộ tách đa mệnh đề xử lý từng vế
+  if (/\b(vua mua|mua thit|mua rau|tien ca|tien gao|nhap thit|lay rau)\b/i.test(noAcc)) {
+    return null;
+  }
+
+  // 1. Dấu hiệu câu nói về tiền công / lương thợ
+  const isWageCue =
+    /\b(tien cong|cong cua|luong cua|tien tho|cong tho|lam bep|phu bep|nau an|nau com)\b/i.test(
+      noAcc
+    ) ||
+    (/\b(cong|luong)\b/i.test(noAcc) &&
+      /\b(chua tra|chua dua|ghi no|chua thanh toan|lam bep|phu bep)\b/i.test(noAcc));
+
+  if (!isWageCue) return null;
+
+  // 2. Bóc tách số tiền
+  const amt = parseVietnameseMoney(fullText, { allowBareThousands: true });
+
+  // 3. Trạng thái chưa trả hay đã trả
+  const isChuaTra = /\b(chua tra|chua thanh toan|chua dua|ghi no|no cong|no luong|chua tra tien)\b/i.test(
+    noAcc
+  );
+
+  // 4. Khớp thợ có sẵn trong snapshot
+  let matchedWorker = snapshot.workers.find((w) => {
+    const cleanW = stripAccents(w.ho_ten.replace(/\(.*?\)/g, '').trim().toLowerCase());
+    const shortW = cleanW.split(/\s+/).slice(-2).join(' ');
+    return (cleanW && noAcc.includes(cleanW)) || (shortW && noAcc.includes(shortW));
+  });
+
+  // 5. Bóc tách tên thợ mới nếu chưa có trong danh mục (chú, cô, bác, chị, anh, em, ông, bà + Tên)
+  let tenThoMoi: string | undefined;
+  if (!matchedWorker) {
+    const workerMatch = fullText.match(
+      /(?<![\p{L}\p{N}])(?:tiền công\s+(?:của\s+)?)?(chú|cô|bác|chị|anh|em|ông|bà)\s+([\p{L}]+(?:\s+[\p{L}]+)?)/iu
+    );
+    if (workerMatch) {
+      const prefix = workerMatch[1];
+      const rawName = workerMatch[2]
+        .replace(
+          /(?<![\p{L}\p{N}])(hôm|hom|nay|làm|lam|bếp|bep|nấu|nau|ăn|an|cơm|com|là|la|chưa|chua|trả|tra|tiền|tien|nghìn|ngan|triệu|trieu|trăm|tram|hết|het|đi|di)(?![\p{L}\p{N}]).*$/iu,
+          ''
+        )
+        .trim();
+      const rawNameNoAcc = stripAccents(rawName);
+      const isVerbWord = /^(di|lam|nau|nghi|an|ve|den|o)$/.test(rawNameNoAcc);
+      if (rawName && !isVerbWord) {
+        const capPrefix = prefix.charAt(0).toUpperCase() + prefix.slice(1).toLowerCase();
+        const capName = rawName
+          .split(/\s+/)
+          .slice(0, 2)
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+          .join(' ');
+        tenThoMoi = `${capPrefix} ${capName}`.trim();
+      }
+    }
+  }
+
+  if (!matchedWorker && !tenThoMoi && !amt) return null;
+
+  const displayName = matchedWorker?.ho_ten ?? tenThoMoi ?? 'Phụ bếp';
+  const finalAmt = amt ?? matchedWorker?.luong_ngay ?? 250_000;
+
+  return {
+    intent: 'cham_cong',
+    ngay,
+    so_tien: finalAmt,
+    luong_ngay_moi: finalAmt,
+    worker_id: matchedWorker?.id,
+    ten_tho_moi: matchedWorker ? undefined : tenThoMoi,
+    chua_tra: isChuaTra,
+    ghi_chu: `Tiền công ${displayName} làm bếp: ${formatVND(finalAmt)}${
+      isChuaTra ? ' (Chưa trả)' : ''
+    }`,
+  };
+}
+
+/**
  * Thử bóc tách Bán chịu / Khách nợ tiền cơm / Thu nợ từ khách
  */
 function tryParseCustomerReceivable(
@@ -1089,6 +1188,16 @@ export function parseVietnameseCommandLocal(
     };
   }
 
+  // 5a. TIỀN CÔNG / LƯƠNG THỢ PHÁT SINH CHƯA TRẢ HOẶC THỢ MỚI ("Tiền công của chú hiển hôm nay làm bếp là 500.000 chưa trả")
+  const wageItem = tryParseWorkerWageClause(trimmed, snapshot, globalDate);
+  if (wageItem) {
+    return {
+      engine: 'local_vn',
+      raw_text: trimmed,
+      items: [wageItem],
+    };
+  }
+
   // 5b. BÁN CHỊU / THU NỢ KHÁCH NGUYÊN CÂU (Ưu tiên trước trả nợ NCC để không nhầm "Cô Lan trả nợ" thành mình trả nợ)
   const recItem = tryParseCustomerReceivable(trimmed, snapshot, globalDate);
   if (recItem) {
@@ -1256,6 +1365,13 @@ export function parseVietnameseCommandLocal(
     const subAtt = tryParseAttendance(clause, snapshot, globalDate);
     if (subAtt) {
       parsedItems.push(subAtt);
+      continue;
+    }
+
+    // 9c2. Kiểm tra mệnh đề tiền công / lương thợ phát sinh nằm trong câu ghép
+    const subWage = tryParseWorkerWageClause(clause, snapshot, globalDate);
+    if (subWage) {
+      parsedItems.push(subWage);
       continue;
     }
 

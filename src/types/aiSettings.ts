@@ -13,10 +13,10 @@ export interface AiSettings {
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
   id: 'default',
-  provider: 'gemini',
-  api_key: '',
-  model: 'gemini-3.8-flash',
-  endpoint: '',
+  provider: 'deepseek',
+  api_key: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEEPSEEK_API_KEY) || '',
+  model: 'deepseek-chat',
+  endpoint: 'https://api.deepseek.com/chat/completions',
   temperature: 0.1,
   enabled: true,
 };

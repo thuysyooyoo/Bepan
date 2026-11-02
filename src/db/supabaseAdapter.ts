@@ -611,6 +611,14 @@ export class SupabaseAdapter implements DataRepository {
     return normalizeMealCountRow(data as Record<string, unknown>);
   }
 
+  async deleteMealCount(actor: AuthSession, bookId: BookId, mealCountId: string): Promise<void> {
+    assertCanAccessBook(actor, bookId);
+    const client = this.getClient();
+    const { error } = await client.from('meal_counts').delete().eq('id', mealCountId);
+    this.raiseIfError(error, 'Xóa suất ăn');
+    await this.localDb.meal_counts.delete(mealCountId);
+  }
+
   async upsertMealPrice(
     actor: AuthSession,
     price: Omit<MealPrice, 'id'> & { id?: string }
@@ -658,6 +666,16 @@ export class SupabaseAdapter implements DataRepository {
     return normalizeWorkerRow(data as Record<string, unknown>);
   }
 
+  async deleteWorker(actor: AuthSession, bookId: BookId, workerId: string): Promise<void> {
+    assertCanAccessBook(actor, bookId);
+    const client = this.getClient();
+    await client.from('attendance').delete().eq('worker_id', workerId);
+    const { error } = await client.from('workers').delete().eq('id', workerId);
+    this.raiseIfError(error, 'Xóa phụ bếp');
+    await this.localDb.attendance.where('worker_id').equals(workerId).delete();
+    await this.localDb.workers.delete(workerId);
+  }
+
   async upsertAttendance(
     actor: AuthSession,
     att: Omit<Attendance, 'id' | 'updated_at'> & { id?: string }
@@ -681,6 +699,14 @@ export class SupabaseAdapter implements DataRepository {
       .single();
     this.raiseIfError(error, 'Lưu chấm công');
     return normalizeAttendanceRow(data as Record<string, unknown>);
+  }
+
+  async deleteAttendance(actor: AuthSession, bookId: BookId, attendanceId: string): Promise<void> {
+    assertCanAccessBook(actor, bookId);
+    const client = this.getClient();
+    const { error } = await client.from('attendance').delete().eq('id', attendanceId);
+    this.raiseIfError(error, 'Xóa chấm công');
+    await this.localDb.attendance.delete(attendanceId);
   }
 
   async upsertSupplier(
@@ -1456,7 +1482,13 @@ export class SupabaseAdapter implements DataRepository {
       if (typeof localStorage !== 'undefined') {
         const cached = localStorage.getItem('sobep_ai_settings_v1');
         if (cached) {
-          return { ...DEFAULT_AI_SETTINGS, ...JSON.parse(cached) };
+          const parsed = { ...DEFAULT_AI_SETTINGS, ...JSON.parse(cached) };
+          if (!parsed.api_key?.trim() || parsed.provider === 'gemini') {
+            const forced = { ...DEFAULT_AI_SETTINGS };
+            localStorage.setItem('sobep_ai_settings_v1', JSON.stringify(forced));
+            return forced;
+          }
+          return parsed;
         }
       }
     } catch {

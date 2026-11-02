@@ -194,6 +194,39 @@ export function resolveFollowUpUtterance(
         },
       ];
     }
+    if (lastItem.intent === 'cham_cong') {
+      return [
+        {
+          ...lastItem,
+          chua_tra: true,
+          ghi_chu: lastItem.ghi_chu.includes('(Chưa trả)')
+            ? lastItem.ghi_chu
+            : `${lastItem.ghi_chu} (Chưa trả tiền/Ghi nợ lương)`,
+          cau_hoi_lam_ro: undefined,
+          lua_chon_lam_ro: undefined,
+        },
+      ];
+    }
+  }
+
+  // 2b. ĐỔI TÊN THỢ / NGƯỜI LÀM TRONG NGỮ CẢNH ĐA LƯỢT ("của chú Hiển nhé", "chú Hiển làm", "cho chú Hiển")
+  const workerChangeMatch = cleanedText.match(
+    /(?:của|cho|thay bằng|là|đổi sang)\s+(chú|cô|bác|chị|anh|em|ông|bà|thợ)\s+([\p{L}]+)/iu
+  );
+  if (workerChangeMatch && (lastItem.intent === 'cham_cong' || lastItem.intent === 'tra_luong')) {
+    const pfx = workerChangeMatch[1];
+    const nm = workerChangeMatch[2];
+    const newWorkerName = `${pfx.charAt(0).toUpperCase() + pfx.slice(1).toLowerCase()} ${nm.charAt(0).toUpperCase() + nm.slice(1).toLowerCase()}`.trim();
+    return [
+      {
+        ...lastItem,
+        ten_tho_moi: newWorkerName,
+        worker_id: undefined,
+        ghi_chu: `Tiền công ${newWorkerName} làm bếp${lastItem.so_tien ? `: ${formatVND(lastItem.so_tien)}` : ''}`,
+        cau_hoi_lam_ro: undefined,
+        lua_chon_lam_ro: undefined,
+      },
+    ];
   }
 
   // 3. ĐỔI MẢNG: CĂN TIN HAY BẾP ĂN
@@ -764,6 +797,133 @@ export function buildActionCardFromIntent(
                 so_cong: old?.so_cong ?? 0,
                 don_gia_cong: old?.don_gia_cong ?? w?.luong_ngay ?? 250_000,
               });
+            }
+          },
+        };
+      },
+    };
+  }
+
+  // 3b. TIỀN CÔNG PHỤ BẾP / THỢ MỚI TỰ ĐỘNG TẠO & GHI NỢ LƯƠNG ("Tiền công của chú hiển hôm nay làm bếp là 500.000 chưa trả")
+  if (
+    item.intent === 'cham_cong' &&
+    (item.ten_tho_moi || item.worker_id || (item.so_tien && item.so_tien > 0))
+  ) {
+    const rawThoName = item.ten_tho_moi || 'Phụ bếp';
+    const existingWorker = snapshot.workers.find(
+      (w) =>
+        (item.worker_id && w.id === item.worker_id) ||
+        (item.ten_tho_moi &&
+          stripAccents(w.ho_ten.toLowerCase()).includes(
+            stripAccents(item.ten_tho_moi.toLowerCase())
+          ))
+    );
+
+    const displayName = existingWorker ? existingWorker.ho_ten : rawThoName;
+    const finalWage =
+      item.luong_ngay_moi ?? item.so_tien ?? existingWorker?.luong_ngay ?? 250_000;
+    const isChuaTra = item.chua_tra !== false; // Mặc định chưa trả nếu câu nói có "chưa trả" hoặc câu công thợ phát sinh
+
+    return {
+      manualFallbackKind: 'cham_cong',
+      preview: {
+        badge: isChuaTra ? 'TIỀN CÔNG PHỤ BẾP (CHƯA TRẢ)' : 'CHẤM CÔNG PHỤ BẾP',
+        tone: isChuaTra ? 'debt' : 'info',
+        title: `Phụ bếp: ${displayName}`,
+        headlineAmount: finalWage,
+        dateLabel,
+        rows: [
+          {
+            label: 'Người làm bếp',
+            value: existingWorker
+              ? displayName
+              : `${displayName} (Tự động thêm vào danh mục thợ)`,
+            highlight: true,
+          },
+          { label: 'Số công tính', value: '1 công làm bếp' },
+          {
+            label: 'Trạng thái thanh toán',
+            value: isChuaTra
+              ? 'Chưa trả tiền (Ghi nhận nợ lương phải trả)'
+              : 'Đã thanh toán',
+            highlight: true,
+          },
+        ],
+        bookImpactNote: isChuaTra
+          ? `Tính vào Chi phí Bếp hôm nay +${formatVND(
+              finalWage
+            )} · Tăng Lương thợ phải trả trong Sổ nợ +${formatVND(
+              finalWage
+            )} · Tiền trong ví giữ nguyên.`
+          : `Tính vào Chi phí Bếp hôm nay +${formatVND(
+              finalWage
+            )} · Đã trừ tiền ví · Không nợ.`,
+        spokenText: `Ghi nhận tiền công ${displayName} làm bếp ${formatCompactVND(
+          finalWage
+        )}, ${isChuaTra ? 'chưa trả tiền ghi nợ lương' : 'đã trả'}. Đúng không ạ?`,
+      },
+      commit: async (actor) => {
+        let activeWorkerId = existingWorker?.id;
+
+        // Nếu chưa có thợ này trong danh mục -> TỰ ĐỘNG TẠO MỚI!
+        if (!activeWorkerId) {
+          const createdWorker = await repo.upsertWorker(actor, {
+            book_id: bookId,
+            ho_ten: displayName,
+            luong_ngay: finalWage,
+            dang_lam: true,
+          });
+          activeWorkerId = createdWorker.id;
+        }
+
+        // Ghi nhận điểm danh 1 công cho thợ này
+        await repo.upsertAttendance(actor, {
+          book_id: bookId,
+          worker_id: activeWorkerId,
+          ngay,
+          so_cong: 1,
+          don_gia_cong: finalWage,
+          ghi_chu: item.ghi_chu || `Tiền công ${displayName} làm bếp (chưa trả)`,
+        });
+
+        // Nếu người dùng nói "đã trả" bằng tiền mặt -> tạo thêm giao dịch tra_luong
+        let txId: string | undefined;
+        if (!isChuaTra) {
+          const wallet = getWalletByKind(snapshot, item.vi ?? 'tien_mat');
+          const savedTx = await repo.addTransaction(actor, {
+            book_id: bookId,
+            ngay,
+            mang: 'bep_an',
+            loai: 'tra_luong',
+            category_id: 'cat_tra_luong',
+            so_tien: finalWage,
+            wallet_id: wallet.id,
+            worker_id: activeWorkerId,
+            ky_thang: kyThang,
+            ghi_chu: item.ghi_chu || `Trả tiền công ${displayName}`,
+            cau_noi_goc: rawSentence,
+            nguon: 'chat',
+            nguoi_tao: actor.profile_id,
+          });
+          txId = savedTx.id;
+        }
+
+        return {
+          message: `Đã ghi công ${displayName} ${formatVND(finalWage)}${
+            isChuaTra ? ' (Chưa trả)' : ''
+          }`,
+          undoFn: async () => {
+            if (activeWorkerId) {
+              await repo.upsertAttendance(actor, {
+                book_id: bookId,
+                worker_id: activeWorkerId,
+                ngay,
+                so_cong: 0,
+                don_gia_cong: finalWage,
+              });
+            }
+            if (txId) {
+              await repo.softDeleteTransaction(actor, bookId, txId);
             }
           },
         };

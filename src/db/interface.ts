@@ -104,6 +104,9 @@ export interface DataRepository {
     entry: Omit<MealCount, 'id' | 'updated_at'> & { id?: string }
   ): Promise<MealCount>;
 
+  /** Xóa suất ăn đã ghi nhận trong ngày */
+  deleteMealCount(actor: AuthSession, bookId: BookId, mealCountId: string): Promise<void>;
+
   /** Cài đặt đơn giá suất ăn mới theo ngày áp dụng */
   upsertMealPrice(
     actor: AuthSession,
@@ -116,11 +119,17 @@ export interface DataRepository {
     worker: Omit<Worker, 'id'> & { id?: string }
   ): Promise<Worker>;
 
+  /** Xóa công nhân / phụ bếp khỏi danh mục */
+  deleteWorker(actor: AuthSession, bookId: BookId, workerId: string): Promise<void>;
+
   /** Lưu chấm công trong ngày */
   upsertAttendance(
     actor: AuthSession,
     att: Omit<Attendance, 'id' | 'updated_at'> & { id?: string }
   ): Promise<Attendance>;
+
+  /** Xóa chấm công của một ngày */
+  deleteAttendance(actor: AuthSession, bookId: BookId, attendanceId: string): Promise<void>;
 
   /** Thêm / cập nhật nhà cung cấp */
   upsertSupplier(

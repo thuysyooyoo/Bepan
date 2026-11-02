@@ -70,6 +70,9 @@ export interface ParsedIntentItem {
     so_cong: 0 | 0.5 | 1;
   }>;
   worker_id?: string;
+  ten_tho_moi?: string; // Tên thợ mới phát hiện trong câu nói (VD: "Chú Hiển")
+  luong_ngay_moi?: number; // Mức lương/công ngày của thợ mới (VD: 500_000)
+  chua_tra?: boolean; // True nếu tiền công phát sinh nhưng chưa trả (ghi nợ lương phải trả)
 
   // Cho câu hỏi báo cáo ('hoi') hoặc 'khong_ro'
   chu_de_hoi?:

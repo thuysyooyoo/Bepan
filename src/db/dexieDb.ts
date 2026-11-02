@@ -18,9 +18,12 @@ import type {
 export type OfflineMutationOp =
   | 'updateBookSettings'
   | 'upsertMealCount'
+  | 'deleteMealCount'
   | 'upsertMealPrice'
   | 'upsertWorker'
+  | 'deleteWorker'
   | 'upsertAttendance'
+  | 'deleteAttendance'
   | 'upsertSupplier'
   | 'upsertCategory'
   | 'updateWallet'

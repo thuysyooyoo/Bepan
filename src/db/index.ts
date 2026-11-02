@@ -242,14 +242,23 @@ export class SmartDataRepository implements DataRepository {
       case 'upsertMealCount':
         await this.cloud.upsertMealCount(actor, item.payload as MealCount);
         return;
+      case 'deleteMealCount':
+        await this.cloud.deleteMealCount(actor, item.book_id, (item.payload as { mealCountId: string }).mealCountId);
+        return;
       case 'upsertMealPrice':
         await this.cloud.upsertMealPrice(actor, item.payload as MealPrice);
         return;
       case 'upsertWorker':
         await this.cloud.upsertWorker(actor, item.payload as Worker);
         return;
+      case 'deleteWorker':
+        await this.cloud.deleteWorker(actor, item.book_id, (item.payload as { workerId: string }).workerId);
+        return;
       case 'upsertAttendance':
         await this.cloud.upsertAttendance(actor, item.payload as Attendance);
+        return;
+      case 'deleteAttendance':
+        await this.cloud.deleteAttendance(actor, item.book_id, (item.payload as { attendanceId: string }).attendanceId);
         return;
       case 'upsertSupplier':
         await this.cloud.upsertSupplier(actor, item.payload as Supplier);
@@ -694,6 +703,19 @@ export class SmartDataRepository implements DataRepository {
     );
   }
 
+  deleteMealCount(actor: AuthSession, bookId: BookId, mealCountId: string) {
+    return this.runOfflineCapableWrite(
+      actor,
+      bookId,
+      'deleteMealCount',
+      async () => {
+        await this.local.deleteMealCount(actor, bookId, mealCountId);
+        return { result: undefined, outboxPayload: { mealCountId } };
+      },
+      () => this.cloud.deleteMealCount(actor, bookId, mealCountId)
+    );
+  }
+
   upsertMealPrice(
     actor: AuthSession,
     price: Omit<MealPrice, 'id'> & { id?: string }
@@ -723,6 +745,19 @@ export class SmartDataRepository implements DataRepository {
     );
   }
 
+  deleteWorker(actor: AuthSession, bookId: BookId, workerId: string) {
+    return this.runOfflineCapableWrite(
+      actor,
+      bookId,
+      'deleteWorker',
+      async () => {
+        await this.local.deleteWorker(actor, bookId, workerId);
+        return { result: undefined, outboxPayload: { workerId } };
+      },
+      () => this.cloud.deleteWorker(actor, bookId, workerId)
+    );
+  }
+
   upsertAttendance(
     actor: AuthSession,
     att: Omit<Attendance, 'id' | 'updated_at'> & { id?: string }
@@ -736,6 +771,19 @@ export class SmartDataRepository implements DataRepository {
         return { result: saved, outboxPayload: saved };
       },
       (saved) => this.cloud.upsertAttendance(actor, saved)
+    );
+  }
+
+  deleteAttendance(actor: AuthSession, bookId: BookId, attendanceId: string) {
+    return this.runOfflineCapableWrite(
+      actor,
+      bookId,
+      'deleteAttendance',
+      async () => {
+        await this.local.deleteAttendance(actor, bookId, attendanceId);
+        return { result: undefined, outboxPayload: { attendanceId } };
+      },
+      () => this.cloud.deleteAttendance(actor, bookId, attendanceId)
     );
   }
 

@@ -31,7 +31,7 @@ CREATE POLICY "Cho phép ghi cấu hình AI"
   USING (true)
   WITH CHECK (true);
 
--- Nạp cấu hình mặc định ban đầu nếu bảng còn trống
+-- Nạp cấu hình mặc định ban đầu nếu bảng còn trống (Mặc định DeepSeek siêu nhanh và rẻ)
 INSERT INTO public.ai_settings (id, provider, api_key, model, endpoint, temperature, enabled)
-VALUES ('default', 'gemini', '', 'gemini-3.8-flash', '', 0.1, true)
+VALUES ('default', 'deepseek', '', 'deepseek-chat', 'https://api.deepseek.com/chat/completions', 0.1, true)
 ON CONFLICT (id) DO NOTHING;

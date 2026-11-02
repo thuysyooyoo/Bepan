@@ -226,12 +226,15 @@ CÁC INTENT HỢP LỆ:
 - 'tra_no': Trả nợ cho nhà cung cấp (ví dụ: 'trả nợ thịt 500 nghìn')
 - 'thu_can_tin': Thu cuối ngày quầy căn tin
 - 'suat_an': Báo số suất ăn trường hoặc vãng lai
-- 'cham_cong': Chấm công thợ phụ bếp
+- 'cham_cong': Chấm công thợ hoặc ghi nhận tiền công/lương thợ làm bếp:
+  + Nếu có tên người làm (ví dụ: "chú Hiển", "bác Hiển", "cô Lan"), nếu chưa có trong CÔNG NHÂN PHỤ BẾP thì trả về "ten_tho_moi": "Chú Hiển", "luong_ngay_moi": 500000, "so_tien": 500000.
+  + Nếu câu nói có "chưa trả", "chưa đưa tiền", "ghi nợ", "chưa thanh toán" -> BẮT BUỘC đặt "chua_tra": true để ghi nhận vào Sổ Nợ mà không trừ tiền ví.
+  + Nếu đã trả -> "chua_tra": false, "vi": "tien_mat".
 - 'hoi': Câu hỏi báo cáo (lãi hôm nay, nợ nần, còn bao nhiêu tiền...)
 - 'khong_ro': Câu nói không liên quan hoặc không thể hiểu.
 
 LƯU Ý NGỮ CẢNH HỘI THOẠI TRƯỚC:
-Nếu người dùng nói tiếp một câu ngắn (ví dụ: 'khoản đó chưa trả tiền nhé', 'ghi nợ nhé', 'của căn tin nhé', 'sửa thành 500 nghìn'), bạn phải dựa vào tin nhắn trước đó để cập nhật khoản giao dịch tương ứng!
+Nếu người dùng nói tiếp một câu ngắn (ví dụ: 'khoản đó chưa trả tiền nhé', 'chưa trả đâu', 'ghi nợ nhé', 'của căn tin nhé', 'sửa thành 500 nghìn', 'của chú Hiển nhé'), bạn phải dựa vào tin nhắn trước đó để cập nhật khoản giao dịch tương ứng!
 
 BẮT BUỘC trả về đúng định dạng JSON:
 {
@@ -242,9 +245,12 @@ BẮT BUỘC trả về đúng định dạng JSON:
       "so_tien": 450000,
       "category_id": "cat_thit",
       "supplier_id": "sup_td_thit",
+      "ten_tho_moi": "Chú Hiển",
+      "luong_ngay_moi": 500000,
+      "chua_tra": true,
       "mang": "bep_an",
       "vi": "tien_mat",
-      "ghi_chu": "Mua 5 cân thịt"
+      "ghi_chu": "Tiền công Chú Hiển làm bếp hôm nay 500.000 (chưa trả)"
     }
   ]
 }`;
@@ -321,7 +327,7 @@ export async function callCloudAi(
 
       const parsed = JSON.parse(rawJson);
       if (Array.isArray(parsed.items) && parsed.items.length > 0) {
-        return parsed.items as ParsedIntentItem[];
+        return normalizeParsedCloudItems(parsed.items);
       }
       return null;
     }
@@ -373,11 +379,38 @@ export async function callCloudAi(
 
     const parsed = JSON.parse(rawContent);
     if (Array.isArray(parsed.items) && parsed.items.length > 0) {
-      return parsed.items as ParsedIntentItem[];
+      return normalizeParsedCloudItems(parsed.items);
     }
     return null;
   } catch (err) {
     console.warn('Lỗi gọi Cloud AI:', err);
     return null;
   }
+}
+
+/**
+ * Chuẩn hóa các trường trả về từ Cloud AI (DeepSeek / Gemini / OpenAI)
+ * Xử lý các trường thợ mới (ten_tho_moi / worker_name) và trạng thái chưa trả (chua_tra / paid: false)
+ */
+function normalizeParsedCloudItems(rawItems: unknown[]): ParsedIntentItem[] {
+  return rawItems.map((raw) => {
+    const r = raw as Record<string, unknown>;
+    const it = { ...r } as unknown as ParsedIntentItem;
+
+    // Chuẩn hóa tên thợ mới nếu model trả về worker_name thay vì ten_tho_moi
+    if (!it.ten_tho_moi && r.worker_name && typeof r.worker_name === 'string') {
+      it.ten_tho_moi = r.worker_name;
+    }
+
+    // Chuẩn hóa trạng thái chưa trả tiền
+    if (it.chua_tra === undefined) {
+      if (r.paid === false || r.unpaid === true || r.da_tra === false) {
+        it.chua_tra = true;
+      } else if (typeof it.ghi_chu === 'string' && /(chưa trả|chua tra|ghi nợ|chưa đưa)/i.test(it.ghi_chu)) {
+        it.chua_tra = true;
+      }
+    }
+
+    return it;
+  });
 }

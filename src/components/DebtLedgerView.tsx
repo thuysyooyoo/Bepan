@@ -24,6 +24,7 @@ import {
   computeDebtAndPayables,
   computeSupplierLedgerDetail,
   computeWalletBalances,
+  getEffectiveMealPrice,
 } from '../domain/accounting';
 import { shareOrDownloadSingleBookExcel } from '../domain/excelExport';
 import {
@@ -36,7 +37,7 @@ import {
   getTodayISO,
   getYearMonth,
 } from '../domain/format';
-import type { BookSnapshot, Transaction } from '../types/models';
+import type { BookSnapshot, MealCount, Transaction } from '../types/models';
 import {
   ConfirmationCard,
   UndoBanner,
@@ -76,6 +77,9 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
   const [kyThang, setKyThang] = useState<string>(() => getYearMonth(todayISO));
   const [showAllSuppliers, setShowAllSuppliers] = useState<boolean>(false);
   const [expandedSuppliers, setExpandedSuppliers] = useState<Record<string, boolean>>({});
+  const [expandedWorkers, setExpandedWorkers] = useState<Record<string, boolean>>({});
+  const [expandedCustomers, setExpandedCustomers] = useState<Record<string, boolean>>({});
+  const [showSchoolDetails, setShowSchoolDetails] = useState<boolean>(true);
   const [activeAction, setActiveAction] = useState<ActivePayAction>(null);
   const [amount, setAmount] = useState<number>(0);
   const [walletId, setWalletId] = useState<string>('');
@@ -89,6 +93,26 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
   const [newWorkerName, setNewWorkerName] = useState<string>('');
   const [newWorkerWage, setNewWorkerWage] = useState<number>(200000);
   const [savingWorker, setSavingWorker] = useState<boolean>(false);
+
+  // State chỉnh sửa suất ăn trường
+  const [editingMeal, setEditingMeal] = useState<{
+    id?: string;
+    ngay: string;
+    bua: 'sang' | 'trua' | 'toi';
+    suat_truong: number;
+    don_gia: number;
+    ghi_chu: string;
+  } | null>(null);
+  const [savingMeal, setSavingMeal] = useState<boolean>(false);
+
+  // State thu nợ khách ăn cơm / căn tin
+  const [activeCustomerPay, setActiveCustomerPay] = useState<{
+    doi_tac: string;
+    amount: number;
+    wallet_id: string;
+    note: string;
+  } | null>(null);
+  const [savingCustomerPay, setSavingCustomerPay] = useState<boolean>(false);
 
   const walletBalances = useMemo(
     () =>
@@ -121,6 +145,33 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
   const debt = useMemo(
     () => computeDebtAndPayables(snapshot, kyThang, todayISO),
     [snapshot, kyThang, todayISO]
+  );
+
+  const monthSchoolMeals = useMemo(
+    () =>
+      snapshot.mealCounts
+        .filter(
+          (m) =>
+            m.book_id === snapshot.book.id &&
+            getYearMonth(m.ngay) === kyThang &&
+            m.suat_truong > 0
+        )
+        .sort((a, b) => b.ngay.localeCompare(a.ngay)),
+    [snapshot.mealCounts, snapshot.book.id, kyThang]
+  );
+
+  const monthSchoolTransfers = useMemo(
+    () =>
+      snapshot.transactions
+        .filter(
+          (t) =>
+            t.book_id === snapshot.book.id &&
+            !t.da_xoa &&
+            t.loai === 'truong_chuyen' &&
+            (t.ky_thang || getYearMonth(t.ngay)) === kyThang
+        )
+        .sort((a, b) => b.ngay.localeCompare(a.ngay)),
+    [snapshot.transactions, snapshot.book.id, kyThang]
   );
 
   // Tự động bung chi tiết mối hàng khi nhảy từ Thẻ nhắc việc sang
@@ -420,18 +471,125 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
     if (!session || !deleteTarget) return;
     const targetId = deleteTarget.id;
     const targetTitle = deleteTarget.title;
+    const targetKind = deleteTarget.kind || 'tx';
     setDeleteTarget(null);
     try {
-      await dbRepo.softDeleteTransaction(session, snapshot.book.id, targetId);
-      setUndoState({
-        message: `Đã xóa: ${targetTitle}`,
-        undoFn: async () => {
-          await dbRepo.restoreTransaction(session, snapshot.book.id, targetId);
-        },
-      });
+      if (targetKind === 'meal_count') {
+        const deletedMeal = snapshot.mealCounts.find((m) => m.id === targetId);
+        await dbRepo.deleteMealCount(session, snapshot.book.id, targetId);
+        setUndoState({
+          message: `Đã xóa: ${targetTitle}`,
+          undoFn: async () => {
+            if (deletedMeal) {
+              await dbRepo.upsertMealCount(session, deletedMeal);
+            }
+          },
+        });
+      } else if (targetKind === 'attendance') {
+        const deletedAtt = snapshot.attendance.find((a) => a.id === targetId);
+        await dbRepo.deleteAttendance(session, snapshot.book.id, targetId);
+        setUndoState({
+          message: `Đã xóa: ${targetTitle}`,
+          undoFn: async () => {
+            if (deletedAtt) {
+              await dbRepo.upsertAttendance(session, deletedAtt);
+            }
+          },
+        });
+      } else {
+        await dbRepo.softDeleteTransaction(session, snapshot.book.id, targetId);
+        setUndoState({
+          message: `Đã xóa: ${targetTitle}`,
+          undoFn: async () => {
+            await dbRepo.restoreTransaction(session, snapshot.book.id, targetId);
+          },
+        });
+      }
       await onDataChanged();
     } catch {
       // ignore
+    }
+  };
+
+  const openEditMeal = (meal: MealCount) => {
+    const dg = getEffectiveMealPrice(
+      snapshot.mealPrices,
+      snapshot.book.id,
+      meal.bua,
+      'truong',
+      meal.ngay
+    );
+    setEditingMeal({
+      id: meal.id,
+      ngay: meal.ngay,
+      bua: meal.bua,
+      suat_truong: meal.suat_truong,
+      don_gia: dg,
+      ghi_chu: meal.ghi_chu || '',
+    });
+  };
+
+  const handleSaveMeal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session || !editingMeal) return;
+    setSavingMeal(true);
+    try {
+      await dbRepo.upsertMealCount(session, {
+        id: editingMeal.id,
+        book_id: snapshot.book.id,
+        ngay: editingMeal.ngay,
+        bua: editingMeal.bua,
+        suat_truong: Math.max(0, Math.round(editingMeal.suat_truong)),
+        suat_vang_lai: 0,
+        ghi_chu: editingMeal.ghi_chu.trim(),
+        nguon: 'tay',
+        nguoi_tao: session.profile_id,
+      });
+      setEditingMeal(null);
+      await onDataChanged();
+    } finally {
+      setSavingMeal(false);
+    }
+  };
+
+  const openCustomerPay = (doiTac: string, conNo: number) => {
+    setActiveCustomerPay({
+      doi_tac: doiTac,
+      amount: conNo,
+      wallet_id: cashWalletId,
+      note: `Thu nợ cơm: ${doiTac}`,
+    });
+  };
+
+  const handleSaveCustomerPay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session || !activeCustomerPay || activeCustomerPay.amount <= 0) return;
+    setSavingCustomerPay(true);
+    try {
+      const saved = await dbRepo.addTransaction(session, {
+        book_id: snapshot.book.id,
+        ngay: todayISO,
+        ky_thang: kyThang,
+        mang: 'bep_an',
+        loai: 'thu_no',
+        category_id: 'cat_thu_no_khach',
+        so_tien: Math.round(activeCustomerPay.amount),
+        wallet_id: activeCustomerPay.wallet_id,
+        doi_tac: activeCustomerPay.doi_tac,
+        ghi_chu: activeCustomerPay.note.trim() || `Thu nợ cơm: ${activeCustomerPay.doi_tac}`,
+        nguon: 'tay',
+        nguoi_tao: session.profile_id,
+      });
+      setActiveCustomerPay(null);
+      setUndoState({
+        message: `Đã thu nợ ${activeCustomerPay.doi_tac}: ${formatVND(activeCustomerPay.amount)}`,
+        undoFn: async () => {
+          await dbRepo.softDeleteTransaction(session, snapshot.book.id, saved.id);
+        },
+      });
+      await onDataChanged();
+    } finally {
+      setSavingCustomerPay(false);
     }
   };
 
@@ -522,7 +680,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
         <div className="grid grid-cols-2 gap-2 text-center">
           <div className="p-2.5 sm:p-3 rounded-2xl bg-rose-950/80 border border-rose-500/50">
             <div className="text-xs font-bold text-rose-200">Khoản mình nợ (Phải trả)</div>
-            <div className="text-xl sm:text-2xl font-black text-rose-300 mt-1">
+            <div className="text-sm sm:text-base font-bold text-rose-300 mt-0.5">
               {formatVND(debt.tong_minh_no)}
             </div>
             <div className="text-[11px] text-rose-300/80 mt-1">
@@ -531,7 +689,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
           </div>
           <div className="p-2.5 sm:p-3 rounded-2xl bg-emerald-950/80 border border-emerald-500/50">
             <div className="text-xs font-bold text-emerald-200">Người ta nợ mình (Phải thu)</div>
-            <div className="text-xl sm:text-2xl font-black text-emerald-300 mt-1">
+            <div className="text-sm sm:text-base font-bold text-emerald-300 mt-0.5">
               {formatVND(debt.tong_nguoi_ta_no)}
             </div>
             <div className="text-[11px] text-emerald-300/80 mt-1">
@@ -545,7 +703,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
       {activeAction && (
         <div className="rounded-3xl bg-white border-2 border-teal-700 p-4 shadow-md space-y-4">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-xl font-extrabold text-teal-950">
+            <div className="text-sm sm:text-base font-bold text-teal-950">
               {activeAction.kind === 'tra_no_ncc'
                 ? activeAction.mode === 'full'
                   ? 'Trả hết nợ 1 chạm'
@@ -685,10 +843,10 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
       <section className="rounded-3xl bg-white border-2 border-rose-300 p-4 shadow-xs space-y-3.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-xl font-extrabold text-rose-950">
+            <h2 className="text-sm sm:text-base font-bold text-rose-950">
               1. Nợ nhà cung cấp (Mua chịu)
             </h2>
-            <div className="text-3xl font-extrabold text-rose-700 mt-0.5">
+            <div className="text-base sm:text-lg font-bold text-rose-700 mt-0.5">
               {formatVND(debt.nha_cung_cap.tong_no_ncc)}
             </div>
           </div>
@@ -697,7 +855,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
             <button
               type="button"
               onClick={() => setShowAllSuppliers(false)}
-              className={`px-3 py-1.5 rounded-full text-sm font-extrabold border ${
+              className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
                 !showAllSuppliers
                   ? 'bg-rose-800 text-white border-rose-800'
                   : 'bg-stone-100 text-stone-700 border-stone-300'
@@ -708,7 +866,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
             <button
               type="button"
               onClick={() => setShowAllSuppliers(true)}
-              className={`px-3 py-1.5 rounded-full text-sm font-extrabold border ${
+              className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
                 showAllSuppliers
                   ? 'bg-rose-800 text-white border-rose-800'
                   : 'bg-stone-100 text-stone-700 border-stone-300'
@@ -720,9 +878,9 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
         </div>
 
         {visibleSuppliers.length === 0 ? (
-          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-400 text-emerald-950 flex items-center gap-3">
-            <CheckCircle2 className="w-7 h-7 text-emerald-700 shrink-0" />
-            <div className="text-lg font-bold">
+          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-400 text-emerald-950 flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+            <div className="text-xs sm:text-sm font-bold">
               Tuyệt vời! Hiện tại không nợ đồng nào của nhà cung cấp.
             </div>
           </div>
@@ -749,17 +907,17 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <div className="text-xl font-extrabold text-stone-950">
+                      <div className="text-sm sm:text-base font-bold text-stone-950">
                         {item.supplier.ten_ncc}
                       </div>
-                      <div className="text-base text-stone-600 font-medium">
+                      <div className="text-xs text-stone-600 font-medium">
                         {item.supplier.mat_hang_chinh}
                       </div>
                     </div>
 
                     <div className="text-right shrink-0">
                       <div
-                        className={`text-xl font-extrabold ${
+                        className={`text-sm sm:text-base font-bold ${
                           item.con_no > 0 ? 'text-rose-700' : 'text-emerald-700'
                         }`}
                       >
@@ -955,16 +1113,26 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
         const activeWorkers = debt.luong_tho_ky_nay.chi_tiet_tho.filter(
           (w) => w.tong_cong > 0 || w.da_ung > 0 || w.con_lai > 0
         );
+        const monthAttList = snapshot.attendance.filter(
+          (a) => a.book_id === snapshot.book.id && getYearMonth(a.ngay) === kyThang
+        );
+        const monthWageTxs = snapshot.transactions.filter(
+          (t) =>
+            t.book_id === snapshot.book.id &&
+            !t.da_xoa &&
+            t.loai === 'tra_luong' &&
+            (t.ky_thang || getYearMonth(t.ngay)) === kyThang
+        );
 
         return (
           <section className="rounded-3xl bg-white border-2 border-amber-300 p-3.5 sm:p-4 shadow-xs space-y-3">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h2 className="text-base sm:text-lg font-extrabold text-amber-950 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-amber-700 shrink-0" />
+                <h2 className="text-sm sm:text-base font-bold text-amber-950 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-amber-700 shrink-0" />
                   <span>2. Lương thợ {formatVietnameseMonth(kyThang)}</span>
                 </h2>
-                <div className="text-2xl font-black text-amber-800 mt-0.5">
+                <div className="text-base sm:text-lg font-bold text-amber-800 mt-0.5">
                   {formatVND(debt.luong_tho_ky_nay.con_phai_tra)}
                 </div>
                 <div className="text-xs sm:text-sm text-stone-600 font-semibold mt-0.5">
@@ -1011,47 +1179,198 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
               </div>
             ) : (
               <div className="space-y-2.5">
-                {activeWorkers.map((w) => (
-                  <div
-                    key={w.worker.id}
-                    className="p-3 rounded-2xl bg-amber-50/60 border border-amber-300 space-y-2"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="text-base font-extrabold text-stone-900">
-                          {w.worker.ho_ten}
-                        </div>
-                        <div className="text-xs sm:text-sm font-semibold text-stone-600">
-                          Chấm công: <strong>{w.tong_cong} công</strong> (
-                          {formatVND(w.thanh_tien)})
-                          {w.da_ung > 0 ? ` · Đã ứng: ${formatVND(w.da_ung)}` : ''}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div
-                          className={`text-base font-extrabold ${
-                            w.con_lai > 0 ? 'text-amber-900' : 'text-emerald-700'
-                          }`}
-                        >
-                          {w.con_lai > 0 ? formatVND(w.con_lai) : 'Đã trả đủ'}
-                        </div>
-                      </div>
-                    </div>
+                {activeWorkers.map((w) => {
+                  const isExpanded = Boolean(expandedWorkers[w.worker.id]);
+                  const workerAtts = monthAttList
+                    .filter((a) => a.worker_id === w.worker.id)
+                    .sort((a, b) => b.ngay.localeCompare(a.ngay));
+                  const workerWages = monthWageTxs
+                    .filter((t) => t.worker_id === w.worker.id)
+                    .sort((a, b) => b.ngay.localeCompare(a.ngay));
 
-                    {w.con_lai > 0 && (
+                  return (
+                    <div
+                      key={w.worker.id}
+                      className="p-3 rounded-2xl bg-amber-50/60 border border-amber-300 space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-sm sm:text-base font-bold text-stone-900">
+                            {w.worker.ho_ten}
+                          </div>
+                          <div className="text-xs sm:text-sm font-semibold text-stone-600">
+                            Chấm công: <strong>{w.tong_cong} công</strong> (
+                            {formatVND(w.thanh_tien)})
+                            {w.da_ung > 0 ? ` · Đã ứng: ${formatVND(w.da_ung)}` : ''}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div
+                            className={`text-sm sm:text-base font-bold ${
+                              w.con_lai > 0 ? 'text-amber-900' : 'text-emerald-700'
+                            }`}
+                          >
+                            {w.con_lai > 0 ? formatVND(w.con_lai) : 'Đã trả đủ'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {w.con_lai > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => openPayWorker(w.worker.id)}
+                          className="w-full min-h-[40px] px-3 py-2 rounded-2xl bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-1.5"
+                        >
+                          <Zap className="w-4 h-4 shrink-0" />
+                          <span>
+                            Trả đủ lương {w.worker.ho_ten} ({formatCompactVND(w.con_lai)})
+                          </span>
+                        </button>
+                      )}
+
+                      {/* Nút mở rộng xem lịch sử chấm công & ứng lương của thợ */}
                       <button
                         type="button"
-                        onClick={() => openPayWorker(w.worker.id)}
-                        className="w-full min-h-[42px] px-3 py-2 rounded-2xl bg-amber-700 hover:bg-amber-800 text-white font-bold text-sm inline-flex items-center justify-center gap-1.5"
+                        onClick={() =>
+                          setExpandedWorkers((prev) => ({
+                            ...prev,
+                            [w.worker.id]: !prev[w.worker.id],
+                          }))
+                        }
+                        className="w-full py-1.5 px-2.5 rounded-xl bg-white border border-amber-300 text-stone-800 font-bold text-xs flex items-center justify-between"
                       >
-                        <Zap className="w-4 h-4 shrink-0" />
                         <span>
-                          Trả đủ lương {w.worker.ho_ten} ({formatCompactVND(w.con_lai)})
+                          Chi tiết ngày công ({workerAtts.length} ngày) · Đã ứng (
+                          {workerWages.length} lần)
                         </span>
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 shrink-0" />
+                        )}
                       </button>
-                    )}
-                  </div>
-                ))}
+
+                      {isExpanded && (
+                        <div className="space-y-2 pt-1 border-t border-amber-200">
+                          {/* Danh sách từng ngày chấm công */}
+                          <div className="space-y-1">
+                            <div className="text-[11px] font-bold text-amber-900 uppercase tracking-wide px-1">
+                              Các ngày chấm công:
+                            </div>
+                            {workerAtts.length === 0 ? (
+                              <div className="text-xs text-stone-500 italic px-1">
+                                Chưa có ngày chấm công nào trong tháng.
+                              </div>
+                            ) : (
+                              workerAtts.map((att) => {
+                                const caLabel =
+                                  att.so_cong === 0
+                                    ? 'Nghỉ'
+                                    : att.so_cong === 0.5
+                                    ? 'Nửa buổi'
+                                    : 'Cả ngày';
+                                const tienCongNgay = att.so_cong * att.don_gia_cong;
+
+                                return (
+                                  <div
+                                    key={att.id}
+                                    className="p-2 rounded-xl bg-white border border-stone-200 flex items-center justify-between gap-2"
+                                  >
+                                    <div>
+                                      <div className="text-xs font-bold text-stone-900">
+                                        {formatVietnameseDate(att.ngay)} ({caLabel} · {att.so_cong} công)
+                                      </div>
+                                      <div className="text-[11px] text-stone-500">
+                                        Đơn giá: {formatVND(att.don_gia_cong)}
+                                        {att.ghi_chu ? ` · ${att.ghi_chu}` : ''}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <span className="text-xs font-bold text-amber-900">
+                                        {formatVND(tienCongNgay)}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setDeleteTarget({
+                                            id: att.id,
+                                            title: `Chấm công ${w.worker.ho_ten} ngày ${att.ngay.split('-').reverse().join('/')}`,
+                                            amount: tienCongNgay,
+                                            date: att.ngay.split('-').reverse().join('/'),
+                                            kind: 'attendance',
+                                          })
+                                        }
+                                        className="p-1 rounded-lg bg-stone-50 hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-200"
+                                        title="Xóa ngày công này"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          {/* Danh sách các lần ứng hoặc trả lương */}
+                          {workerWages.length > 0 && (
+                            <div className="space-y-1 pt-1 border-t border-amber-200/60">
+                              <div className="text-[11px] font-bold text-amber-900 uppercase tracking-wide px-1">
+                                Các lần đã ứng / trả lương:
+                              </div>
+                              {workerWages.map((tx) => (
+                                <div
+                                  key={tx.id}
+                                  className="p-2 rounded-xl bg-white border border-stone-200 flex items-center justify-between gap-2"
+                                >
+                                  <div>
+                                    <div className="text-xs font-bold text-stone-900">
+                                      {tx.ngay.split('-').reverse().join('/')} · Đã trả / ứng
+                                    </div>
+                                    {tx.ghi_chu && (
+                                      <div className="text-[11px] text-stone-500">{tx.ghi_chu}</div>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-xs font-bold text-emerald-700">
+                                      {formatVND(tx.so_tien)}
+                                    </span>
+                                    {onOpenManualForm && (
+                                      <button
+                                        type="button"
+                                        onClick={() => onOpenManualForm('tra_luong', tx)}
+                                        className="p-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200"
+                                        title="Sửa phiếu"
+                                      >
+                                        <Pencil className="w-3.5 h-3.5 text-stone-600" />
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setDeleteTarget({
+                                          id: tx.id,
+                                          title: `Phiếu trả lương ${w.worker.ho_ten}: ${formatVND(tx.so_tien)}`,
+                                          amount: tx.so_tien,
+                                          date: tx.ngay.split('-').reverse().join('/'),
+                                          kind: 'tx',
+                                        })
+                                      }
+                                      className="p-1 rounded-lg bg-stone-50 hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-200"
+                                      title="Xóa phiếu này"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -1064,13 +1383,38 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
       <section className="rounded-3xl bg-white border-2 border-sky-300 p-3.5 sm:p-4 shadow-xs space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h2 className="text-base sm:text-lg font-extrabold text-sky-950 flex items-center gap-2">
-              <School className="w-5 h-5 text-sky-700 shrink-0" />
+            <h2 className="text-sm sm:text-base font-bold text-sky-950 flex items-center gap-1.5">
+              <School className="w-4 h-4 text-sky-700 shrink-0" />
               <span>3. Tiền trường {formatVietnameseMonth(kyThang)}</span>
             </h2>
-            <div className="text-2xl font-black text-sky-800 mt-0.5">
+            <div className="text-base sm:text-lg font-bold text-sky-800 mt-0.5">
               {formatVND(debt.tien_truong_ky_nay.con_cho_chuyen)}
             </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {onOpenManualForm && (
+              <button
+                type="button"
+                onClick={() => onOpenManualForm('suat_an')}
+                className="px-2.5 py-1.5 rounded-xl bg-sky-100 hover:bg-sky-200 text-sky-900 font-bold text-xs inline-flex items-center gap-1 shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Báo suất</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowSchoolDetails((v) => !v)}
+              className="px-2.5 py-1.5 rounded-xl bg-white border border-sky-300 text-sky-900 font-bold text-xs inline-flex items-center gap-1 shrink-0"
+            >
+              <span>{showSchoolDetails ? 'Thu gọn' : 'Xem chi tiết'}</span>
+              {showSchoolDetails ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+            </button>
           </div>
         </div>
 
@@ -1095,7 +1439,7 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
           <button
             type="button"
             onClick={openSchoolTransfer}
-            className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-sm sm:text-base inline-flex items-center justify-center gap-2 active:scale-[0.99]"
+            className="w-full min-h-[42px] px-3.5 py-2 rounded-2xl bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-2 active:scale-[0.99]"
           >
             <Zap className="w-4 h-4 shrink-0" />
             <span>
@@ -1104,13 +1448,163 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
             </span>
           </button>
         ) : debt.tien_truong_ky_nay.so_tien_du_kien > 0 ? (
-          <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-400 text-emerald-950 font-bold text-xs sm:text-sm flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+          <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-400 text-emerald-950 font-bold text-xs sm:text-sm flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
             <span>Nhà trường đã thanh toán đủ 100% tiền ăn kỳ này!</span>
           </div>
         ) : (
-          <div className="text-xs sm:text-sm text-stone-500 italic">
+          <div className="text-xs text-stone-500 italic">
             Chưa có suất ăn trường nào được ghi trong {formatVietnameseMonth(kyThang)}.
+          </div>
+        )}
+
+        {/* DANH SÁCH CHI TIẾT TỪNG NGÀY BÁO SUẤT TRƯỜNG */}
+        {showSchoolDetails && (
+          <div className="pt-2 border-t border-sky-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-sky-950">
+                Chi tiết từng ngày báo suất ({monthSchoolMeals.length} ngày đã lưu):
+              </span>
+            </div>
+
+            {monthSchoolMeals.length === 0 ? (
+              <div className="text-xs text-stone-500 italic p-2 rounded-xl bg-sky-50/50 text-center">
+                Chưa có dữ liệu suất ăn trường ngày nào trong tháng này.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {monthSchoolMeals.map((meal) => {
+                  const dg = getEffectiveMealPrice(
+                    snapshot.mealPrices,
+                    snapshot.book.id,
+                    meal.bua,
+                    'truong',
+                    meal.ngay
+                  );
+                  const thanhTien = meal.suat_truong * dg;
+                  const buaLabel =
+                    meal.bua === 'sang'
+                      ? 'Bữa sáng'
+                      : meal.bua === 'toi'
+                      ? 'Bữa tối'
+                      : 'Bữa trưa';
+
+                  return (
+                    <div
+                      key={meal.id}
+                      className="p-2.5 rounded-xl bg-sky-50/70 border border-sky-200 space-y-1.5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-xs sm:text-sm font-bold text-stone-900">
+                            {formatVietnameseDate(meal.ngay)}
+                          </div>
+                          <div className="text-xs text-stone-600">
+                            {buaLabel} · <strong>{meal.suat_truong} suất</strong> x {formatVND(dg)}
+                            {meal.ghi_chu ? ` · ${meal.ghi_chu}` : ''}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-xs sm:text-sm font-bold text-sky-900">
+                            {formatVND(thanhTien)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-sky-200/60">
+                        <button
+                          type="button"
+                          onClick={() => openEditMeal(meal)}
+                          className="px-2 py-0.5 rounded-lg bg-white hover:bg-sky-100 border border-sky-300 text-[11px] font-bold text-sky-900 inline-flex items-center gap-1"
+                        >
+                          <Pencil className="w-3 h-3 text-sky-700" />
+                          <span>Sửa suất</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDeleteTarget({
+                              id: meal.id,
+                              title: `Suất ăn trường ngày ${meal.ngay.split('-').reverse().join('/')} (${meal.suat_truong} suất)`,
+                              amount: thanhTien,
+                              date: meal.ngay.split('-').reverse().join('/'),
+                              kind: 'meal_count',
+                            })
+                          }
+                          className="px-2 py-0.5 rounded-lg bg-white hover:bg-rose-50 border border-stone-300 text-[11px] font-bold text-stone-600 hover:text-rose-700 inline-flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3 h-3 text-rose-600" />
+                          <span>Xóa</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* CÁC ĐỢT TRƯỜNG ĐÃ CHUYỂN TIỀN VỀ */}
+            {monthSchoolTransfers.length > 0 && (
+              <div className="pt-2 border-t border-sky-200 space-y-1.5">
+                <span className="text-xs font-bold text-emerald-950">
+                  Các lần trường đã chuyển về ({monthSchoolTransfers.length} lần):
+                </span>
+                <div className="space-y-1.5">
+                  {monthSchoolTransfers.map((tx) => {
+                    const wallet = snapshot.wallets.find((w) => w.id === tx.wallet_id);
+                    return (
+                      <div
+                        key={tx.id}
+                        className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-1"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="text-xs sm:text-sm font-bold text-emerald-950">
+                              Trường chuyển về {wallet ? wallet.ten_vi : 'Ví'}
+                            </div>
+                            <div className="text-xs text-stone-600">
+                              {tx.ngay.split('-').reverse().join('/')}
+                              {tx.ghi_chu ? ` · ${tx.ghi_chu}` : ''}
+                            </div>
+                          </div>
+                          <div className="text-xs sm:text-sm font-bold text-emerald-700">
+                            +{formatVND(tx.so_tien)}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-emerald-200/60">
+                          {onOpenManualForm && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenManualForm('truong_chuyen', tx)}
+                              className="px-2 py-0.5 rounded-lg bg-white hover:bg-stone-100 border border-stone-300 text-[11px] font-bold text-stone-700 inline-flex items-center gap-1"
+                            >
+                              <Pencil className="w-3 h-3 text-stone-600" />
+                              <span>Sửa</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDeleteTarget({
+                                id: tx.id,
+                                title: `Phiếu trường chuyển: ${formatVND(tx.so_tien)}`,
+                                amount: tx.so_tien,
+                                date: tx.ngay.split('-').reverse().join('/'),
+                                kind: 'tx',
+                              })
+                            }
+                            className="px-2 py-0.5 rounded-lg bg-white hover:bg-rose-50 border border-stone-300 text-[11px] font-bold text-stone-600 hover:text-rose-700 inline-flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3 h-3 text-rose-600" />
+                            <span>Xóa</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -1119,11 +1613,11 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
       <section className="rounded-3xl bg-white border-2 border-emerald-500 p-3.5 sm:p-4 shadow-xs space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base sm:text-lg font-extrabold text-emerald-950 flex items-center gap-2">
-              <Users className="w-5 h-5 text-emerald-700 shrink-0" />
+            <h2 className="text-sm sm:text-base font-bold text-emerald-950 flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-emerald-700 shrink-0" />
               <span>4. Khách / Giáo viên nợ tiền cơm (Phải thu)</span>
             </h2>
-            <div className="text-2xl font-black text-emerald-800 mt-0.5">
+            <div className="text-base sm:text-lg font-bold text-emerald-800 mt-0.5">
               {formatVND(debt.phai_thu_khach.tong_phai_thu_khach)}
             </div>
           </div>
@@ -1131,32 +1625,132 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
 
         {debt.phai_thu_khach.danh_sach.length === 0 ? (
           <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 font-bold text-xs sm:text-sm flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
             <span>Hiện không có ai nợ tiền cơm / cỗ / căn tin ạ!</span>
           </div>
         ) : (
           <div className="space-y-2.5">
-            {debt.phai_thu_khach.danh_sach.map((khach) => (
-              <div
-                key={khach.doi_tac}
-                className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-300 flex items-center justify-between gap-3"
-              >
-                <div>
-                  <div className="text-sm sm:text-base font-extrabold text-emerald-950">
-                    {khach.doi_tac}
-                  </div>
-                  <div className="text-xs text-stone-600">
-                    Đã nợ {formatVND(khach.tong_ban_chiu)} · Đã trả {formatVND(khach.tong_da_thu)}
-                  </div>
-                </div>
+            {debt.phai_thu_khach.danh_sach.map((khach) => {
+              const isExpanded = Boolean(expandedCustomers[khach.doi_tac]);
+              const customerTxs = snapshot.transactions
+                .filter(
+                  (t) =>
+                    t.book_id === snapshot.book.id &&
+                    !t.da_xoa &&
+                    (t.loai === 'ban_chiu' || t.loai === 'thu_no') &&
+                    ((t.doi_tac || t.ghi_chu || 'Khách vãng lai').trim() === khach.doi_tac)
+                )
+                .sort((a, b) => b.ngay.localeCompare(a.ngay));
 
-                <div className="text-right shrink-0">
-                  <div className="text-lg font-black text-rose-700">
-                    {formatVND(khach.con_phai_thu)}
+              return (
+                <div
+                  key={khach.doi_tac}
+                  className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-300 space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-sm sm:text-base font-bold text-emerald-950">
+                        {khach.doi_tac}
+                      </div>
+                      <div className="text-xs text-stone-600">
+                        Đã nợ {formatVND(khach.tong_ban_chiu)} · Đã trả {formatVND(khach.tong_da_thu)}
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="text-sm sm:text-base font-bold text-rose-700">
+                        {khach.con_phai_thu > 0 ? formatVND(khach.con_phai_thu) : 'Đã hết nợ'}
+                      </div>
+                    </div>
                   </div>
+
+                  <div className="flex items-center gap-2">
+                    {khach.con_phai_thu > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => openCustomerPay(khach.doi_tac, khach.con_phai_thu)}
+                        className="flex-1 min-h-[36px] px-2.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs inline-flex items-center justify-center gap-1 active:scale-95"
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>Thu nợ ({formatCompactVND(khach.con_phai_thu)})</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedCustomers((prev) => ({
+                          ...prev,
+                          [khach.doi_tac]: !prev[khach.doi_tac],
+                        }))
+                      }
+                      className="px-2.5 py-1.5 rounded-xl bg-white border border-stone-300 text-stone-700 font-bold text-xs inline-flex items-center gap-1"
+                    >
+                      <span>Lịch sử ({customerTxs.length})</span>
+                      {isExpanded ? (
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="space-y-1.5 pt-1 border-t border-emerald-200">
+                      {customerTxs.length === 0 ? (
+                        <div className="text-xs text-stone-500 italic p-1">
+                          Chưa có phiếu ghi sổ nào cho khách này.
+                        </div>
+                      ) : (
+                        customerTxs.map((tx) => {
+                          const isBorrow = tx.loai === 'ban_chiu';
+                          return (
+                            <div
+                              key={tx.id}
+                              className="p-2 rounded-xl bg-white border border-stone-200 flex items-center justify-between gap-2"
+                            >
+                              <div>
+                                <div className="text-xs font-bold text-stone-900">
+                                  {isBorrow ? 'Ăn cơm ghi nợ' : 'Đã trả nợ'}
+                                  {tx.ghi_chu ? ` — ${tx.ghi_chu}` : ''}
+                                </div>
+                                <div className="text-[11px] text-stone-500">
+                                  {tx.ngay.split('-').reverse().join('/')}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span
+                                  className={`text-xs font-bold ${
+                                    isBorrow ? 'text-rose-700' : 'text-emerald-700'
+                                  }`}
+                                >
+                                  {isBorrow ? `+${formatVND(tx.so_tien)}` : `-${formatVND(tx.so_tien)}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDeleteTarget({
+                                      id: tx.id,
+                                      title: `${isBorrow ? 'Phiếu nợ cơm' : 'Phiếu thu nợ'}: ${khach.doi_tac}`,
+                                      amount: tx.so_tien,
+                                      date: tx.ngay.split('-').reverse().join('/'),
+                                      kind: 'tx',
+                                    })
+                                  }
+                                  className="p-1 rounded-lg bg-stone-50 hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-200"
+                                  title="Xóa phiếu"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
@@ -1220,6 +1814,229 @@ export const DebtLedgerView: React.FC<DebtLedgerViewProps> = ({
                   className="min-h-[42px] px-3 py-2 rounded-xl bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white font-bold text-xs"
                 >
                   {savingWorker ? 'Đang lưu...' : 'Lưu thợ mới'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL SỬA SUẤT ĂN TRƯỜNG */}
+      {editingMeal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-sm rounded-3xl bg-white border border-stone-200 p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm sm:text-base font-bold text-sky-950 flex items-center gap-1.5">
+                <School className="w-4 h-4 text-sky-700" />
+                <span>Chỉnh sửa suất ăn trường</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingMeal(null)}
+                className="p-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveMeal} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Ngày nấu:
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={editingMeal.ngay}
+                  onChange={(e) =>
+                    setEditingMeal((prev) => (prev ? { ...prev, ngay: e.target.value } : null))
+                  }
+                  className="w-full px-3 py-2 rounded-xl border-2 border-stone-300 text-xs sm:text-sm font-semibold focus:border-sky-600 outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Bữa ăn:
+                </label>
+                <select
+                  value={editingMeal.bua}
+                  onChange={(e) =>
+                    setEditingMeal((prev) =>
+                      prev
+                        ? { ...prev, bua: e.target.value as 'sang' | 'trua' | 'toi' }
+                        : null
+                    )
+                  }
+                  className="w-full px-3 py-2 rounded-xl border-2 border-stone-300 text-xs sm:text-sm font-semibold focus:border-sky-600 outline-hidden bg-white"
+                >
+                  <option value="trua">Bữa trưa (chính)</option>
+                  <option value="sang">Bữa sáng</option>
+                  <option value="toi">Bữa tối</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Số suất trường nấu:
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  required
+                  value={editingMeal.suat_truong}
+                  onChange={(e) =>
+                    setEditingMeal((prev) =>
+                      prev
+                        ? { ...prev, suat_truong: Number(e.target.value) || 0 }
+                        : null
+                    )
+                  }
+                  className="w-full px-3 py-2 rounded-xl border-2 border-stone-300 text-xs sm:text-sm font-semibold focus:border-sky-600 outline-hidden"
+                />
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 text-xs text-stone-700 space-y-0.5">
+                <div className="flex justify-between">
+                  <span>Đơn giá áp dụng:</span>
+                  <strong>{formatVND(editingMeal.don_gia)} / suất</strong>
+                </div>
+                <div className="flex justify-between text-sky-950 font-bold">
+                  <span>Thành tiền dự kiến:</span>
+                  <span>
+                    {formatVND(editingMeal.suat_truong * editingMeal.don_gia)}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Ghi chú:
+                </label>
+                <input
+                  type="text"
+                  value={editingMeal.ghi_chu}
+                  onChange={(e) =>
+                    setEditingMeal((prev) =>
+                      prev ? { ...prev, ghi_chu: e.target.value } : null
+                    )
+                  }
+                  placeholder="Ví dụ: Thiếu 2 suất, học sinh ăn thêm..."
+                  className="w-full px-3 py-2 rounded-xl border-2 border-stone-300 text-xs sm:text-sm font-semibold focus:border-sky-600 outline-hidden"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingMeal(null)}
+                  className="min-h-[40px] px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingMeal}
+                  className="min-h-[40px] px-3 py-2 rounded-xl bg-sky-700 hover:bg-sky-800 disabled:opacity-50 text-white font-bold text-xs"
+                >
+                  {savingMeal ? 'Đang lưu...' : 'Lưu cập nhật'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL THU NỢ KHÁCH ĂN CƠM / CĂN TIN */}
+      {activeCustomerPay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-sm rounded-3xl bg-white border border-stone-200 p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm sm:text-base font-bold text-emerald-950 flex items-center gap-1.5">
+                <Zap className="w-4 h-4 text-emerald-700" />
+                <span>Thu nợ cơm: {activeCustomerPay.doi_tac}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveCustomerPay(null)}
+                className="p-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCustomerPay} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Số tiền thu:
+                </label>
+                <MoneyInput
+                  label=""
+                  value={activeCustomerPay.amount}
+                  onChange={(val) =>
+                    setActiveCustomerPay((prev) =>
+                      prev ? { ...prev, amount: val } : null
+                    )
+                  }
+                  placeholder="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Tiền vào ví / tài khoản nào:
+                </label>
+                <select
+                  value={activeCustomerPay.wallet_id}
+                  onChange={(e) =>
+                    setActiveCustomerPay((prev) =>
+                      prev ? { ...prev, wallet_id: e.target.value } : null
+                    )
+                  }
+                  className="w-full px-3 py-2 rounded-xl border-2 border-stone-300 text-xs sm:text-sm font-semibold focus:border-emerald-600 outline-hidden bg-white"
+                >
+                  {snapshot.wallets
+                    .filter((w) => w.book_id === snapshot.book.id)
+                    .map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.ten_vi}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Ghi chú:
+                </label>
+                <input
+                  type="text"
+                  value={activeCustomerPay.note}
+                  onChange={(e) =>
+                    setActiveCustomerPay((prev) =>
+                      prev ? { ...prev, note: e.target.value } : null
+                    )
+                  }
+                  placeholder="Ghi chú thu nợ..."
+                  className="w-full px-3 py-2 rounded-xl border-2 border-stone-300 text-xs sm:text-sm font-semibold focus:border-emerald-600 outline-hidden"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveCustomerPay(null)}
+                  className="min-h-[40px] px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingCustomerPay || activeCustomerPay.amount <= 0}
+                  className="min-h-[40px] px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-bold text-xs"
+                >
+                  {savingCustomerPay ? 'Đang lưu...' : 'Lưu thu nợ'}
                 </button>
               </div>
             </form>
