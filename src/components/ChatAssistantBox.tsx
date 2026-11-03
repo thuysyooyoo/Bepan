@@ -31,7 +31,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { dbRepo } from '../db';
 import type { BookSnapshot, EntrySource, Transaction } from '../types/models';
-import type { AiSettings } from '../types/aiSettings';
+import { DEFAULT_AI_SETTINGS, type AiSettings } from '../types/aiSettings';
 import {
   ConfirmationCard,
   speakVietnameseText,
@@ -209,7 +209,10 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
 
       const parsed = await parseUserUtterance(clean, snapshot, selectedDate, {
         history: historySummary,
-        aiSettings: aiSettings ?? undefined,
+        aiSettings:
+          aiSettings && aiSettings.enabled && aiSettings.api_key.trim()
+            ? aiSettings
+            : DEFAULT_AI_SETTINGS,
       });
 
       // Nếu không trích xuất được mục nào (AI trả về rỗng hoặc lỗi) -> phản hồi hướng dẫn ngay, không để im lặng

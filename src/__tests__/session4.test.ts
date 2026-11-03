@@ -242,8 +242,17 @@ describe('Phiên 4 — Nhập liệu bằng Giọng nói (Web Speech vi-VN, Kh�
 
     let okCount = 0;
     const errors: string[] = [];
+    const localOption = {
+      aiSettings: {
+        id: 'test',
+        provider: 'local' as const,
+        api_key: '',
+        model: 'local',
+        enabled: false,
+      },
+    };
     for (const u of voiceUtterances) {
-      const res = await parseUserUtterance(u.spoken, snap, refDate);
+      const res = await parseUserUtterance(u.spoken, snap, refDate, localOption);
       if (u.verify(res)) {
         okCount++;
       } else {

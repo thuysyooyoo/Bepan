@@ -2,6 +2,12 @@ import type { AiSettings, AiTestResult } from '../types/aiSettings';
 import type { BookSnapshot } from '../types/models';
 import type { ParsedIntentItem } from './intentSchema';
 import { extractMealsFromText } from './localVnNlu';
+import {
+  computeDailyReport,
+  computeDebtAndPayables,
+  computeWalletBalances,
+} from '../domain/accounting';
+import { formatVND } from '../domain/format';
 
 export interface CloudAiCallOptions {
   settings: AiSettings;
@@ -198,88 +204,141 @@ export async function testAiConnection(settings: AiSettings): Promise<AiTestResu
  */
 function buildSystemPrompt(snapshot: BookSnapshot, dateStr: string): string {
   const catLines = snapshot.categories
-    .map((c) => `- id: "${c.id}", ten: "${c.ten_danh_muc}", mang: "${c.mang_mac_dinh}", nhom: "${c.nhom}"`)
+    .map((c) => `- ${c.ten_danh_muc} (id: "${c.id}", mảng: "${c.mang_mac_dinh}", nhóm: "${c.nhom}")`)
     .join('\n');
   const supLines = snapshot.suppliers
-    .map((s) => `- id: "${s.id}", ten: "${s.ten_ncc}", mat_hang: "${s.mat_hang_chinh}"`)
+    .map((s) => `- ${s.ten_ncc} (id: "${s.id}", mặt hàng: "${s.mat_hang_chinh}")`)
     .join('\n');
   const workerLines = snapshot.workers
-    .map((w) => `- id: "${w.id}", ten: "${w.ho_ten}", luong: ${w.luong_ngay}`)
+    .map((w) => `- ${w.ho_ten} (id: "${w.id}", lương: ${formatVND(w.luong_ngay)}/ngày)`)
     .join('\n');
   const walletLines = snapshot.wallets
-    .map((w) => `- id: "${w.id}", loai: "${w.loai_vi}", ten: "${w.ten_vi}"`)
+    .map((w) => `- ${w.ten_vi} (id: "${w.id}", loại: "${w.loai_vi}")`)
     .join('\n');
 
-  return `Bạn là chuyên gia kế toán và trợ lý thông minh cho cơ sở nấu ăn trường học: "${snapshot.book.ten}".
+  let financialContext = '';
+  try {
+    const daily = computeDailyReport(snapshot, dateStr);
+    const kyThang = dateStr.slice(0, 7);
+    const debt = computeDebtAndPayables(snapshot, kyThang, dateStr);
+    const walletBalances = computeWalletBalances(
+      snapshot.wallets,
+      snapshot.transactions,
+      snapshot.book.id
+    );
+
+    const supDebtLines = debt.nha_cung_cap.danh_sach
+      .filter((s) => s.con_no > 0)
+      .map((s) => `${s.supplier.ten_ncc}: ${formatVND(s.con_no)}`)
+      .join(', ');
+    const workerDebtLines = debt.luong_tho_ky_nay.chi_tiet_tho
+      .filter((t) => t.con_lai > 0)
+      .map((t) => `${t.worker.ho_ten}: ${formatVND(t.con_lai)}`)
+      .join(', ');
+    const customerDebtLines = debt.phai_thu_khach.danh_sach
+      .filter((k) => k.con_phai_thu > 0)
+      .map((k) => `${k.doi_tac}: ${formatVND(k.con_phai_thu)}`)
+      .join(', ');
+
+    const tongThuNgay = daily.bep_an.tong_doanh_thu + daily.can_tin.doanh_thu_can_tin;
+    const tongChiNgay = daily.bep_an.tong_chi_ngay + daily.can_tin.chi_nhap_hang_ngay;
+    const laiNgay = daily.bep_an.lai_uoc_tinh_ngay;
+
+    financialContext = `
+BỨC TRANH TÀI CHÍNH THỰC TẾ HIỆN TẠI (NGÀY ${dateStr}):
+- Suất ăn: Trường ${daily.bep_an.suat_truong} suất, Vãng lai ${daily.bep_an.suat_vang_lai} suất (Tổng: ${daily.bep_an.tong_suat} suất).
+- Bếp ăn: Doanh thu ${formatVND(daily.bep_an.tong_doanh_thu)}, Chi chợ & công thợ ${formatVND(daily.bep_an.tong_chi_ngay)}, Lãi ước tính ${formatVND(laiNgay)}.
+- Căn tin: Doanh thu thuần ${formatVND(daily.can_tin.doanh_thu_can_tin)}, Chi nhập hàng ${formatVND(daily.can_tin.chi_nhap_hang_ngay)}.
+- Toàn cơ sở hôm nay: Tổng thu ${formatVND(tongThuNgay)}, Tổng chi ${formatVND(tongChiNgay)}, Lãi ước tính Bếp: ${formatVND(laiNgay)}.
+- Số dư các ví tiền:
+${walletBalances.map((w) => `  * ${w.wallet.ten_vi} (${w.wallet.loai_vi}): ${formatVND(w.so_du_hien_tai)}`).join('\n')}
+- Tình hình công nợ kỳ ${kyThang}:
+  * Nợ nhà cung cấp: Tổng nợ ${formatVND(debt.nha_cung_cap.tong_no_ncc)} (${supDebtLines || 'Không nợ ai'}).
+  * Nợ lương thợ chưa trả: Tổng nợ ${formatVND(debt.luong_tho_ky_nay.con_phai_tra)} (${workerDebtLines || 'Đã thanh toán hết'}).
+  * Khách/giáo viên nợ tiền cơm: Tổng nợ ${formatVND(debt.phai_thu_khach.tong_phai_thu_khach)} (${customerDebtLines || 'Không ai nợ'}).
+`;
+  } catch {
+    // Không để lỗi tính toán làm gãy system prompt
+  }
+
+  return `Bạn là Trợ lý Bếp AI Toàn Năng (Chuyên gia Kế toán & Điều hành Bếp ăn Sổ Bếp Nhà Mình) phục vụ cho cơ sở: "${snapshot.book.ten}".
 Ngày làm việc hiện tại: ${dateStr}.
-
-Nhiệm vụ: Phân tích chính xác câu nói tiếng Việt của người quản lý bếp (Bố/Mẹ) thành cấu trúc JSON danh sách các hành động: { "items": [...] }.
-
-DANH MỤC CÓ SẴN:
+${financialContext}
+DANH MỤC CHI TIÊU CÓ SẴN:
 ${catLines}
 
 NHÀ CUNG CẤP:
 ${supLines}
 
-CÔNG NHÂN PHỤ BẾP HIỆN CÓ:
+CÔNG NHÂN PHỤ BẾP:
 ${workerLines}
 
 VÍ TIỀN:
 ${walletLines}
 
-CÁC INTENT VÀ QUY TẮC PHÂN LOẠI (TUYỆT ĐỐI TUÂN THỦ):
-1. 'cham_cong': Chấm công hoặc ghi nhận tiền công thợ / phụ bếp làm việc:
-   - Khi câu nói có từ "tiền công", "công", "lương" kèm tên người (Ví dụ: "công chú hiển hôm nay 500000 chưa trả", "tiền công bác Nam 300k"):
-     + BẮT BUỘC intent = 'cham_cong'.
-     + Nếu tên người chưa có trong danh sách CÔNG NHÂN PHỤ BẾP -> gán "ten_tho_moi": "Chú Hiển", "luong_ngay_moi": 500000, "so_tien": 500000.
-     + Nếu câu nói có "chưa trả", "chưa đưa", "ghi nợ", "nợ" -> BẮT BUỘC "chua_tra": true.
-     + TUYỆT ĐỐI KHÔNG ĐƯỢC gán nhầm thành mua đồ khô hay chi mua hàng!
-2. 'chi': Mua thực phẩm, gia vị, đồ dùng trả tiền ngay (Ví dụ: "mua 5 cân thịt 450 nghìn đã trả tiền mặt" -> intent: 'chi', category_id: 'cat_thit').
-3. 'chi_no': Mua thực phẩm nhưng chưa trả tiền / mua chịu ghi sổ (Ví dụ: "lấy 10 cân thịt 900 nghìn nợ", "mua rau 80k chưa trả" -> intent: 'chi_no').
-4. 'tra_no': Trả nợ cho nhà cung cấp (Ví dụ: "trả nợ thịt 1 triệu", "trả cô Hoa rau 500k" -> intent: 'tra_no').
-5. 'ban_chiu': Khách / giáo viên ăn cơm nhưng ghi nợ (Ví dụ: "thầy Tuấn nợ 2 suất cơm", "cô Lan nợ tiền cơm 50k" -> intent: 'ban_chiu', doi_tac: "Thầy Tuấn").
-6. 'thu_can_tin': Doanh thu bán hàng căn tin / tổng thu cuối ngày:
-   - Các câu nói: "bán được 400k tiền mặt", "bán cantin được 400k", "bán căn tin 500k chuyển khoản", "thu quầy hôm nay 800 nghìn", "tổng thu căn tin 1 triệu":
-     + BẮT BUỘC intent = 'thu_can_tin'.
-     + Gán "so_tien": số tiền nói đến.
-     + Nếu nói "tiền mặt" -> "vi": "tien_mat". Nếu nói "chuyển khoản", "ck" -> "vi": "tk_chi_nhan".
-     + Gán "mang": "can_tin".
-7. 'suat_an': Báo số lượng suất ăn trường hoặc vãng lai nấu trong ngày:
-   - Các câu nói: "giáo viên trường ăn trưa hôm nay 30 suất", "hôm nay nấu 150 suất trường", "trưa nay có 5 vãng lai", "ăn trưa 40 suất":
-     + BẮT BUỘC intent = 'suat_an'.
-     + Gán "so_luong": số suất ăn nói đến (Ví dụ: 30).
-     + Gán "bua": "sang", "trua", hoặc "toi" (mặc định "trua" nếu nói "ăn trưa" hoặc không nói bữa).
-     + Gán "loai_khach": "truong" (giáo viên, học sinh, suất trường) hoặc "vang_lai" (khách ngoài).
-     + BẮT BUỘC gán object "suat_an": { "trua_truong": 30 } (hoặc tương ứng với bữa và loại khách).
-8. 'hoi': Tra cứu báo cáo (hôm nay lãi bao nhiêu, ai đang nợ mình...).
-9. 'huy': Lệnh hủy bỏ hoặc hoàn tác thao tác vừa ghi / thẻ vừa tạo:
-   - Các câu nói: "thôi hủy đi", "hủy đi", "hủy", "xóa đi", "bỏ đi", "hoàn tác", "đừng lưu", "hủy cái vừa lưu", "thôi đừng ghi":
-     + BẮT BUỘC intent = 'huy'.
-     + Gán "ghi_chu": "Yêu cầu hủy bỏ thao tác vừa ghi".
-     + TUYỆT ĐỐI KHÔNG ĐƯỢC gán nhầm thành 'hoi' hay in ra báo cáo ngày!
+VAI TRÒ VÀ NĂNG LỰC SUY LUẬN TỰ NHIÊN:
+Bạn là một AI Trí tuệ Nhân tạo thông minh, trò chuyện và thấu hiểu ngữ cảnh con người tự nhiên (như ChatGPT/Gemini/DeepSeek), KHÔNG PHẢI MÁY MÓC IF/ELSE.
+Bạn có khả năng đọc hiểu chuỗi hội thoại đa lượt phía trên (cả lời của user và phản hồi của assistant):
+
+1. HIỂU LỆNH HỦY / HOÀN TÁC (Multi-turn Undo/Cancel):
+- Khi người dùng nói: "thôi hủy đi", "hủy đi", "xóa đi", "bỏ đi", "hoàn tác", "đừng lưu nữa", "hủy cái vừa lưu"...:
+  + Bạn nhìn vào lượt hội thoại trước đó xem vừa lưu hoặc vừa tạo thao tác gì.
+  + BẮT BUỘC gán intent: 'huy'.
+  + Trả về câu reply tự nhiên, ân cần: "Dạ, con đã hủy bỏ mục vừa ghi theo yêu cầu của bác rồi ạ!".
+  + TUYỆT ĐỐI KHÔNG ĐƯỢC gán nhầm thành 'hoi' hay in ra báo cáo ngày!
+
+2. HIỂU LỆNH ĐIỀU CHỈNH NỐI TIẾP (Multi-turn Adjustment):
+- Nếu lượt trước ghi mua hàng hoặc chấm công, lượt này người dùng nói: "chưa trả tiền đâu", "ghi nợ nhé", "trả sau":
+  + Bạn hiểu ngay là chuyển sang ghi nợ (intent: 'chi_no' hoặc 'cham_cong' với chua_tra: true).
+- Nếu người dùng nói: "sửa thành 500k", "của chú Hiển cơ", "đổi sang tiền mặt":
+  + Bạn lấy dữ liệu từ lượt trước, cập nhật lại trường cần sửa, và sinh ra thẻ mới đã điều chỉnh.
+
+3. HIỂU CÂU HỎI BÁO CÁO, TRA CỨU TÀI CHÍNH:
+- Khi người dùng hỏi: "Hôm nay lãi bao nhiêu?", "Ai đang nợ mình?", "Còn bao nhiêu tiền mặt?", "Tiền trường thu được bao nhiêu?":
+  + Bạn dùng dữ liệu BỨC TRANH TÀI CHÍNH THỰC TẾ ở trên để trả lời chi tiết, tính toán chính xác, giọng điệu lễ phép, đĩnh đạc, rõ ràng.
+  + Gán intent: 'hoi', ghi_chu: câu trả lời, và reply: câu trả lời.
+
+4. HIỂU CÁC GIAO DỊCH GHI SỔ MỚI:
+- Báo suất ăn: "giáo viên trường ăn trưa hôm nay 30 suất", "nấu 120 suất trường":
+  + intent: 'suat_an', so_luong: 30, bua: "trua", loai_khach: "truong", suat_an: { trua_truong: 30 }.
+- Tiền công thợ: "tiền công chú hiển hôm nay 500k chưa trả", "công bác Nam 400k":
+  + intent: 'cham_cong', ten_tho_moi: "Chú Hiển", so_tien: 500000, chua_tra: true (nếu nói chưa trả/nợ).
+- Doanh thu căn tin: "bán được 400k tiền mặt", "bán cantin 500k chuyển khoản":
+  + intent: 'thu_can_tin', so_tien: 400000, vi: "tien_mat", mang: "can_tin".
+- Mua hàng trả tiền ngay: "mua 5 cân thịt 450k tiền mặt" -> intent: 'chi', category_id: "cat_thit".
+- Mua hàng ghi nợ: "lấy 10 cân thịt 900k nợ" -> intent: 'chi_no'.
+- Trả nợ NCC: "trả nợ thịt 1 triệu" -> intent: 'tra_no'.
+- Khách nợ tiền cơm: "thầy Tuấn nợ 2 suất trưa" -> intent: 'ban_chiu'.
+
+5. TRÒ CHUYỆN & CHÀO HỎI TỰ NHIÊN:
+- Nếu người dùng chào hỏi hoặc tâm sự ("chào con", "hôm nay mệt quá"): Hồi đáp lễ phép, ân cần, động viên. Gán intent: 'khong_ro'.
 
 NẾU CÂU NÓI CÓ NHIỀU KHOẢN TIỀN (ĐA MỆNH ĐỀ):
-Tự động tách thành nhiều phần tử trong mảng "items". Ví dụ: "mua thịt 300k, rau 50k, công chú hiển 400k chưa trả" -> 3 items riêng biệt.
+Tự động tách thành nhiều phần tử trong mảng "items".
 
-ĐỊNH DẠNG JSON BẮT BUỘC:
+CẤU TRÚC JSON PHẢN HỒI BẮT BUỘC:
 {
+  "thought": "Suy luận ngắn gọn của bạn về yêu cầu của người dùng",
+  "reply": "Câu trả lời tự nhiên, ân cần của bạn gửi cho bác/bố/mẹ",
   "items": [
     {
-      "intent": "cham_cong" | "chi" | "chi_no" | "tra_no" | "ban_chiu" | "thu_can_tin" | "suat_an" | "hoi" | "huy",
+      "intent": "cham_cong" | "chi" | "chi_no" | "tra_no" | "ban_chiu" | "thu_no" | "thu_can_tin" | "suat_an" | "hoi" | "huy" | "khong_ro",
       "ngay": "${dateStr}",
       "so_tien": 500000,
       "so_luong": 30,
       "bua": "trua",
       "loai_khach": "truong",
-      "suat_an": {
-        "trua_truong": 30
-      },
+      "suat_an": { "trua_truong": 30 },
+      "category_id": "cat_thit",
+      "supplier_id": "sup_thit",
+      "worker_id": "w1",
       "ten_tho_moi": "Chú Hiển",
       "luong_ngay_moi": 500000,
       "chua_tra": true,
       "mang": "bep_an",
       "vi": "tien_mat",
-      "ghi_chu": "Giáo viên trường ăn trưa 30 suất"
+      "ghi_chu": "Mô tả ngắn gọn",
+      "cau_tra_loi": "Câu trả lời riêng nếu là câu hỏi/hủy/trò chuyện"
     }
   ]
 }`;
@@ -316,7 +375,7 @@ export async function callCloudAi(
         parts: [{ text: '{"items": []}' }],
       });
 
-      for (const h of history.slice(-4)) {
+      for (const h of history.slice(-6)) {
         contents.push({
           role: h.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: h.text }],
@@ -357,9 +416,8 @@ export async function callCloudAi(
       }
 
       const parsed = JSON.parse(cleanJson);
-      if (Array.isArray(parsed.items) && parsed.items.length > 0) {
-        return normalizeParsedCloudItems(parsed.items);
-      }
+      const items = extractItemsFromParsedJson(parsed, dateStr);
+      if (items.length > 0) return items;
       return null;
     }
 
@@ -376,7 +434,7 @@ export async function callCloudAi(
       { role: 'system', content: systemPrompt },
     ];
 
-    for (const h of history.slice(-4)) {
+    for (const h of history.slice(-6)) {
       messages.push({
         role: h.role,
         content: h.text,
@@ -427,14 +485,44 @@ export async function callCloudAi(
     }
 
     const parsed = JSON.parse(cleanJson);
-    if (Array.isArray(parsed.items) && parsed.items.length > 0) {
-      return normalizeParsedCloudItems(parsed.items);
-    }
+    const items = extractItemsFromParsedJson(parsed, dateStr);
+    if (items.length > 0) return items;
     return null;
   } catch (err) {
     console.warn('Lỗi gọi Cloud AI:', err);
     return null;
   }
+}
+
+/**
+ * Trích xuất danh sách items từ JSON phản hồi của Cloud AI
+ */
+function extractItemsFromParsedJson(
+  parsed: Record<string, unknown>,
+  dateStr: string
+): ParsedIntentItem[] {
+  const replyText = typeof parsed.reply === 'string' ? parsed.reply.trim() : '';
+  let items: ParsedIntentItem[] = [];
+
+  if (Array.isArray(parsed.items) && parsed.items.length > 0) {
+    items = normalizeParsedCloudItems(parsed.items);
+    if (replyText) {
+      items.forEach((it) => {
+        if (!it.cau_tra_loi) it.cau_tra_loi = replyText;
+      });
+    }
+  } else if (replyText) {
+    items = [
+      {
+        intent: 'khong_ro',
+        ngay: dateStr,
+        ghi_chu: replyText,
+        cau_tra_loi: replyText,
+      },
+    ];
+  }
+
+  return items;
 }
 
 /**

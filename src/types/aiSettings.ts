@@ -14,7 +14,8 @@ export interface AiSettings {
 export const DEFAULT_AI_SETTINGS: AiSettings = {
   id: 'default',
   provider: 'deepseek',
-  api_key: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEEPSEEK_API_KEY) || '',
+  api_key:
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEEPSEEK_API_KEY) || '',
   model: 'deepseek-chat',
   endpoint: 'https://api.deepseek.com/chat/completions',
   temperature: 0.1,

@@ -34,7 +34,7 @@ import {
 import { normalizeAsrTranscript } from './voiceEngine';
 import { callCloudAi } from './cloudAiClient';
 import { parseVietnameseMoney } from './vnNumberDateParser';
-import type { AiSettings } from '../types/aiSettings';
+import { DEFAULT_AI_SETTINGS, type AiSettings } from '../types/aiSettings';
 
 export interface ChatHistoryEntry {
   userText: string;
@@ -334,7 +334,63 @@ export async function parseUserUtterance(
 ): Promise<AIParseResult> {
   const cleanedText = normalizeAsrTranscript(text);
 
-  // 1. Phân tích ngữ cảnh đa lượt: câu điều chỉnh / bổ sung cho lượt trước (Multi-turn Local)
+  // 1. ƯU TIÊN SỐ 1: BẮT BUỘC GỌI CLOUD AI TRỰC TIẾP (DEEPSEEK / GEMINI) VỚI NGỮ CẢNH ĐA LƯỢT
+  // Bỏ kiểu máy móc if/else hay regex chặn trước. AI online phân tích ngữ cảnh tự nhiên như con người.
+  const isExplicitlyLocal =
+    options?.aiSettings?.provider === 'local' || options?.aiSettings?.enabled === false;
+  const activeAiSettings = isExplicitlyLocal
+    ? null
+    : options?.aiSettings && options.aiSettings.api_key.trim()
+    ? options.aiSettings
+    : DEFAULT_AI_SETTINGS;
+
+  if (activeAiSettings && activeAiSettings.enabled && activeAiSettings.api_key.trim()) {
+    try {
+      const historyForCloud: Array<{ role: 'user' | 'assistant'; text: string }> = [];
+      if (options?.history && options.history.length > 0) {
+        for (const h of options.history.slice(-6)) {
+          historyForCloud.push({ role: 'user', text: h.userText });
+          if (h.items && h.items.length > 0) {
+            const summary = h.items
+              .map((it) => it.cau_tra_loi || it.ghi_chu || it.intent)
+              .join('; ');
+            historyForCloud.push({ role: 'assistant', text: summary });
+          }
+        }
+      }
+
+      const cloudItems = await callCloudAi(cleanedText, {
+        settings: activeAiSettings,
+        snapshot,
+        dateStr: referenceDate,
+        history: historyForCloud,
+      });
+
+      if (cloudItems && cloudItems.length > 0) {
+        // Nếu item là câu hỏi mà Cloud AI chưa có câu trả lời, mới fallback sang hàm tính toán
+        const enriched = cloudItems.map((it) =>
+          it.intent === 'hoi' && !it.cau_tra_loi
+            ? answerReportQuestion(cleanedText, snapshot, referenceDate)
+            : it
+        );
+        const engineType =
+          activeAiSettings.provider === 'deepseek'
+            ? 'deepseek'
+            : activeAiSettings.provider === 'openai'
+            ? 'openai'
+            : 'gemini';
+        return {
+          engine: engineType,
+          raw_text: cleanedText,
+          items: enriched,
+        };
+      }
+    } catch (err) {
+      console.warn('Lỗi kết nối Cloud AI, rơi êm xuống Local NLU:', err);
+    }
+  }
+
+  // 2. DỰ PHÒNG AN TOÀN (CHỈ KHI MẤT KẾT NỐI INTERNET HOẶC HẾT TOKEN)
   if (options?.history && options.history.length > 0) {
     const followUpItems = resolveFollowUpUtterance(
       cleanedText,
@@ -348,55 +404,6 @@ export async function parseUserUtterance(
         raw_text: cleanedText,
         items: followUpItems,
       };
-    }
-  }
-
-  // 2. Nếu có cấu hình AI đám mây (Gemini, DeepSeek, OpenAI) từ Settings và đang bật
-  if (
-    options?.aiSettings &&
-    options.aiSettings.enabled &&
-    options.aiSettings.provider !== 'local' &&
-    options.aiSettings.api_key.trim()
-  ) {
-    try {
-      const historyForCloud: Array<{ role: 'user' | 'assistant'; text: string }> = [];
-      if (options.history) {
-        for (const h of options.history.slice(-3)) {
-          historyForCloud.push({ role: 'user', text: h.userText });
-          if (h.items && h.items.length > 0) {
-            const summary = h.items.map((it) => it.ghi_chu || it.intent).join('; ');
-            historyForCloud.push({ role: 'assistant', text: `Đã ghi nhận: ${summary}` });
-          }
-        }
-      }
-
-      const cloudItems = await callCloudAi(cleanedText, {
-        settings: options.aiSettings,
-        snapshot,
-        dateStr: referenceDate,
-        history: historyForCloud,
-      });
-
-      if (cloudItems && cloudItems.length > 0) {
-        const enriched = cloudItems.map((it) =>
-          it.intent === 'hoi'
-            ? answerReportQuestion(cleanedText, snapshot, referenceDate)
-            : it
-        );
-        const engineType =
-          options.aiSettings.provider === 'deepseek'
-            ? 'deepseek'
-            : options.aiSettings.provider === 'openai'
-            ? 'openai'
-            : 'gemini';
-        return {
-          engine: engineType,
-          raw_text: cleanedText,
-          items: enriched,
-        };
-      }
-    } catch {
-      // Rơi êm xuống Local NLU nếu lỗi mạng hoặc hết token
     }
   }
 
