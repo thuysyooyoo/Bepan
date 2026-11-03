@@ -25,7 +25,12 @@ import type {
   WalletKind,
 } from '../types/models';
 import type { AIParseResult, ParsedIntentItem } from './intentSchema';
-import { answerReportQuestion, parseVietnameseCommandLocal, stripAccents } from './localVnNlu';
+import {
+  answerReportQuestion,
+  extractMealsFromText,
+  parseVietnameseCommandLocal,
+  stripAccents,
+} from './localVnNlu';
 import { normalizeAsrTranscript } from './voiceEngine';
 import { callCloudAi } from './cloudAiClient';
 import { parseVietnameseMoney } from './vnNumberDateParser';
@@ -578,7 +583,46 @@ export function buildActionCardFromIntent(
     );
     const getOld = (bua: MealPeriod) => existingDay.find((r) => r.bua === bua);
 
-    const sa = item.suat_an ?? {};
+    const sa: NonNullable<ParsedIntentItem['suat_an']> = { ...(item.suat_an ?? {}) };
+
+    // TỰ ĐỘNG CỨU HỘ CHO CLOUD AI (DeepSeek / Gemini / OpenAI):
+    // Nếu sa rỗng hoặc tất cả các trường đều bằng 0
+    const totalExplicit =
+      (sa.sang_truong ?? 0) +
+      (sa.trua_truong ?? 0) +
+      (sa.toi_truong ?? 0) +
+      (sa.sang_vang_lai ?? 0) +
+      (sa.trua_vang_lai ?? 0) +
+      (sa.toi_vang_lai ?? 0);
+
+    if (totalExplicit === 0) {
+      // 1. Kiểm tra các thuộc tính phẳng do Cloud AI trả về
+      const r = item as unknown as Record<string, unknown>;
+      const flatQty = Number(r.so_luong || r.so_suat || r.quantity || r.suat || 0);
+      const bua = String(r.bua || '').toLowerCase();
+      const loai = String(r.loai_khach || 'truong').toLowerCase();
+
+      if (flatQty > 0) {
+        if (bua.includes('sang')) {
+          if (loai.includes('vang_lai')) sa.sang_vang_lai = flatQty;
+          else sa.sang_truong = flatQty;
+        } else if (bua.includes('toi')) {
+          if (loai.includes('vang_lai')) sa.toi_vang_lai = flatQty;
+          else sa.toi_truong = flatQty;
+        } else {
+          // Mặc định trưa nếu không nói rõ hoặc nói "ăn trưa"
+          if (loai.includes('vang_lai')) sa.trua_vang_lai = flatQty;
+          else sa.trua_truong = flatQty;
+        }
+      } else {
+        // 2. Bóc tách trực tiếp từ câu nói gốc của người dùng (VD: "giáo viên trường ăn trưa hôm nay 30 suất")
+        const extracted = extractMealsFromText(rawSentence || item.ghi_chu || '');
+        if (extracted.matched) {
+          Object.assign(sa, extracted.counts);
+        }
+      }
+    }
+
     const nextCounts: Record<MealPeriod, { tr: number; vl: number }> = {
       sang: {
         tr: sa.sang_truong ?? getOld('sang')?.suat_truong ?? 0,

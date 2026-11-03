@@ -1,6 +1,7 @@
 import type { AiSettings, AiTestResult } from '../types/aiSettings';
 import type { BookSnapshot } from '../types/models';
 import type { ParsedIntentItem } from './intentSchema';
+import { extractMealsFromText } from './localVnNlu';
 
 export interface CloudAiCallOptions {
   settings: AiSettings;
@@ -243,7 +244,13 @@ CÁC INTENT VÀ QUY TẮC PHÂN LOẠI (TUYỆT ĐỐI TUÂN THỦ):
      + Gán "so_tien": số tiền nói đến.
      + Nếu nói "tiền mặt" -> "vi": "tien_mat". Nếu nói "chuyển khoản", "ck" -> "vi": "tk_chi_nhan".
      + Gán "mang": "can_tin".
-7. 'suat_an': Báo số lượng suất ăn trường hoặc vãng lai nấu trong ngày.
+7. 'suat_an': Báo số lượng suất ăn trường hoặc vãng lai nấu trong ngày:
+   - Các câu nói: "giáo viên trường ăn trưa hôm nay 30 suất", "hôm nay nấu 150 suất trường", "trưa nay có 5 vãng lai", "ăn trưa 40 suất":
+     + BẮT BUỘC intent = 'suat_an'.
+     + Gán "so_luong": số suất ăn nói đến (Ví dụ: 30).
+     + Gán "bua": "sang", "trua", hoặc "toi" (mặc định "trua" nếu nói "ăn trưa" hoặc không nói bữa).
+     + Gán "loai_khach": "truong" (giáo viên, học sinh, suất trường) hoặc "vang_lai" (khách ngoài).
+     + BẮT BUỘC gán object "suat_an": { "trua_truong": 30 } (hoặc tương ứng với bữa và loại khách).
 8. 'hoi': Tra cứu báo cáo (hôm nay lãi bao nhiêu, ai đang nợ mình...).
 
 NẾU CÂU NÓI CÓ NHIỀU KHOẢN TIỀN (ĐA MỆNH ĐỀ):
@@ -256,12 +263,18 @@ Tự động tách thành nhiều phần tử trong mảng "items". Ví dụ: "m
       "intent": "cham_cong" | "chi" | "chi_no" | "tra_no" | "ban_chiu" | "thu_can_tin" | "suat_an" | "hoi",
       "ngay": "${dateStr}",
       "so_tien": 500000,
+      "so_luong": 30,
+      "bua": "trua",
+      "loai_khach": "truong",
+      "suat_an": {
+        "trua_truong": 30
+      },
       "ten_tho_moi": "Chú Hiển",
       "luong_ngay_moi": 500000,
       "chua_tra": true,
       "mang": "bep_an",
       "vi": "tien_mat",
-      "ghi_chu": "Tiền công Chú Hiển làm bếp hôm nay 500.000 (chưa trả)"
+      "ghi_chu": "Giáo viên trường ăn trưa 30 suất"
     }
   ]
 }`;
@@ -456,6 +469,46 @@ function normalizeParsedCloudItems(rawItems: unknown[]): ParsedIntentItem[] {
           tien_mat: isCk ? 0 : amt,
           chuyen_khoan: isCk ? amt : 0,
         };
+      }
+    }
+
+    // Chuẩn hóa intent suat_an
+    if (it.intent === 'suat_an' || (it as unknown as { intent: string }).intent === 'suat') {
+      it.intent = 'suat_an';
+      it.mang = 'bep_an';
+      if (!it.suat_an) {
+        it.suat_an = {};
+      }
+      const sa = it.suat_an;
+      const totalSa =
+        (sa.sang_truong ?? 0) +
+        (sa.trua_truong ?? 0) +
+        (sa.toi_truong ?? 0) +
+        (sa.sang_vang_lai ?? 0) +
+        (sa.trua_vang_lai ?? 0) +
+        (sa.toi_vang_lai ?? 0);
+
+      if (totalSa === 0) {
+        const qty = Number(r.so_luong || r.so_suat || r.quantity || r.suat || 0);
+        const bua = String(r.bua || '').toLowerCase();
+        const loai = String(r.loai_khach || 'truong').toLowerCase();
+        if (qty > 0) {
+          if (bua.includes('sang')) {
+            if (loai.includes('vang_lai')) sa.sang_vang_lai = qty;
+            else sa.sang_truong = qty;
+          } else if (bua.includes('toi')) {
+            if (loai.includes('vang_lai')) sa.toi_vang_lai = qty;
+            else sa.toi_truong = qty;
+          } else {
+            if (loai.includes('vang_lai')) sa.trua_vang_lai = qty;
+            else sa.trua_truong = qty;
+          }
+        } else if (typeof it.ghi_chu === 'string') {
+          const ext = extractMealsFromText(it.ghi_chu);
+          if (ext.matched) {
+            Object.assign(sa, ext.counts);
+          }
+        }
       }
     }
 

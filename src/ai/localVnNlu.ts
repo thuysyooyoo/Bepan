@@ -404,7 +404,7 @@ export function answerReportQuestion(
 /**
  * Thử bóc tách suất ăn từ 1 đoạn câu (VD: "sáng 150", "trưa 320 suất", "tối 80", "vãng lai trưa 5")
  */
-function extractMealsFromText(text: string): {
+export function extractMealsFromText(text: string): {
   matched: boolean;
   counts: NonNullable<ParsedIntentItem['suat_an']>;
 } {
@@ -485,27 +485,35 @@ function extractMealsFromText(text: string): {
     }
   }
 
-  // Bắt suất trường: "sáng 150", "trưa 320 suất", "tối 80"
-  const sangM = cleanedForSchool.match(/\b(?:bua\s+|buoi\s+)?sang\s*(?:nau\s*|bao\s*)?(\d{1,4})\b/);
-  if (sangM) {
-    counts.sang_truong = Number(sangM[1]);
-    matched = true;
-  }
-  const truaM = cleanedForSchool.match(/\b(?:bua\s+|buoi\s+)?trua\s*(?:nau\s*|bao\s*)?(\d{1,4})\b/);
+  // Bắt suất trường (hỗ trợ cả "ăn trưa hôm nay 30 suất", "trưa nay 30 suất", "giáo viên ăn trưa 30", "30 suất trưa")
+  const truaM =
+    cleanedForSchool.match(/\b(?:an\s+|bua\s+|buoi\s+)?trua\s*(?:nay\s*|hom nay\s*)?(?:nau\s*|bao\s*|an\s*|la\s*)?(\d{1,4})\b/) ||
+    cleanedForSchool.match(/\b(\d{1,4})\s*(?:suat|xuat)?\s*(?:nay\s*|hom nay\s*)?(?:an\s+|bua\s+|buoi\s+)?trua\b/);
   if (truaM) {
     counts.trua_truong = Number(truaM[1]);
     matched = true;
   }
-  const toiM = cleanedForSchool.match(/\b(?:bua\s+|buoi\s+)?toi\s*(?:nau\s*|bao\s*)?(\d{1,4})\b/);
+
+  const sangM =
+    cleanedForSchool.match(/\b(?:an\s+|bua\s+|buoi\s+)?sang\s*(?:nay\s*|hom nay\s*)?(?:nau\s*|bao\s*|an\s*|la\s*)?(\d{1,4})\b/) ||
+    cleanedForSchool.match(/\b(\d{1,4})\s*(?:suat|xuat)?\s*(?:nay\s*|hom nay\s*)?(?:an\s+|bua\s+|buoi\s+)?sang\b/);
+  if (sangM) {
+    counts.sang_truong = Number(sangM[1]);
+    matched = true;
+  }
+
+  const toiM =
+    cleanedForSchool.match(/\b(?:an\s+|bua\s+|buoi\s+)?toi\s*(?:nay\s*|hom nay\s*)?(?:nau\s*|bao\s*|an\s*|la\s*)?(\d{1,4})\b/) ||
+    cleanedForSchool.match(/\b(\d{1,4})\s*(?:suat|xuat)?\s*(?:nay\s*|hom nay\s*)?(?:an\s+|bua\s+|buoi\s+)?toi\b/);
   if (toiM) {
     counts.toi_truong = Number(toiM[1]);
     matched = true;
   }
 
-  // Nếu chỉ nói "Hôm nay nấu 320 suất" hoặc "Trường báo 280 suất" (không nói sáng/trưa/tối) -> mặc định bữa trưa
+  // Nếu chỉ nói "Hôm nay nấu 320 suất" hoặc "Trường báo 280 suất" hoặc "giáo viên ăn 30 suất" (không nói sáng/trưa/tối) -> mặc định bữa trưa
   if (!matched) {
     const genericMeal = cleanedForSchool.match(
-      /\b(?:nau|bao|truong bao)\s+(\d{1,4})\s*(?:suat|xuat)?\b|\b(\d{1,4})\s*(?:suat|xuat)\b/
+      /\b(?:nau|bao|truong bao|giao vien an|hoc sinh an)\s+(\d{1,4})\s*(?:suat|xuat)?\b|\b(\d{1,4})\s*(?:suat|xuat)\b/
     );
     if (genericMeal) {
       const n = Number(genericMeal[1] || genericMeal[2]);

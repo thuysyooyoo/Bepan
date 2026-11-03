@@ -152,4 +152,45 @@ describe('Phiên 13 — Tự động tạo thợ mới (Chú Hiển), Ghi nợ l
     const res = await card2!.commit(session, 'chat');
     expect(res.message).toContain('400.000');
   });
+
+  it('6. Báo suất ăn: "giáo viên trường ăn trưa hôm nay 30 suất" nhận diện đúng 30 suất trưa trường (không bao giờ ra 0 suất, 0đ)', async () => {
+    const snap = await getSnap();
+    const sentence = 'giáo viên trường ăn trưa hôm nay 30 suất';
+
+    // Test 1: NLU Local
+    const parsed = parseVietnameseCommandLocal(sentence, snap, '2026-11-03');
+    expect(parsed.items).toHaveLength(1);
+    expect(parsed.items[0].intent).toBe('suat_an');
+    expect(parsed.items[0].suat_an?.trua_truong).toBe(30);
+
+    const card = buildActionCardFromIntent(parsed.items[0], snap, sentence, repo);
+    expect(card).toBeDefined();
+    expect(card!.preview.headlineAmount).toBeGreaterThan(0);
+    expect(card!.preview.headlineSubtext).toContain('Trường: 30 suất');
+
+    // Test 2: Cloud AI DeepSeek trả về phẳng ({ intent: 'suat_an', so_luong: 30, bua: 'trua' })
+    const cloudItem = {
+      intent: 'suat_an' as const,
+      ngay: '2026-11-03',
+      so_luong: 30,
+      bua: 'trua',
+      loai_khach: 'truong',
+      ghi_chu: 'giáo viên trường ăn trưa hôm nay 30 suất',
+    };
+    const cardCloud = buildActionCardFromIntent(cloudItem as any, snap, sentence, repo);
+    expect(cardCloud).toBeDefined();
+    expect(cardCloud!.preview.headlineSubtext).toContain('Trường: 30 suất');
+    expect(cardCloud!.preview.headlineAmount).toBeGreaterThan(0);
+
+    // Test 3: Cloud AI DeepSeek chỉ trả về text ghi_chu nhưng suat_an rỗng -> Tự động cứu hộ bóc từ câu nói
+    const cloudItemEmpty = {
+      intent: 'suat_an' as const,
+      ngay: '2026-11-03',
+      ghi_chu: 'giáo viên trường ăn trưa hôm nay 30 suất',
+    };
+    const cardRescued = buildActionCardFromIntent(cloudItemEmpty as any, snap, sentence, repo);
+    expect(cardRescued).toBeDefined();
+    expect(cardRescued!.preview.headlineSubtext).toContain('Trường: 30 suất');
+    expect(cardRescued!.preview.headlineAmount).toBeGreaterThan(0);
+  });
 });
