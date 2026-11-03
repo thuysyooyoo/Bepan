@@ -111,6 +111,14 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Lưu vết Hoàn tác (UndoState) của mục vừa ghi thành công gần nhất để hỗ trợ câu nói "thôi hủy đi"
+  const lastCommittedUndoRef = useRef<{
+    turnId: string;
+    cardId?: string;
+    summary: string;
+    undoFn: () => Promise<void>;
+  } | null>(null);
+
   // Tự động cuộn xuống tin nhắn mới nhất khi có câu nói mới hoặc kết quả mới
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -214,6 +222,87 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
             cau_tra_loi: `Em chưa nhận diện được số tiền hoặc danh mục trong câu: “${clean}”.\nBác thử nói: “Bán căn tin 400k tiền mặt” hoặc “Mua thịt 200k” nhé!`,
           },
         ];
+      }
+
+      // XỬ LÝ LỆNH HỦY / HOÀN TÁC (MULTI-TURN CANCEL / UNDO)
+      const hasCancelIntent = parsed.items.some((it) => it.intent === 'huy');
+      if (hasCancelIntent) {
+        let cancelMsg = 'Hiện không có mục nào vừa ghi để hủy ạ.';
+
+        // Trường hợp 1: Có mục vừa lưu gần nhất trong ref -> Gọi undoFn() để xóa khỏi DB
+        if (lastCommittedUndoRef.current) {
+          const undoInfo = lastCommittedUndoRef.current;
+          try {
+            await undoInfo.undoFn();
+          } catch (err) {
+            console.error('Lỗi khi hoàn tác thao tác:', err);
+          }
+
+          setTurns((prev) =>
+            prev.map((t) => {
+              if (t.id === undoInfo.turnId) {
+                return {
+                  ...t,
+                  cards: t.cards.map((c) =>
+                    !undoInfo.cardId || c.cardId === undoInfo.cardId
+                      ? { ...c, status: 'cancelled', savedSummary: 'Đã hủy bỏ theo yêu cầu' }
+                      : c
+                  ),
+                };
+              }
+              return t;
+            })
+          );
+
+          const rawSummary = undoInfo.summary;
+          const cleanSummary = rawSummary.toLowerCase().startsWith('đã lưu ')
+            ? rawSummary.slice(7)
+            : rawSummary;
+          cancelMsg = `Đã hủy thành công ${cleanSummary} vừa lưu theo yêu cầu của bác!`;
+          lastCommittedUndoRef.current = null;
+
+          await onCommitted({ message: cancelMsg, undoFn: async () => {} });
+        } else {
+          // Trường hợp 2: Có thẻ đang chờ (pending) ở các lượt trước -> Hủy bỏ thẻ pending
+          let cancelledPendingCount = 0;
+          setTurns((prev) =>
+            prev.map((t) => {
+              const hasPending = t.cards.some((c) => c.status === 'pending');
+              if (hasPending) {
+                cancelledPendingCount += t.cards.filter((c) => c.status === 'pending').length;
+                return {
+                  ...t,
+                  cards: t.cards.map((c) =>
+                    c.status === 'pending'
+                      ? { ...c, status: 'cancelled', savedSummary: 'Đã hủy bỏ, không lưu vào sổ' }
+                      : c
+                  ),
+                };
+              }
+              return t;
+            })
+          );
+
+          if (cancelledPendingCount > 0) {
+            cancelMsg = 'Đã hủy bỏ, không lưu vào sổ nhé!';
+          }
+        }
+
+        parsed.items = [
+          {
+            intent: 'huy',
+            ngay: selectedDate,
+            ghi_chu: cancelMsg,
+            cau_tra_loi: cancelMsg,
+          },
+        ];
+
+        if (autoSpeak) {
+          speakVietnameseText(cancelMsg);
+        }
+
+        await appendParsedTurn(parsed.raw_text || clean, parsed, source);
+        return;
       }
 
       // Nếu câu nói mới là câu điều chỉnh cho thẻ pending của lượt trước -> hủy thẻ pending cũ để tránh lưu trùng
@@ -431,6 +520,12 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
     setSavingCardId(card.cardId);
     try {
       const undo = await built.commit(session, turn.source);
+      lastCommittedUndoRef.current = {
+        turnId: turn.id,
+        cardId: card.cardId,
+        summary: undo.message,
+        undoFn: undo.undoFn,
+      };
       if (turn.logId) {
         await dbRepo.updateChatLogStatus(session, snapshot.book.id, turn.logId, 'da_luu');
       }
@@ -461,7 +556,8 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
       (c) =>
         c.status === 'pending' &&
         c.item.intent !== 'hoi' &&
-        c.item.intent !== 'khong_ro'
+        c.item.intent !== 'khong_ro' &&
+        c.item.intent !== 'huy'
     );
     if (pendingActionCards.length === 0) return;
 
@@ -476,6 +572,18 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
         }
       }
 
+      const allUndoFn = async () => {
+        for (const fn of undoFns.reverse()) {
+          await fn();
+        }
+      };
+
+      lastCommittedUndoRef.current = {
+        turnId: turn.id,
+        summary: `trọn bộ ${pendingActionCards.length} mục`,
+        undoFn: allUndoFn,
+      };
+
       if (turn.logId) {
         await dbRepo.updateChatLogStatus(session, snapshot.book.id, turn.logId, 'da_luu');
       }
@@ -488,7 +596,8 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
             cards: t.cards.map((c) =>
               c.status === 'pending' &&
               c.item.intent !== 'hoi' &&
-              c.item.intent !== 'khong_ro'
+              c.item.intent !== 'khong_ro' &&
+              c.item.intent !== 'huy'
                 ? { ...c, status: 'saved', savedSummary: 'Đã lưu vào sổ' }
                 : c
             ),
@@ -498,11 +607,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
 
       await onCommitted({
         message: `Đã lưu trọn bộ ${pendingActionCards.length} mục vào sổ`,
-        undoFn: async () => {
-          for (const fn of undoFns.reverse()) {
-            await fn();
-          }
-        },
+        undoFn: allUndoFn,
       });
     } finally {
       setSavingCardId(null);
@@ -621,7 +726,8 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
                 (c) =>
                   c.status === 'pending' &&
                   c.item.intent !== 'hoi' &&
-                  c.item.intent !== 'khong_ro'
+                  c.item.intent !== 'khong_ro' &&
+                  c.item.intent !== 'huy'
               ).length;
 
               return (
@@ -655,7 +761,7 @@ export const ChatAssistantBox: React.FC<ChatAssistantBoxProps> = ({
                     )}
 
                     {turn.cards.map((card) => {
-                      if (card.item.intent === 'hoi' || card.item.intent === 'khong_ro') {
+                      if (card.item.intent === 'hoi' || card.item.intent === 'khong_ro' || card.item.intent === 'huy') {
                         const replyText = card.item.cau_tra_loi ?? '';
                         return (
                           <div

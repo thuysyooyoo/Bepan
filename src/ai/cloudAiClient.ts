@@ -252,6 +252,11 @@ CÁC INTENT VÀ QUY TẮC PHÂN LOẠI (TUYỆT ĐỐI TUÂN THỦ):
      + Gán "loai_khach": "truong" (giáo viên, học sinh, suất trường) hoặc "vang_lai" (khách ngoài).
      + BẮT BUỘC gán object "suat_an": { "trua_truong": 30 } (hoặc tương ứng với bữa và loại khách).
 8. 'hoi': Tra cứu báo cáo (hôm nay lãi bao nhiêu, ai đang nợ mình...).
+9. 'huy': Lệnh hủy bỏ hoặc hoàn tác thao tác vừa ghi / thẻ vừa tạo:
+   - Các câu nói: "thôi hủy đi", "hủy đi", "hủy", "xóa đi", "bỏ đi", "hoàn tác", "đừng lưu", "hủy cái vừa lưu", "thôi đừng ghi":
+     + BẮT BUỘC intent = 'huy'.
+     + Gán "ghi_chu": "Yêu cầu hủy bỏ thao tác vừa ghi".
+     + TUYỆT ĐỐI KHÔNG ĐƯỢC gán nhầm thành 'hoi' hay in ra báo cáo ngày!
 
 NẾU CÂU NÓI CÓ NHIỀU KHOẢN TIỀN (ĐA MỆNH ĐỀ):
 Tự động tách thành nhiều phần tử trong mảng "items". Ví dụ: "mua thịt 300k, rau 50k, công chú hiển 400k chưa trả" -> 3 items riêng biệt.
@@ -260,7 +265,7 @@ Tự động tách thành nhiều phần tử trong mảng "items". Ví dụ: "m
 {
   "items": [
     {
-      "intent": "cham_cong" | "chi" | "chi_no" | "tra_no" | "ban_chiu" | "thu_can_tin" | "suat_an" | "hoi",
+      "intent": "cham_cong" | "chi" | "chi_no" | "tra_no" | "ban_chiu" | "thu_can_tin" | "suat_an" | "hoi" | "huy",
       "ngay": "${dateStr}",
       "so_tien": 500000,
       "so_luong": 30,

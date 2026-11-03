@@ -1017,6 +1017,27 @@ export function parseVietnameseCommandLocal(
   const globalDate = parseVietnameseDate(trimmed, referenceDate);
   const globalMonth = parseVietnameseMonth(trimmed, referenceDate);
 
+  // 0. LỆNH HỦY / HOÀN TÁC THAO TÁC (CANCEL / UNDO)
+  const isCancelCue =
+    /^(thoi\s+)?(huy|xoa|bo|dung luu|khong luu|hoan tac)\b/i.test(noAccFull) ||
+    /\b(huy di|thoi huy di|huy nhe|huy cai vua luu|xoa di|xoa cai nay|xoa cai vua ghi|bo qua|dung luu nua|khong luu nua|bo di|hoan tac)\b/i.test(
+      noAccFull
+    );
+  if (isCancelCue) {
+    return {
+      engine: 'local_vn',
+      raw_text: trimmed,
+      items: [
+        {
+          intent: 'huy',
+          ngay: referenceDate,
+          ghi_chu: 'Yêu cầu hủy thao tác',
+          cau_tra_loi: 'Yêu cầu hủy thao tác vừa ghi.',
+        },
+      ],
+    };
+  }
+
   // 1. CÂU HỎI BÁO CÁO (Trả lời số liệu thật, tuyệt đối không ghi sổ)
   // Phải phân biệt rõ: nếu câu có động từ giao dịch/hành động (mua, bán, thuê, chấm công...) kèm số tiền/số lượng
   // thì ĐÂY LÀ GHI SỔ, TUYỆT ĐỐI KHÔNG BỊ NHẬN NHẦM THÀNH CÂU HỎI BÁO CÁO!

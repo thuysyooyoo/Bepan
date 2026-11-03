@@ -17,6 +17,7 @@ export type AIIntentType =
   | 'chi_phi_thang'
   | 'chuyen_quy'
   | 'hoi'
+  | 'huy'
   | 'khong_ro';
 
 export interface ClarificationChoice {

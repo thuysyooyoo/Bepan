@@ -193,4 +193,47 @@ describe('Phiên 13 — Tự động tạo thợ mới (Chú Hiển), Ghi nợ l
     expect(cardRescued!.preview.headlineSubtext).toContain('Trường: 30 suất');
     expect(cardRescued!.preview.headlineAmount).toBeGreaterThan(0);
   });
+
+  it('7. Lệnh hủy đa lượt: Sau khi lưu suất ăn (hoặc thao tác bất kỳ), người dùng nói "thôi hủy đi" -> Nhận diện intent huy và hoàn tác thành công', async () => {
+    const snap = await getSnap();
+    const sentence1 = 'giáo viên trường ăn trưa hôm nay 30 suất';
+    const parsed1 = parseVietnameseCommandLocal(sentence1, snap, '2026-11-03');
+    const card1 = buildActionCardFromIntent(parsed1.items[0], snap, sentence1, repo);
+    expect(card1).toBeDefined();
+
+    // 1. Commit lưu suất ăn vào CSDL
+    const commitRes = await card1!.commit(session, 'chat');
+    expect(commitRes.message).toContain('30 trường');
+
+    // Kiểm tra DB đã có 30 suất
+    const snapAfterSave = await getSnap();
+    const mealSaved = snapAfterSave.mealCounts.find((m) => m.ngay === '2026-11-03' && m.bua === 'trua');
+    expect(mealSaved?.suat_truong).toBe(30);
+
+    // 2. Lượt 2: Người dùng nói "thôi hủy đi"
+    const history = [
+      {
+        userText: sentence1,
+        items: [parsed1.items[0]],
+      },
+    ];
+
+    const followUpCancel = resolveFollowUpUtterance('thôi hủy đi', history, snapAfterSave, '2026-11-03');
+    expect(followUpCancel).toBeDefined();
+    expect(followUpCancel!).toHaveLength(1);
+    expect(followUpCancel![0].intent).toBe('huy');
+
+    // 3. Thực thi Hoàn tác (undoFn)
+    await commitRes.undoFn();
+
+    // 4. Kiểm tra DB: suất ăn ngày 2026-11-03 đã được khôi phục về 0!
+    const snapAfterUndo = await getSnap();
+    const mealAfterUndo = snapAfterUndo.mealCounts.find((m) => m.ngay === '2026-11-03' && m.bua === 'trua');
+    expect(mealAfterUndo?.suat_truong ?? 0).toBe(0);
+
+    // 5. Kiểm tra NLU Local đơn lẻ nhận diện "thôi hủy đi"
+    const parsedCancelSolo = parseVietnameseCommandLocal('thôi hủy đi', snapAfterUndo, '2026-11-03');
+    expect(parsedCancelSolo.items).toHaveLength(1);
+    expect(parsedCancelSolo.items[0].intent).toBe('huy');
+  });
 });

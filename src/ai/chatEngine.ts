@@ -156,6 +156,23 @@ export function resolveFollowUpUtterance(
   const lastItem = lastTurn.items[lastTurn.items.length - 1];
   const lower = stripAccents(cleanedText.toLowerCase()).trim();
 
+  // 0. LỆNH HỦY / HOÀN TÁC LƯỢT TRƯỚC (CANCEL / UNDO)
+  const isCancelCue =
+    /^(thoi\s+)?(huy|xoa|bo|dung luu|khong luu|hoan tac)\b/i.test(lower) ||
+    /\b(huy di|thoi huy di|huy nhe|huy cai vua luu|xoa di|xoa cai nay|xoa cai vua ghi|bo qua|dung luu nua|khong luu nua|bo di|hoan tac)\b/i.test(
+      lower
+    );
+  if (isCancelCue) {
+    return [
+      {
+        intent: 'huy',
+        ngay: referenceDate,
+        ghi_chu: `Yêu cầu hủy: ${lastItem.ghi_chu || lastItem.intent}`,
+        cau_tra_loi: `Đã hủy bỏ: ${lastItem.ghi_chu || lastItem.intent}.`,
+      },
+    ];
+  }
+
   // 1. CÂU HỎI BÁO CÁO NỐI TIẾP
   if (
     /^(the|vay)?\s*(hom nay|nay)?\s*(lai|lo|loi|tien|no|ai no|thu|chi)/i.test(lower) ||
@@ -563,7 +580,7 @@ export function buildActionCardFromIntent(
   rawSentence: string,
   repo: DataRepository = dbRepo
 ): BuiltActionCard | null {
-  if (item.intent === 'hoi' || item.intent === 'khong_ro') {
+  if (item.intent === 'hoi' || item.intent === 'khong_ro' || item.intent === 'huy') {
     return null;
   }
 
